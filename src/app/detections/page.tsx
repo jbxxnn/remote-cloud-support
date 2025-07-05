@@ -5,7 +5,6 @@ import DetectionDashboard from "./detection-dashboard";
 
 export default async function DetectionsPage() {
   const session = await getServerSession(authOptions);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!session || !session.user || (session.user as any).role !== "admin") {
     redirect("/");
   }

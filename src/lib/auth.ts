@@ -43,21 +43,16 @@ export const authOptions: AuthOptions = {
     }),
   ],
   callbacks: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async jwt({ token, user }: any) {
       if (user) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         token.role = user.role;
       }
       return token;
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async session({ session, token }: any) {
       if (session.user && token) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (session.user as any).role = token.role;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (session.user as any).id = token.sub;
       }
       return session;
