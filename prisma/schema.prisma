@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clientId  String?  // Null for system admins
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("user") // "admin", "user", "client_admin", "staff"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  client    Client?  @relation(fields: [clientId], references: [id])
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  phone       String?
+  company     String?
+  apiKey      String   @unique @default(cuid())
+  webhookUrl  String?
+  isActive    Boolean  @default(true)
+  status      String   @default("active") // "active", "inactive", "pending"
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  devices     Device[]
+  detections  Detection[]
+  alerts      Alert[]
+}
+
+model Device {
+  id          String   @id @default(cuid())
+  clientId    String
+  name        String
+  deviceId    String   // Unique identifier from Home Assistant
+  location    String?
+  deviceType  String   @default("camera") // "camera", "sensor", "gateway"
+  isActive    Boolean  @default(true)
+  metadata    Json?    // Additional device-specific data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  client      Client   @relation(fields: [clientId], references: [id])
+  detections  Detection[]
+}
+
+model Detection {
+  id            String   @id @default(cuid())
+  clientId      String
+  deviceId      String   // References Device, not just cameraId string
+  detectionType String   // "person", "fall", etc.
+  confidence    Float
+  clipUrl       String?
+  location      String?
+  severity      String   @default("medium") // "low", "medium", "high", "critical"
+  timestamp     DateTime @default(now())
+  
+  client        Client   @relation(fields: [clientId], references: [id])
+  device        Device   @relation(fields: [deviceId], references: [id])
+  alerts        Alert[]
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  detectionId String
+  clientId    String
+  type        String   // "email", "sms", "push", "webhook"
+  status      String   @default("pending") // "pending", "sent", "failed"
+  message     String
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  
+  detection   Detection @relation(fields: [detectionId], references: [id])
+  client      Client    @relation(fields: [clientId], references: [id])
+}
