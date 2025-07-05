@@ -74,8 +74,8 @@ export default function ClientManagement() {
         const data = await response.json();
         setDevices(data);
       }
-    } catch (error) {
-      console.error("Failed to fetch devices:", error);
+    } catch {
+      console.error("Failed to fetch devices");
     }
   };
 

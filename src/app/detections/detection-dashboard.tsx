@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface Detection {
   id: string;
@@ -45,20 +45,7 @@ export default function DetectionDashboard() {
     timeRange: "24h"
   });
 
-  useEffect(() => {
-    fetchDetections();
-    fetchStats();
-    
-    // Set up real-time updates every 5 seconds
-    const interval = setInterval(() => {
-      fetchDetections();
-      fetchStats();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [filter]);
-
-  const fetchDetections = async () => {
+  const fetchDetections = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (filter.clientId) params.append('clientId', filter.clientId);
@@ -77,9 +64,9 @@ export default function DetectionDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await fetch("/api/detections/stats");
       if (response.ok) {
@@ -89,7 +76,20 @@ export default function DetectionDashboard() {
     } catch (error) {
       console.error("Failed to fetch stats:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDetections();
+    fetchStats();
+    
+    // Set up real-time updates every 5 seconds
+    const interval = setInterval(() => {
+      fetchDetections();
+      fetchStats();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [fetchDetections, fetchStats]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

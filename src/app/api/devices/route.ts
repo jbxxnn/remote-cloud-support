@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(device, { status: 201 });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json({ error: "Device ID already exists for this client" }, { status: 400 });
