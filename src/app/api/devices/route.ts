@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!session || !session.user || (session.user as any).role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -44,7 +43,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!session || !session.user || (session.user as any).role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -78,7 +76,6 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(device, { status: 201 });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json({ error: "Device ID already exists for this client" }, { status: 400 });
