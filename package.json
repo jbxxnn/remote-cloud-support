@@ -7,22 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "db:setup": "node scripts/setup-database.js",
+    "db:seed": "node scripts/setup-database.js"
   },
   "dependencies": {
-    "@prisma/client": "^6.11.1",
     "@types/bcryptjs": "^3.0.0",
+    "@types/pg": "^8.15.4",
     "bcryptjs": "^3.0.2",
     "eslint-plugin-react-refresh": "^0.4.20",
     "next": "15.3.5",
     "next-auth": "^4.24.11",
-    "prisma": "^6.11.1",
+    "pg": "^8.16.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
