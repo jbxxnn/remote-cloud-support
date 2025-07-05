@@ -1,10 +1,10 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "../api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "staff") {
+  if (!session || !session.user || (session.user as any).role !== "staff") {
     redirect("/");
   }
   return (
