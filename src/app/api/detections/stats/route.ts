@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   const session = await getServerSession(authOptions);
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!session || !session.user || (session.user as any).role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

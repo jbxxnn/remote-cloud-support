@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function triggerAlerts(detection: any, client: any) {
   const alertConfigs = {
     critical: ['email', 'webhook'],
@@ -86,6 +87,7 @@ async function triggerAlerts(detection: any, client: any) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function generateAlertMessage(detection: any, alertType: string): string {
   const baseMessage = `Detection Alert: ${detection.detectionType} detected at ${detection.location} with ${Math.round(detection.confidence * 100)}% confidence.`;
   
