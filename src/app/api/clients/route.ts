@@ -71,7 +71,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, email, phone, company, webhookUrl, notes } = body;
+    const { 
+      name, 
+      email, 
+      phone, 
+      company, 
+      address,
+      timezone,
+      emergencyContact,
+      emergencyServicesNumber,
+      serviceProviderId,
+      webhookUrl, 
+      notes 
+    } = body;
 
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
@@ -90,10 +102,21 @@ export async function POST(request: NextRequest) {
     const now = new Date();
 
     const result = await query(`
-      INSERT INTO "Client" (name, email, phone, company, "webhookUrl", notes, "createdAt", "updatedAt")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO "Client" (
+        id, name, email, phone, company, address, timezone, 
+        "emergencyContact", "emergencyServicesNumber", "serviceProviderId",
+        "apiKey", "webhookUrl", notes, "createdAt", "updatedAt"
+      )
+      VALUES (
+        gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, 
+        gen_random_uuid()::text, $10, $11, $12, $13
+      )
       RETURNING *
-    `, [name, email, phone, company, webhookUrl, notes, now, now]);
+    `, [
+      name, email, phone, company, address, timezone,
+      emergencyContact, emergencyServicesNumber, serviceProviderId,
+      webhookUrl, notes, now, now
+    ]);
 
     const client = result.rows[0];
 
