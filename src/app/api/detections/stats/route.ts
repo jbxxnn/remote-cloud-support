@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/database";
 
 // GET /api/detections/stats - Get detection statistics
 export async function GET() {
@@ -17,42 +17,39 @@ export async function GET() {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
     // Get total detections
-    const total = await prisma.detection.count();
+    const totalResult = await query('SELECT COUNT(*) as count FROM "Detection"');
+    const total = parseInt(totalResult.rows[0].count);
     
     // Get today's detections
-    const today = await prisma.detection.count({
-      where: {
-        timestamp: {
-          gte: todayStart
-        }
-      }
-    });
+    const todayResult = await query(
+      'SELECT COUNT(*) as count FROM "Detection" WHERE timestamp >= $1',
+      [todayStart]
+    );
+    const today = parseInt(todayResult.rows[0].count);
     
     // Get detections by type
-    const byType = await prisma.detection.groupBy({
-      by: ['detectionType'],
-      _count: {
-        detectionType: true
-      }
-    });
+    const byTypeResult = await query(`
+      SELECT "detectionType", COUNT(*) as count
+      FROM "Detection"
+      GROUP BY "detectionType"
+    `);
     
     // Get detections by severity
-    const bySeverity = await prisma.detection.groupBy({
-      by: ['severity'],
-      _count: {
-        severity: true
-      }
-    });
+    const bySeverityResult = await query(`
+      SELECT severity, COUNT(*) as count
+      FROM "Detection"
+      GROUP BY severity
+    `);
     
     // Convert to expected format
     const typeStats: Record<string, number> = {};
-    byType.forEach(item => {
-      typeStats[item.detectionType] = item._count.detectionType;
+    byTypeResult.rows.forEach((item: any) => {
+      typeStats[item.detectionType] = parseInt(item.count);
     });
     
     const severityStats: Record<string, number> = {};
-    bySeverity.forEach(item => {
-      severityStats[item.severity] = item._count.severity;
+    bySeverityResult.rows.forEach((item: any) => {
+      severityStats[item.severity] = parseInt(item.count);
     });
     
     return NextResponse.json({

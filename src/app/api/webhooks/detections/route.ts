@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/database";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,47 +12,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
     }
 
-    const client = await prisma.client.findUnique({
-      where: { apiKey, isActive: true }
-    });
+    const clientResult = await query(
+      'SELECT * FROM "Client" WHERE "apiKey" = $1 AND "isActive" = true',
+      [apiKey]
+    );
     
-    if (!client) {
+    if (clientResult.rows.length === 0) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Find or create device
-    let device = await prisma.device.findFirst({
-      where: {
-        clientId: client.id,
-        deviceId: body.data.device_id
-      }
-    });
+    const client = clientResult.rows[0];
     
-    if (!device) {
-      device = await prisma.device.create({
-        data: {
-          clientId: client.id,
-          name: body.data.device_id,
-          deviceId: body.data.device_id,
-          location: body.data.location,
-          deviceType: 'camera'
-        }
-      });
+    // Find or create device
+    let deviceResult = await query(
+      'SELECT * FROM "Device" WHERE "clientId" = $1 AND "deviceId" = $2',
+      [client.id, body.data.device_id]
+    );
+    
+    let device;
+    if (deviceResult.rows.length === 0) {
+      const now = new Date();
+      const newDeviceResult = await query(`
+        INSERT INTO "Device" ("clientId", name, "deviceId", location, "deviceType", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `, [client.id, body.data.device_id, body.data.device_id, body.data.location, 'camera', now, now]);
+      device = newDeviceResult.rows[0];
+    } else {
+      device = deviceResult.rows[0];
     }
     
     // Store detection
-    const detection = await prisma.detection.create({
-      data: {
-        clientId: client.id,
-        deviceId: device.id,
-        detectionType: body.data.detection_type,
-        confidence: body.data.confidence,
-        clipUrl: body.data.clip_url,
-        location: body.data.location,
-        severity: body.data.severity || 'medium',
-        timestamp: new Date(body.timestamp)
-      }
-    });
+    const now = new Date();
+    const detectionResult = await query(`
+      INSERT INTO "Detection" ("clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *
+    `, [
+      client.id,
+      device.id,
+      body.data.detection_type,
+      body.data.confidence,
+      body.data.clip_url,
+      body.data.location,
+      body.data.severity || 'medium',
+      new Date(body.timestamp),
+      now,
+      now
+    ]);
+    
+    const detection = detectionResult.rows[0];
     
     // Trigger alerts based on severity
     await triggerAlerts(detection, client);
@@ -75,14 +84,18 @@ async function triggerAlerts(detection: any, client: any) {
   const alertTypes = alertConfigs[detection.severity as keyof typeof alertConfigs] || [];
   
   for (const alertType of alertTypes) {
-    await prisma.alert.create({
-      data: {
-        detectionId: detection.id,
-        clientId: client.id,
-        type: alertType,
-        message: generateAlertMessage(detection, alertType)
-      }
-    });
+    const now = new Date();
+    await query(`
+      INSERT INTO "Alert" ("detectionId", "clientId", type, message, "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [
+      detection.id,
+      client.id,
+      alertType,
+      generateAlertMessage(detection, alertType),
+      now,
+      now
+    ]);
   }
 }
 
