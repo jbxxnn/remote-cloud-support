@@ -70,6 +70,21 @@ CREATE TABLE IF NOT EXISTS "Detection" (
     FOREIGN KEY ("deviceId") REFERENCES "Device"(id) ON DELETE CASCADE
 );
 
+-- SOPs (Standard Operating Procedures) table
+CREATE TABLE IF NOT EXISTS "SOP" (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    name TEXT NOT NULL,
+    "eventType" TEXT NOT NULL,
+    description TEXT,
+    steps JSONB NOT NULL,
+    "isGlobal" BOOLEAN DEFAULT false,
+    "clientId" TEXT,
+    "isActive" BOOLEAN DEFAULT true,
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY ("clientId") REFERENCES "Client"(id) ON DELETE CASCADE
+);
+
 -- Alerts table
 CREATE TABLE IF NOT EXISTS "Alert" (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -94,6 +109,9 @@ CREATE INDEX IF NOT EXISTS idx_device_device_id ON "Device"("deviceId");
 CREATE INDEX IF NOT EXISTS idx_detection_client_id ON "Detection"("clientId");
 CREATE INDEX IF NOT EXISTS idx_detection_device_id ON "Detection"("deviceId");
 CREATE INDEX IF NOT EXISTS idx_detection_timestamp ON "Detection"(timestamp);
+CREATE INDEX IF NOT EXISTS idx_sop_event_type ON "SOP"("eventType");
+CREATE INDEX IF NOT EXISTS idx_sop_client_id ON "SOP"("clientId");
+CREATE INDEX IF NOT EXISTS idx_sop_global ON "SOP"("isGlobal");
 CREATE INDEX IF NOT EXISTS idx_alert_detection_id ON "Alert"("detectionId");
 CREATE INDEX IF NOT EXISTS idx_alert_client_id ON "Alert"("clientId");
 
@@ -109,4 +127,5 @@ $$ language 'plpgsql';
 -- Create triggers for updated_at
 CREATE TRIGGER update_user_updated_at BEFORE UPDATE ON "User" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_client_updated_at BEFORE UPDATE ON "Client" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_device_updated_at BEFORE UPDATE ON "Device" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+CREATE TRIGGER update_device_updated_at BEFORE UPDATE ON "Device" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_sop_updated_at BEFORE UPDATE ON "SOP" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 

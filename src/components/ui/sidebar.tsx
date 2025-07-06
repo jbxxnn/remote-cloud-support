@@ -11,7 +11,8 @@ import {
   LogOut, 
   Home,
   Activity,
-  Database
+  Database,
+  FileText
 } from "lucide-react"
 import Link from "next/link"
 
@@ -77,6 +78,17 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
               <a href="/admin#devices">
                 <Database className="w-4 h-4 mr-3" />
                 Devices
+              </a>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
+              <a href="/admin/sops">
+                <FileText className="w-4 h-4 mr-3" />
+                SOPs
               </a>
             </Button>
             
