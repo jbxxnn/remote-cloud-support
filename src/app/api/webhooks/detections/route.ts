@@ -4,6 +4,7 @@ import { query } from "@/lib/database";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('Webhook body:', JSON.stringify(body, null, 2));
     const authHeader = request.headers.get('authorization');
     
     // Validate API key
@@ -44,6 +45,20 @@ export async function POST(request: NextRequest) {
     
     // Store detection
     const now = new Date();
+    
+    // Parse timestamp safely
+    let detectionTimestamp = now;
+    if (body.timestamp) {
+      try {
+        const parsedTimestamp = new Date(body.timestamp);
+        if (!isNaN(parsedTimestamp.getTime())) {
+          detectionTimestamp = parsedTimestamp;
+        }
+      } catch (error) {
+        console.warn('Invalid timestamp format, using current time:', body.timestamp);
+      }
+    }
+    
     const detectionResult = await query(`
       INSERT INTO "Detection" ("clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -56,7 +71,7 @@ export async function POST(request: NextRequest) {
       body.data.clip_url,
       body.data.location,
       body.data.severity || 'medium',
-      new Date(body.timestamp),
+      detectionTimestamp,
       now,
       now
     ]);
