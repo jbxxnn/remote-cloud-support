@@ -92,7 +92,28 @@ export async function GET(request: NextRequest) {
       LIMIT 100
     `, params);
     
-    return NextResponse.json(detections.rows);
+    // Transform the data to match frontend expectations
+    const transformedDetections = detections.rows.map((detection: any) => ({
+      id: detection.id,
+      detectionType: detection.detectionType,
+      confidence: detection.confidence,
+      severity: detection.severity,
+      location: detection.location,
+      clipUrl: detection.clipUrl,
+      timestamp: detection.timestamp,
+      client: {
+        id: detection.clientId,
+        name: detection.clientName || 'Unknown Client',
+        company: detection.clientCompany
+      },
+      device: {
+        id: detection.deviceId,
+        name: detection.deviceName || 'Unknown Device',
+        deviceId: detection.deviceDeviceId
+      }
+    }));
+    
+    return NextResponse.json(transformedDetections);
   } catch (error) {
     console.error('Failed to fetch detections:', error);
     return NextResponse.json({ error: "Failed to fetch detections" }, { status: 500 });
