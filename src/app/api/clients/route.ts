@@ -87,14 +87,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email already exists" }, { status: 400 });
     }
 
-    const apiKey = generateApiKey();
     const now = new Date();
 
     const result = await query(`
-      INSERT INTO "Client" (name, email, phone, company, "webhookUrl", notes, "apiKey", "createdAt", "updatedAt")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO "Client" (name, email, phone, company, "webhookUrl", notes, "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [name, email, phone, company, webhookUrl, notes, apiKey, now, now]);
+    `, [name, email, phone, company, webhookUrl, notes, now, now]);
 
     const client = result.rows[0];
 
@@ -131,14 +130,4 @@ export async function POST(request: NextRequest) {
     console.error('Failed to create client:', error);
     return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
   }
-}
-
-function generateApiKey(): string {
-  // Generate a secure API key
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 32; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
 } 

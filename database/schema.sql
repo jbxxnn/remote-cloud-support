@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Users table
 CREATE TABLE IF NOT EXISTS "User" (
-    id TEXT PRIMARY KEY DEFAULT 'cuid()',
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     "clientId" TEXT,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
@@ -19,12 +19,12 @@ CREATE TABLE IF NOT EXISTS "User" (
 
 -- Clients table
 CREATE TABLE IF NOT EXISTS "Client" (
-    id TEXT PRIMARY KEY DEFAULT 'cuid()',
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     phone TEXT,
     company TEXT,
-    "apiKey" TEXT UNIQUE DEFAULT 'cuid()',
+    "apiKey" TEXT UNIQUE DEFAULT gen_random_uuid()::text,
     "webhookUrl" TEXT,
     "isActive" BOOLEAN DEFAULT true,
     status TEXT DEFAULT 'active',
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS "Client" (
 
 -- Devices table
 CREATE TABLE IF NOT EXISTS "Device" (
-    id TEXT PRIMARY KEY DEFAULT 'cuid()',
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     "clientId" TEXT NOT NULL,
     name TEXT NOT NULL,
     "deviceId" TEXT NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS "Device" (
 
 -- Detections table
 CREATE TABLE IF NOT EXISTS "Detection" (
-    id TEXT PRIMARY KEY DEFAULT 'cuid()',
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     "clientId" TEXT NOT NULL,
     "deviceId" TEXT NOT NULL,
     "detectionType" TEXT NOT NULL,
@@ -59,13 +59,15 @@ CREATE TABLE IF NOT EXISTS "Detection" (
     location TEXT,
     severity TEXT DEFAULT 'medium',
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY ("clientId") REFERENCES "Client"(id) ON DELETE CASCADE,
     FOREIGN KEY ("deviceId") REFERENCES "Device"(id) ON DELETE CASCADE
 );
 
 -- Alerts table
 CREATE TABLE IF NOT EXISTS "Alert" (
-    id TEXT PRIMARY KEY DEFAULT 'cuid()',
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     "detectionId" TEXT NOT NULL,
     "clientId" TEXT NOT NULL,
     type TEXT NOT NULL,
@@ -73,6 +75,7 @@ CREATE TABLE IF NOT EXISTS "Alert" (
     message TEXT NOT NULL,
     "sentAt" TIMESTAMP,
     "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY ("detectionId") REFERENCES "Detection"(id) ON DELETE CASCADE,
     FOREIGN KEY ("clientId") REFERENCES "Client"(id) ON DELETE CASCADE
 );

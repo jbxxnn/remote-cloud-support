@@ -3,7 +3,7 @@
 
 -- Insert admin user (password: admin123)
 INSERT INTO "User" (id, email, password, name, role, "isActive", "createdAt", "updatedAt") VALUES 
-('admin-001', 'admin@example.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8O', 'System Admin', 'admin', true, NOW(), NOW());
+('admin-001', 'admin@example.com', '$2b$12$ph70qLycMg1cPyuPvHKQhOmh7uZ7WJ29RRemF.NLCZ0wEExTSAvCm', 'System Admin', 'admin', true, NOW(), NOW());
 
 -- Insert sample client
 INSERT INTO "Client" (id, name, email, phone, company, "apiKey", "webhookUrl", "isActive", status, "createdAt", "updatedAt") VALUES 
@@ -11,7 +11,7 @@ INSERT INTO "Client" (id, name, email, phone, company, "apiKey", "webhookUrl", "
 
 -- Insert staff user for the client (password: staff123)
 INSERT INTO "User" (id, "clientId", email, password, name, role, "isActive", "createdAt", "updatedAt") VALUES 
-('staff-001', 'client-001', 'staff@example.com', '$2a$12$8K1p/a0dL1LXMIgoEDFrwOe6g7fKj/5KqJ9KqJ9KqJ9KqJ9KqJ9KqJ', 'Staff User', 'staff', true, NOW(), NOW());
+('staff-001', 'client-001', 'staff@example.com', '$2b$12$.HTo8OFbbsTBIM4203fSg.sZjVM90X1Yu/Nq1.bhpT5o9F1I.Mr3m', 'Staff User', 'staff', true, NOW(), NOW());
 
 -- Insert sample device
 INSERT INTO "Device" (id, "clientId", name, "deviceId", location, "deviceType", "isActive", metadata, "createdAt", "updatedAt") VALUES 
