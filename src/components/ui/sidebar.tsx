@@ -13,6 +13,7 @@ import {
   Activity,
   Database
 } from "lucide-react"
+import Link from "next/link"
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   user?: {
@@ -122,9 +123,9 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
               className="h-8 w-8"
               asChild
             >
-              <a href="/api/auth/signout">
+              <Link href="/api/auth/signout">
                 <LogOut className="w-4 h-4" />
-              </a>
+              </Link>
             </Button>
           </div>
         </div>

@@ -259,7 +259,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
               <CardHeader>
                 <CardTitle>Client Overview</CardTitle>
                 <CardDescription>
-                  Quick overview of your clients. Click "Manage Clients" for detailed management.
+                  Quick overview of your clients. Click &quot;Manage Clients&quot; for detailed management.
                 </CardDescription>
               </CardHeader>
               <CardContent>
