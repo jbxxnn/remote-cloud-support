@@ -97,6 +97,17 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
               className="w-full justify-start"
               asChild
             >
+              <a href="/admin/staff">
+                <Users className="w-4 h-4 mr-3" />
+                Staff
+              </a>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
               <a href="/detections">
                 <Activity className="w-4 h-4 mr-3" />
                 Detections

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS "User" (
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     name TEXT NOT NULL,
+    phone TEXT,
     role TEXT DEFAULT 'user',
     "isActive" BOOLEAN DEFAULT true,
     "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

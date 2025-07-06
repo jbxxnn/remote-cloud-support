@@ -103,6 +103,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   const totalDevices = devices.length;
   const totalDetections = clients.reduce((sum, client) => sum + (client._count?.detections || 0), 0);
   const activeClients = clients.filter(client => client.isActive).length;
+  const totalStaff = 0; // This would be fetched from the staff API
 
   if (loading) {
     return (
@@ -162,9 +163,9 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             icon={Activity}
           />
           <StatsCard
-            title="Active Clients"
-            value={activeClients}
-            description="Currently active clients"
+            title="Staff Members"
+            value={totalStaff}
+            description="Active staff accounts"
             icon={Shield}
           />
         </div>
