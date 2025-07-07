@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS "Event" (
     status TEXT DEFAULT 'pending',
     description TEXT,
     "assignedTo" TEXT,
+    "acknowledgedAt" TIMESTAMP,
     "resolvedAt" TIMESTAMP,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
