@@ -6,7 +6,7 @@ import { query } from "@/lib/database";
 // PATCH /api/staff/events/[id] - Perform actions on events
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   
@@ -16,7 +16,7 @@ export async function PATCH(
 
   try {
     const { action } = await request.json();
-    const eventId = params.id;
+    const { id: eventId } = await params;
     const currentUserId = (session.user as any).id;
     const now = new Date();
 
