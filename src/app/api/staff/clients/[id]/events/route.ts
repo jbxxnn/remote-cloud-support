@@ -17,19 +17,33 @@ export async function GET(
   try {
     const { id: clientId } = await params;
 
-    const result = await query(`
+    // Get active events (pending, assigned, alert)
+    const activeEventsResult = await query(`
       SELECT 
         e.id, e.type, e.severity, e.status, e."createdAt" as timestamp,
         e.description, e."acknowledgedAt", e."resolvedAt",
-        d.location, d."clipUrl"
+        d.location, d."clipUrl", d."detectionType", d.confidence
       FROM "Event" e
       LEFT JOIN "Detection" d ON e."detectionId" = d.id
-      WHERE e."clientId" = $1
+      WHERE e."clientId" = $1 AND e.status IN ('pending', 'assigned', 'alert')
       ORDER BY e."createdAt" DESC
       LIMIT 50
     `, [clientId]);
 
-    const events = result.rows.map((event: any) => ({
+    // Get resolved events
+    const eventHistoryResult = await query(`
+      SELECT 
+        e.id, e.type, e.severity, e.status, e."createdAt" as timestamp,
+        e.description, e."acknowledgedAt", e."resolvedAt",
+        d.location, d."clipUrl", d."detectionType", d.confidence
+      FROM "Event" e
+      LEFT JOIN "Detection" d ON e."detectionId" = d.id
+      WHERE e."clientId" = $1 AND e.status = 'resolved'
+      ORDER BY e."createdAt" DESC
+      LIMIT 50
+    `, [clientId]);
+
+    const transformEvent = (event: any) => ({
       id: event.id,
       type: event.type,
       severity: event.severity,
@@ -39,10 +53,18 @@ export async function GET(
       description: event.description || `${event.type} event`,
       hasVideo: !!event.clipUrl,
       videoUrl: event.clipUrl,
-      acknowledged: !!event.acknowledgedAt
-    }));
+      acknowledged: !!event.acknowledgedAt,
+      detectionType: event.detectionType,
+      confidence: event.confidence
+    });
 
-    return NextResponse.json(events);
+    const activeEvents = activeEventsResult.rows.map(transformEvent);
+    const eventHistory = eventHistoryResult.rows.map(transformEvent);
+
+    return NextResponse.json({
+      activeEvents,
+      eventHistory
+    });
   } catch (error) {
     console.error('Failed to fetch client events:', error);
     return NextResponse.json({ error: "Failed to fetch client events" }, { status: 500 });

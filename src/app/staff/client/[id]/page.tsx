@@ -34,6 +34,9 @@ interface Event {
   hasVideo: boolean;
   type: string;
   status: string;
+  detectionType?: string;
+  confidence?: number;
+  videoUrl?: string;
 }
 
 interface SOP {
@@ -337,14 +340,36 @@ export default function ClientDashboardPage() {
                     <div className="space-y-3">
                       {activeEvents.map((event) => (
                         <div key={event.id} className="p-4 border rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-50" onClick={() => setSelectedEvent(event)}>
-                          <div>
+                          <div className="flex-1">
                             <div className="font-medium text-gray-900">{event.description}</div>
-                            <div className="text-xs text-gray-500">{new Date(event.timestamp).toLocaleString()} • {event.location}</div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(event.timestamp).toLocaleString()} • {event.location}
+                              {event.detectionType && (
+                                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                  {event.detectionType} ({Math.round((event.confidence || 0) * 100)}%)
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Badge className={getSeverityColor(event.severity)}>{event.severity}</Badge>
-                            {event.hasVideo && <Button size="icon" variant="outline"><Play className="w-4 h-4" /></Button>}
-                            {!event.acknowledged && <Button size="sm" onClick={e => {e.stopPropagation(); handleAcknowledgeEvent(event.id);}}>Acknowledge</Button>}
+                            {event.hasVideo && (
+                              <Button 
+                                size="icon" 
+                                variant="outline"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  if (event.videoUrl) {
+                                    window.open(event.videoUrl, '_blank');
+                                  }
+                                }}
+                              >
+                                <Play className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {!event.acknowledged && event.status === 'alert' && (
+                              <Button size="sm" onClick={e => {e.stopPropagation(); handleAcknowledgeEvent(event.id);}}>Acknowledge</Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -357,13 +382,33 @@ export default function ClientDashboardPage() {
                     <div className="space-y-3">
                       {eventHistory.map((event) => (
                         <div key={event.id} className="p-4 border rounded-lg flex items-center justify-between">
-                          <div>
+                          <div className="flex-1">
                             <div className="font-medium text-gray-900">{event.description}</div>
-                            <div className="text-xs text-gray-500">{new Date(event.timestamp).toLocaleString()} • {event.location}</div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(event.timestamp).toLocaleString()} • {event.location}
+                              {event.detectionType && (
+                                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                  {event.detectionType} ({Math.round((event.confidence || 0) * 100)}%)
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Badge className={getStatusColor(event.status)}>{event.status}</Badge>
                             <Badge className={getSeverityColor(event.severity)}>{event.severity}</Badge>
+                            {event.hasVideo && (
+                              <Button 
+                                size="icon" 
+                                variant="outline"
+                                onClick={() => {
+                                  if (event.videoUrl) {
+                                    window.open(event.videoUrl, '_blank');
+                                  }
+                                }}
+                              >
+                                <Play className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}

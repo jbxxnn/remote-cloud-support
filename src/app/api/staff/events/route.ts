@@ -28,11 +28,11 @@ export async function GET(request: NextRequest) {
         paramCount++;
         break;
       case 'new-events':
-        whereClause = `WHERE e.status = 'pending'`;
+        whereClause = `WHERE e.status IN ('pending', 'alert')`;
         break;
       case 'all':
       default:
-        whereClause = `WHERE e.status IN ('pending', 'assigned')`;
+        whereClause = `WHERE e.status IN ('pending', 'assigned', 'alert')`;
         break;
     }
 
