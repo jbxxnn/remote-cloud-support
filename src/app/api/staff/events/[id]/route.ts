@@ -15,12 +15,23 @@ export async function PATCH(
   }
 
   try {
-    const { action } = await request.json();
+    const { action, notes, outcome } = await request.json();
     const { id: eventId } = await params;
     const currentUserId = (session.user as any).id;
     const now = new Date();
 
     switch (action) {
+      case 'acknowledge':
+        // Mark the event as acknowledged
+        await query(`
+          UPDATE "Event" 
+          SET 
+            acknowledged = true,
+            "updatedAt" = $1
+          WHERE id = $2
+        `, [now, eventId]);
+        break;
+
       case 'claim':
         // Assign the event to the current staff member
         await query(`
@@ -43,6 +54,17 @@ export async function PATCH(
             "updatedAt" = $2
           WHERE id = $3 AND ("assignedTo" = $4 OR "assignedTo" IS NULL)
         `, [now, now, eventId, currentUserId]);
+        
+        // Log the resolution with notes and outcome
+        if (notes || outcome) {
+          await query(`
+            INSERT INTO "EventAction" (
+              id, "eventId", "staffId", action, notes, outcome, "createdAt"
+            ) VALUES (
+              gen_random_uuid()::text, $1, $2, 'resolve', $3, $4, $5
+            )
+          `, [eventId, currentUserId, notes || null, outcome || null, now]);
+        }
         break;
 
       case 'call':
