@@ -9,7 +9,7 @@ export default async function Home() {
     if ((session.user as any).role === "admin") {
       redirect("/admin");
     } else if ((session.user as any).role === "staff") {
-      redirect("/dashboard");
+      redirect("/staff");
     }
   }
   return <LoginForm />;

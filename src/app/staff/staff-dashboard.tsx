@@ -1,0 +1,480 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StaffSidebar } from "@/components/ui/staff-sidebar";
+import { 
+  Users, 
+  AlertTriangle, 
+  Clock, 
+  CheckCircle, 
+  Filter,
+  RefreshCw,
+  Phone,
+  MessageSquare
+} from "lucide-react";
+
+interface Client {
+  id: string;
+  name: string;
+  company?: string;
+  status: 'online' | 'scheduled' | 'alert';
+  lastEvent?: {
+    type: string;
+    timestamp: string;
+    severity: 'low' | 'medium' | 'high';
+  };
+  deviceCount: number;
+  isActive: boolean;
+}
+
+interface Event {
+  id: string;
+  clientId: string;
+  clientName: string;
+  type: 'detection' | 'scheduled' | 'manual';
+  severity: 'low' | 'medium' | 'high';
+  status: 'pending' | 'assigned' | 'resolved';
+  timestamp: string;
+  assignedTo?: string;
+  description: string;
+}
+
+interface StaffDashboardProps {
+  user: any;
+}
+
+export function StaffDashboard({ user }: StaffDashboardProps) {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'my-queue' | 'new-events'>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  useEffect(() => {
+    fetchDashboardData();
+    // Set up real-time updates (polling for now, could be WebSocket later)
+    const interval = setInterval(fetchDashboardData, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      // Fetch clients with their current status
+      const clientsResponse = await fetch('/api/staff/clients');
+      if (clientsResponse.ok) {
+        const clientsData = await clientsResponse.json();
+        setClients(clientsData);
+      }
+
+      // Fetch events based on current filter
+      const eventsResponse = await fetch(`/api/staff/events?filter=${activeFilter}`);
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        setEvents(eventsData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online':
+        return 'bg-green-500';
+      case 'scheduled':
+        return 'bg-yellow-500';
+      case 'alert':
+        return 'bg-red-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'online':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'scheduled':
+        return <Clock className="w-4 h-4" />;
+      case 'alert':
+        return <AlertTriangle className="w-4 h-4" />;
+      default:
+        return <Users className="w-4 h-4" />;
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'high':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'low':
+        return 'bg-green-100 text-green-800 border-green-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const handleClientClick = (clientId: string) => {
+    // Navigate to client dashboard
+    window.location.href = `/staff/client/${clientId}`;
+  };
+
+  const handleEventAction = async (eventId: string, action: 'claim' | 'resolve' | 'call') => {
+    try {
+      const response = await fetch(`/api/staff/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      
+      if (response.ok) {
+        fetchDashboardData(); // Refresh data
+      }
+    } catch (error) {
+      console.error('Failed to perform event action:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Loading staff dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate stats for sidebar
+  const stats = {
+    pendingEvents: events.filter(e => e.status === 'pending').length,
+    myQueue: events.filter(e => e.status === 'assigned' && e.assignedTo === 'current-user').length,
+    resolvedToday: events.filter(e => e.status === 'resolved' && 
+      new Date(e.timestamp).toDateString() === new Date().toDateString()).length
+  };
+
+  return (
+    <div className="flex h-screen">
+      <StaffSidebar 
+        user={user}
+        stats={stats}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex h-16 items-center px-6">
+            <div className="flex items-center space-x-4">
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight">Staff Dashboard</h1>
+                <p className="text-sm text-muted-foreground">
+                  Monitor client events and respond to alerts
+                </p>
+              </div>
+            </div>
+            <div className="ml-auto flex items-center space-x-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchDashboardData}
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-auto">
+          <div className="space-y-6 p-6">
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{clients.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {clients.filter(c => c.isActive).length} active
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {events.filter(e => e.status === 'pending' && e.severity === 'high').length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {events.filter(e => e.status === 'pending').length} total pending
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">My Queue</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {events.filter(e => e.status === 'assigned' && e.assignedTo === 'current-user').length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Assigned to me
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Resolved Today</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {events.filter(e => e.status === 'resolved' && 
+                new Date(e.timestamp).toDateString() === new Date().toDateString()).length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Events resolved
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <Tabs defaultValue="clients" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="clients">Client Status</TabsTrigger>
+          <TabsTrigger value="events">Event Queue</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="clients" className="space-y-4">
+          {/* Client Status View */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <h2 className="text-xl font-semibold">Client Status Overview</h2>
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-sm">Online</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <span className="text-sm">Scheduled</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span className="text-sm">Alert</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                List
+              </Button>
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                Grid
+              </Button>
+            </div>
+          </div>
+
+          {viewMode === 'list' ? (
+            <div className="space-y-2">
+              {clients.map((client) => (
+                <Card 
+                  key={client.id} 
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleClientClick(client.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(client.status)}`}></div>
+                        <div>
+                          <h3 className="font-medium">{client.name}</h3>
+                          {client.company && (
+                            <p className="text-sm text-muted-foreground">{client.company}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Badge variant="outline">
+                          {client.deviceCount} devices
+                        </Badge>
+                        {client.lastEvent && (
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{client.lastEvent.type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(client.lastEvent.timestamp).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {clients.map((client) => (
+                <Card 
+                  key={client.id} 
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleClientClick(client.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`w-3 h-3 rounded-full ${getStatusColor(client.status)}`}></div>
+                      <Badge variant="outline" className="text-xs">
+                        {client.deviceCount} devices
+                      </Badge>
+                    </div>
+                    <h3 className="font-medium mb-1">{client.name}</h3>
+                    {client.company && (
+                      <p className="text-sm text-muted-foreground mb-2">{client.company}</p>
+                    )}
+                    {client.lastEvent && (
+                      <div className="text-xs text-muted-foreground">
+                        Last event: {client.lastEvent.type} at {new Date(client.lastEvent.timestamp).toLocaleTimeString()}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="events" className="space-y-4">
+          {/* Event Queue View */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Event Queue</h2>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={activeFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveFilter('all')}
+              >
+                All Events
+              </Button>
+              <Button
+                variant={activeFilter === 'my-queue' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveFilter('my-queue')}
+              >
+                My Queue
+              </Button>
+              <Button
+                variant={activeFilter === 'new-events' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveFilter('new-events')}
+              >
+                New Events
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {events.map((event) => (
+              <Card key={event.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-3 h-3 rounded-full ${getStatusColor(event.type === 'detection' ? 'alert' : 'scheduled')}`}></div>
+                      <div>
+                        <h3 className="font-medium">{event.clientName}</h3>
+                        <p className="text-sm text-muted-foreground">{event.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(event.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getSeverityColor(event.severity)}>
+                        {event.severity}
+                      </Badge>
+                      <Badge variant="outline">
+                        {event.status}
+                      </Badge>
+                      {event.status === 'pending' && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleEventAction(event.id, 'claim')}
+                        >
+                          Claim
+                        </Button>
+                      )}
+                      {event.status === 'assigned' && (
+                        <div className="flex space-x-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEventAction(event.id, 'call')}
+                          >
+                            <Phone className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleEventAction(event.id, 'resolve')}
+                          >
+                            Resolve
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {events.length === 0 && (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No events to display</h3>
+                  <p className="text-muted-foreground">
+                    {activeFilter === 'all' && 'All clients are currently online and safe.'}
+                    {activeFilter === 'my-queue' && 'No events are currently assigned to you.'}
+                    {activeFilter === 'new-events' && 'No new events require attention.'}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 

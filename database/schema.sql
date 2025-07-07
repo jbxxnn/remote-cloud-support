@@ -101,6 +101,37 @@ CREATE TABLE IF NOT EXISTS "Alert" (
     FOREIGN KEY ("clientId") REFERENCES "Client"(id) ON DELETE CASCADE
 );
 
+-- Events table for staff dashboard
+CREATE TABLE IF NOT EXISTS "Event" (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "clientId" TEXT NOT NULL,
+    "detectionId" TEXT,
+    type TEXT NOT NULL,
+    severity TEXT DEFAULT 'medium',
+    status TEXT DEFAULT 'pending',
+    description TEXT,
+    "assignedTo" TEXT,
+    "resolvedAt" TIMESTAMP,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY ("clientId") REFERENCES "Client"(id) ON DELETE CASCADE,
+    FOREIGN KEY ("detectionId") REFERENCES "Detection"(id) ON DELETE SET NULL,
+    FOREIGN KEY ("assignedTo") REFERENCES "User"(id) ON DELETE SET NULL
+);
+
+-- EventAction table for logging staff actions
+CREATE TABLE IF NOT EXISTS "EventAction" (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "eventId" TEXT NOT NULL,
+    "staffId" TEXT NOT NULL,
+    action TEXT NOT NULL,
+    details JSONB,
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY ("eventId") REFERENCES "Event"(id) ON DELETE CASCADE,
+    FOREIGN KEY ("staffId") REFERENCES "User"(id) ON DELETE CASCADE
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_user_email ON "User"(email);
 CREATE INDEX IF NOT EXISTS idx_user_client_id ON "User"("clientId");
@@ -115,6 +146,12 @@ CREATE INDEX IF NOT EXISTS idx_sop_client_id ON "SOP"("clientId");
 CREATE INDEX IF NOT EXISTS idx_sop_global ON "SOP"("isGlobal");
 CREATE INDEX IF NOT EXISTS idx_alert_detection_id ON "Alert"("detectionId");
 CREATE INDEX IF NOT EXISTS idx_alert_client_id ON "Alert"("clientId");
+CREATE INDEX IF NOT EXISTS idx_event_client_id ON "Event"("clientId");
+CREATE INDEX IF NOT EXISTS idx_event_status ON "Event"(status);
+CREATE INDEX IF NOT EXISTS idx_event_assigned_to ON "Event"("assignedTo");
+CREATE INDEX IF NOT EXISTS idx_event_timestamp ON "Event"(timestamp);
+CREATE INDEX IF NOT EXISTS idx_event_action_event_id ON "EventAction"("eventId");
+CREATE INDEX IF NOT EXISTS idx_event_action_staff_id ON "EventAction"("staffId");
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -128,5 +165,6 @@ $$ language 'plpgsql';
 -- Create triggers for updated_at
 CREATE TRIGGER update_user_updated_at BEFORE UPDATE ON "User" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_client_updated_at BEFORE UPDATE ON "Client" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_device_updated_at BEFORE UPDATE ON "Device" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_sop_updated_at BEFORE UPDATE ON "SOP" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+CREATE TRIGGER update_device_updated_at BEFORE UPDATE ON "Device" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+CREATE TRIGGER update_sop_updated_at BEFORE UPDATE ON "SOP" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_event_updated_at BEFORE UPDATE ON "Event" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
