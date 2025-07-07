@@ -52,7 +52,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'my-queue' | 'new-events'>('all');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
 
   useEffect(() => {
     fetchDashboardData();
@@ -189,7 +189,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
           <div className="space-y-6 p-6">
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
@@ -284,7 +284,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             )}
           </CardContent>
         </Card>
-      </div>
+      </div> */}
 
       {/* Main Content */}
       <Tabs defaultValue="clients" className="space-y-4">
@@ -299,7 +299,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <div className="flex items-center space-x-4">
               <h2 className="text-xl font-semibold">Client Status Overview</h2>
               <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
+                {/* <div className="flex items-center space-x-1">
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <span className="text-sm">Online</span>
                 </div>
@@ -310,118 +310,166 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                 <div className="flex items-center space-x-1">
                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
                   <span className="text-sm">Alert</span>
-                </div>
+                </div> */}
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                List
-              </Button>
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-              >
-                Grid
-              </Button>
-            </div>
+
           </div>
 
-          {loading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-3 h-3 rounded-full bg-muted"></div>
-                        <div>
-                          <div className="h-4 bg-muted rounded w-32 mb-1"></div>
-                          <div className="h-3 bg-muted rounded w-24"></div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="h-5 bg-muted rounded w-16"></div>
-                        <div className="text-right">
-                          <div className="h-3 bg-muted rounded w-20 mb-1"></div>
-                          <div className="h-3 bg-muted rounded w-16"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : viewMode === 'list' ? (
-            <div className="space-y-2">
-              {clients.map((client) => (
-                <Card 
-                  key={client.id} 
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => handleClientClick(client.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-3 h-3 rounded-full ${getStatusColor(client.status)}`}></div>
-                        <div>
-                          <h3 className="font-medium">{client.name}</h3>
-                          {client.company && (
-                            <p className="text-sm text-muted-foreground">{client.company}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <Badge variant="outline">
-                          {client.deviceCount} devices
-                        </Badge>
-                        {client.lastEvent && (
-                          <div className="text-right">
-                            <p className="text-sm font-medium">{client.lastEvent.type}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(client.lastEvent.timestamp).toLocaleTimeString()}
-                            </p>
+          <div className="rounded-md border">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-4 font-medium text-muted-foreground">Client</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">Devices</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">Last Event</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">Time</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    [...Array(5)].map((_, i) => (
+                      <tr key={i} className={`border-t ${i % 2 === 0 ? 'bg-background' : 'bg-muted/10'}`}>
+                        <td className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-2 h-2 rounded-full bg-muted animate-pulse"></div>
+                            <div>
+                              <div className="h-4 bg-muted rounded w-32 mb-1 animate-pulse"></div>
+                              <div className="h-3 bg-muted rounded w-24 animate-pulse"></div>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        </td>
+                        <td className="p-4">
+                          <div className="h-6 bg-muted rounded w-16 animate-pulse"></div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 bg-muted rounded animate-pulse"></div>
+                            <div className="h-4 bg-muted rounded w-8 animate-pulse"></div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div>
+                            <div className="h-4 bg-muted rounded w-24 mb-1 animate-pulse"></div>
+                            <div className="h-5 bg-muted rounded w-12 animate-pulse"></div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div>
+                            <div className="h-3 bg-muted rounded w-20 mb-1 animate-pulse"></div>
+                            <div className="h-3 bg-muted rounded w-16 animate-pulse"></div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <div className="h-8 bg-muted rounded w-12 animate-pulse"></div>
+                            <div className="h-8 bg-muted rounded w-20 animate-pulse"></div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    clients.map((client, index) => (
+                      <tr 
+                        key={client.id} 
+                        className={`border-t cursor-pointer hover:bg-muted/30 transition-colors ${
+                          index % 2 === 0 ? 'bg-background' : 'bg-muted/10'
+                        }`}
+                        onClick={() => handleClientClick(client.id)}
+                      >
+                        <td className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-2 h-2 rounded-full ${getStatusColor(client.status)}`}></div>
+                            <div>
+                              <div className="font-medium">{client.name}</div>
+                              {client.company && (
+                                <div className="text-sm text-muted-foreground">{client.company}</div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-3 h-3 rounded-full ${getStatusColor(client.status)}`}></div>
+                            <span className="text-sm font-medium capitalize">{client.status}</span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-medium">{client.deviceCount}</span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          {client.lastEvent ? (
+                            <div>
+                              <div className="font-medium text-sm">{client.lastEvent.type}</div>
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${
+                                  client.lastEvent.severity === 'high' ? 'border-red-200 text-red-700' :
+                                  client.lastEvent.severity === 'medium' ? 'border-yellow-200 text-yellow-700' :
+                                  'border-green-200 text-green-700'
+                                }`}
+                              >
+                                {client.lastEvent.severity}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">No events</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          {client.lastEvent ? (
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(client.lastEvent.timestamp).toLocaleDateString()}
+                              <br />
+                              <span className="text-xs">
+                                {new Date(client.lastEvent.timestamp).toLocaleTimeString()}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Navigate to client dashboard
+                                window.location.href = `/staff/client/${client.id}`;
+                              }}
+                            >
+                              View
+                            </Button>
+                            {client.status === 'alert' && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Handle emergency action
+                                  console.log('Emergency action for client:', client.id);
+                                }}
+                              >
+                                Emergency
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {clients.map((client) => (
-                <Card 
-                  key={client.id} 
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => handleClientClick(client.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(client.status)}`}></div>
-                      <Badge variant="outline" className="text-xs">
-                        {client.deviceCount} devices
-                      </Badge>
-                    </div>
-                    <h3 className="font-medium mb-1">{client.name}</h3>
-                    {client.company && (
-                      <p className="text-sm text-muted-foreground mb-2">{client.company}</p>
-                    )}
-                    {client.lastEvent && (
-                      <div className="text-xs text-muted-foreground">
-                        Last event: {client.lastEvent.type} at {new Date(client.lastEvent.timestamp).toLocaleTimeString()}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          </div>
         </TabsContent>
 
         <TabsContent value="events" className="space-y-4">
