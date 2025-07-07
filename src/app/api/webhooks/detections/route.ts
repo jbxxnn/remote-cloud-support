@@ -78,9 +78,6 @@ export async function POST(request: NextRequest) {
     
     const detection = detectionResult.rows[0];
     
-    // Create event for this detection
-    await createEventFromDetection(detection, client);
-    
     // Trigger alerts based on severity
     await triggerAlerts(detection, client);
     
@@ -89,29 +86,6 @@ export async function POST(request: NextRequest) {
     console.error('Webhook error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
-
-async function createEventFromDetection(detection: any, client: any) {
-  const now = new Date();
-  
-  // Create event with status "alert" as requested
-  await query(`
-    INSERT INTO "Event" (
-      "clientId", "detectionId", type, severity, status, description, timestamp, "createdAt", "updatedAt"
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9
-    )
-  `, [
-    client.id,
-    detection.id,
-    'detection',
-    detection.severity,
-    'alert',
-    `${detection.detectionType} detected at ${detection.location}`,
-    detection.timestamp,
-    now,
-    now
-  ]);
 }
 
 async function triggerAlerts(detection: any, client: any) {

@@ -37,7 +37,7 @@ interface Event {
   clientName: string;
   type: 'detection' | 'scheduled' | 'manual';
   severity: 'low' | 'medium' | 'high';
-  status: 'pending' | 'assigned' | 'resolved' | 'alert';
+  status: 'pending' | 'assigned' | 'resolved';
   timestamp: string;
   assignedTo?: string;
   description: string;
@@ -146,7 +146,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
 
   // Calculate stats for sidebar (use empty arrays if loading to avoid errors)
   const stats = {
-    pendingEvents: loading ? 0 : events.filter(e => e.status === 'pending' || e.status === 'alert').length,
+    pendingEvents: loading ? 0 : events.filter(e => e.status === 'pending').length,
     myQueue: loading ? 0 : events.filter(e => e.status === 'assigned' && e.assignedTo === 'current-user').length,
     resolvedToday: loading ? 0 : events.filter(e => e.status === 'resolved' && 
       new Date(e.timestamp).toDateString() === new Date().toDateString()).length
