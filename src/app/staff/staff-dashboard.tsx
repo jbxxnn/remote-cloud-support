@@ -144,22 +144,11 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading staff dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Calculate stats for sidebar
+  // Calculate stats for sidebar (use empty arrays if loading to avoid errors)
   const stats = {
-    pendingEvents: events.filter(e => e.status === 'pending').length,
-    myQueue: events.filter(e => e.status === 'assigned' && e.assignedTo === 'current-user').length,
-    resolvedToday: events.filter(e => e.status === 'resolved' && 
+    pendingEvents: loading ? 0 : events.filter(e => e.status === 'pending').length,
+    myQueue: loading ? 0 : events.filter(e => e.status === 'assigned' && e.assignedTo === 'current-user').length,
+    resolvedToday: loading ? 0 : events.filter(e => e.status === 'resolved' && 
       new Date(e.timestamp).toDateString() === new Date().toDateString()).length
   };
 
@@ -207,10 +196,19 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{clients.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {clients.filter(c => c.isActive).length} active
-            </p>
+            {loading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-muted rounded mb-1"></div>
+                <div className="h-3 bg-muted rounded w-16"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{clients.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {clients.filter(c => c.isActive).length} active
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
         
@@ -220,12 +218,21 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {events.filter(e => e.status === 'pending' && e.severity === 'high').length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {events.filter(e => e.status === 'pending').length} total pending
-            </p>
+            {loading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-muted rounded mb-1"></div>
+                <div className="h-3 bg-muted rounded w-20"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-red-600">
+                  {events.filter(e => e.status === 'pending' && e.severity === 'high').length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {events.filter(e => e.status === 'pending').length} total pending
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
         
@@ -235,12 +242,21 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {events.filter(e => e.status === 'assigned' && e.assignedTo === 'current-user').length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Assigned to me
-            </p>
+            {loading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-muted rounded mb-1"></div>
+                <div className="h-3 bg-muted rounded w-16"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">
+                  {events.filter(e => e.status === 'assigned' && e.assignedTo === 'current-user').length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Assigned to me
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
         
@@ -250,13 +266,22 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {events.filter(e => e.status === 'resolved' && 
-                new Date(e.timestamp).toDateString() === new Date().toDateString()).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Events resolved
-            </p>
+            {loading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-muted rounded mb-1"></div>
+                <div className="h-3 bg-muted rounded w-20"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-green-600">
+                  {events.filter(e => e.status === 'resolved' && 
+                    new Date(e.timestamp).toDateString() === new Date().toDateString()).length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Events resolved
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -306,7 +331,32 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             </div>
           </div>
 
-          {viewMode === 'list' ? (
+          {loading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-3 h-3 rounded-full bg-muted"></div>
+                        <div>
+                          <div className="h-4 bg-muted rounded w-32 mb-1"></div>
+                          <div className="h-3 bg-muted rounded w-24"></div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="h-5 bg-muted rounded w-16"></div>
+                        <div className="text-right">
+                          <div className="h-3 bg-muted rounded w-20 mb-1"></div>
+                          <div className="h-3 bg-muted rounded w-16"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : viewMode === 'list' ? (
             <div className="space-y-2">
               {clients.map((client) => (
                 <Card 
@@ -404,70 +454,98 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
           </div>
 
           <div className="space-y-2">
-            {events.map((event) => (
-              <Card key={event.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(event.type === 'detection' ? 'alert' : 'scheduled')}`}></div>
-                      <div>
-                        <h3 className="font-medium">{event.clientName}</h3>
-                        <p className="text-sm text-muted-foreground">{event.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(event.timestamp).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className={getSeverityColor(event.severity)}>
-                        {event.severity}
-                      </Badge>
-                      <Badge variant="outline">
-                        {event.status}
-                      </Badge>
-                      {event.status === 'pending' && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleEventAction(event.id, 'claim')}
-                        >
-                          Claim
-                        </Button>
-                      )}
-                      {event.status === 'assigned' && (
-                        <div className="flex space-x-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEventAction(event.id, 'call')}
-                          >
-                            <Phone className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleEventAction(event.id, 'resolve')}
-                          >
-                            Resolve
-                          </Button>
+            {loading ? (
+              <>
+                {[...Array(3)].map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-3 h-3 rounded-full bg-muted"></div>
+                          <div>
+                            <div className="h-4 bg-muted rounded w-32 mb-1"></div>
+                            <div className="h-3 bg-muted rounded w-48 mb-1"></div>
+                            <div className="h-3 bg-muted rounded w-24"></div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            
-            {events.length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No events to display</h3>
-                  <p className="text-muted-foreground">
-                    {activeFilter === 'all' && 'All clients are currently online and safe.'}
-                    {activeFilter === 'my-queue' && 'No events are currently assigned to you.'}
-                    {activeFilter === 'new-events' && 'No new events require attention.'}
-                  </p>
-                </CardContent>
-              </Card>
+                        <div className="flex items-center space-x-2">
+                          <div className="h-5 bg-muted rounded w-12"></div>
+                          <div className="h-5 bg-muted rounded w-16"></div>
+                          <div className="h-8 bg-muted rounded w-16"></div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            ) : (
+              <>
+                {events.map((event) => (
+                  <Card key={event.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-3 h-3 rounded-full ${getStatusColor(event.type === 'detection' ? 'alert' : 'scheduled')}`}></div>
+                          <div>
+                            <h3 className="font-medium">{event.clientName}</h3>
+                            <p className="text-sm text-muted-foreground">{event.description}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(event.timestamp).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getSeverityColor(event.severity)}>
+                            {event.severity}
+                          </Badge>
+                          <Badge variant="outline">
+                            {event.status}
+                          </Badge>
+                          {event.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleEventAction(event.id, 'claim')}
+                            >
+                              Claim
+                            </Button>
+                          )}
+                          {event.status === 'assigned' && (
+                            <div className="flex space-x-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEventAction(event.id, 'call')}
+                              >
+                                <Phone className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleEventAction(event.id, 'resolve')}
+                              >
+                                Resolve
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {events.length === 0 && (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No events to display</h3>
+                      <p className="text-muted-foreground">
+                        {activeFilter === 'all' && 'All clients are currently online and safe.'}
+                        {activeFilter === 'my-queue' && 'No events are currently assigned to you.'}
+                        {activeFilter === 'new-events' && 'No new events require attention.'}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
           </div>
         </TabsContent>
