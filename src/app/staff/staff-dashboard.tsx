@@ -362,7 +362,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h2 className="text-xl font-semibold">Client Status Overview</h2>
-              <div className="flex items-center space-x-4">
+              {/* <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <span className="text-sm font-medium">
@@ -381,7 +381,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                     {clients.filter(c => c.status === 'alert').length} Alerts
                   </span>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
 

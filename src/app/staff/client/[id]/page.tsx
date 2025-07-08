@@ -84,18 +84,20 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
           <div className="flex-1">
             <div className="font-semibold text-lg text-gray-900 leading-tight">{clientName}</div>
             <div className="flex items-center gap-2 mt-1">
-              <Badge className="bg-red-100 text-red-700 border-red-200">Alert</Badge>
-              <span className="text-xs text-gray-500">Active Event</span>
+              {alert.status === 'scheduled' && ( 
+                <div className="bg-yellow-500 rounded-full w-3 h-3"></div>
+              )}
+              <span className="text-xs text-gray-500">{alert.status}</span>
             </div>
           </div>
         </div>
         {/* Alert Info */}
         <div className="px-6 pt-2 pb-0">
           <div className="text-sm text-gray-700 font-medium mb-1">{alert.type?.toUpperCase()} - {alert.location || 'Unknown Location'}</div>
-          <div className="text-xs text-gray-500 mb-2">{new Date(alert.createdAt).toLocaleTimeString()}</div>
+          <div className="text-xs text-gray-500 mb-8">{new Date(alert.createdAt).toLocaleTimeString()}</div>
           <div className="flex gap-3 mb-2">
             {alert.clipUrl && (
-              <Button size="sm" variant="outline" className="border-gray-300 flex items-center gap-1">
+              <Button size="sm" variant="default" className="border-gray-300 flex items-center gap-1">
                 <Play className="w-4 h-4" /> Play Clip
               </Button>
             )}
@@ -176,6 +178,13 @@ export default function ClientDashboardPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [relevantSOPs, setRelevantSOPs] = useState<SOP[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // Reset to first page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTab]);
 
   // Debug alerts
   useEffect(() => {
@@ -331,6 +340,24 @@ export default function ClientDashboardPage() {
     );
   }
 
+  // Get current alerts for pagination
+  const getCurrentAlerts = () => {
+    const filteredAlerts = selectedTab === 'active' 
+      ? alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status))
+      : alerts.filter(alert => alert.status === 'resolved');
+    
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAlerts.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = () => {
+    const filteredAlerts = selectedTab === 'active' 
+      ? alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status))
+      : alerts.filter(alert => alert.status === 'resolved');
+    return Math.ceil(filteredAlerts.length / itemsPerPage);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
@@ -350,10 +377,10 @@ export default function ClientDashboardPage() {
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900 leading-tight">{client.name}</h1>
-                {client.company && <p className="text-gray-500 text-sm">{client.company}</p>}
+                {/* {client.company && <p className="text-gray-500 text-sm">{client.company}</p>} */}
               </div>
-              <div className={`w-2 h-2 rounded-full ${getStatusColor(client.status)}`}></div>
-              <span className="text-xs font-medium text-gray-700 capitalize">{client.status}</span>
+              {/* <div className={`w-2 h-2 rounded-full ${getStatusColor(client.status)}`}></div> */}
+              {/* <span className="text-xs font-medium text-gray-700 capitalize">{client.status}</span> */}
             </div>
           </div>
         </header>
@@ -398,7 +425,7 @@ export default function ClientDashboardPage() {
                     variant={selectedTab === 'active' ? 'default' : 'outline'} 
                     size="sm" 
                     onClick={() => setSelectedTab('active')}
-                    className={selectedTab === 'active' ? 'bg-blue-600 hover:bg-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
+                    className={selectedTab === 'active' ? 'bg-black hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
                   >
                     Active
                   </Button>
@@ -406,60 +433,127 @@ export default function ClientDashboardPage() {
                     variant={selectedTab === 'history' ? 'default' : 'outline'} 
                     size="sm" 
                     onClick={() => setSelectedTab('history')}
-                    className={selectedTab === 'history' ? 'bg-blue-600 hover:bg-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
+                    className={selectedTab === 'history' ? 'bg-black hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
                   >
                     History
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 rounded-md">
                 {selectedTab === 'active' ? (
                   alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)).length === 0 ? (
                     <div className="text-center py-8 text-gray-500 text-sm">No active alerts.</div>
                   ) : (
-                    <div className="space-y-3">
-                      {alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)).map((alert) => (
-                        <div key={alert.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors bg-white" onClick={() => setSelectedAlert(alert)}>
-                          <div>
-                            <div className="font-medium text-gray-900">{alert.message}</div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(alert.createdAt).toLocaleString()} • {alert.location || 'Unknown location'}
+                    <>
+                      <div className="space-y-3">
+                        {getCurrentAlerts().map((alert) => (
+                          <div key={alert.id} className="p-4 border border-gray-200 rounded-sm flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors bg-white" onClick={() => setSelectedAlert(alert)}>
+                            <div>
+                              <div className="font-medium text-gray-900">{alert.message}</div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(alert.createdAt).toLocaleString()} • {alert.location || 'Unknown location'}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {alert.status === 'scheduled' && (
+                                <div className="bg-yellow-500 rounded-full w-3 h-3"></div>
+                              )}
+                              {alert.status === 'resolved' && (
+                                <div className="bg-green-500 rounded-full w-3 h-3"></div>
+                              )}
+                              {alert.status !== 'scheduled' && alert.status !== 'resolved' && (
+                                <div className="bg-red-500 rounded-full w-3 h-3"></div>
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            {/* <Badge className={`${getSeverityColor(alert.severity)} text-white`}>{alert.severity}</Badge>
-                            {alert.clipUrl && <Button size="icon" variant="outline" className="border-gray-300"><Play className="w-4 h-4" /></Button>}
-                            {alert.status === 'pending' && (
-                              <Button size="sm" onClick={e => {e.stopPropagation(); handleAcknowledgeAlert(alert.id);}} className="bg-blue-600 hover:bg-blue-700 text-white">Acknowledge</Button>
-                            )} */}
-                            {alert.status === 'scheduled' && (
-                              <div className="bg-yellow-500 text-yellow-800 border-yellow-200 rounded-full w-3 h-3"></div>
-                            )}
+                        ))}
+                      </div>
+                      {/* Pagination */}
+                      {getTotalPages() > 1 && (
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                          <div className="text-sm text-gray-500">
+                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)).length)} of {alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)).length} alerts
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentPage === 1}
+                              className="border-gray-300"
+                            >
+                              Previous
+                            </Button>
+                            <span className="flex items-center px-3 text-sm text-gray-700">
+                              Page {currentPage} of {getTotalPages()}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, getTotalPages()))}
+                              disabled={currentPage === getTotalPages()}
+                              className="border-gray-300"
+                            >
+                              Next
+                            </Button>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )
                 ) : (
                   alerts.filter(alert => alert.status === 'resolved').length === 0 ? (
                     <div className="text-center py-8 text-gray-500 text-sm">No alert history.</div>
                   ) : (
-                    <div className="space-y-3">
-                      {alerts.filter(alert => alert.status === 'resolved').map((alert) => (
-                        <div key={alert.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between bg-white">
-                          <div>
-                            <div className="font-medium text-gray-900">{alert.message}</div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(alert.createdAt).toLocaleString()} • {alert.location || 'Unknown location'}
+                    <>
+                      <div className="space-y-3">
+                        {getCurrentAlerts().map((alert) => (
+                          <div key={alert.id} className="p-4 border border-gray-200 rounded-sm flex items-center justify-between bg-white">
+                            <div>
+                              <div className="font-medium text-gray-900">{alert.message}</div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(alert.createdAt).toLocaleString()} • {alert.location || 'Unknown location'}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="default" className="bg-green-600 text-white">Resolved</Badge>
+                              {alert.clipUrl && <Button size="icon" variant="outline" className="border-gray-300"><Play className="w-4 h-4" /></Button>}
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="default" className="bg-green-600 text-white">Resolved</Badge>
-                            {alert.clipUrl && <Button size="icon" variant="outline" className="border-gray-300"><Play className="w-4 h-4" /></Button>}
+                        ))}
+                      </div>
+                      {/* Pagination for history */}
+                      {getTotalPages() > 1 && (
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                          <div className="text-sm text-gray-500">
+                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, alerts.filter(alert => alert.status === 'resolved').length)} of {alerts.filter(alert => alert.status === 'resolved').length} alerts
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentPage === 1}
+                              className="border-gray-300"
+                            >
+                              Previous
+                            </Button>
+                            <span className="flex items-center px-3 text-sm text-gray-700">
+                              Page {currentPage} of {getTotalPages()}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, getTotalPages()))}
+                              disabled={currentPage === getTotalPages()}
+                              className="border-gray-300"
+                            >
+                              Next
+                            </Button>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )
                 )}
 

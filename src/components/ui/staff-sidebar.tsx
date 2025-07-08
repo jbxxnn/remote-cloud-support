@@ -56,7 +56,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
         </div>
 
         {/* Quick Stats */}
-        {stats && (
+        {/* {stats && (
           <div className="px-4 py-4 border-b">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -79,7 +79,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Navigation */}
         <div className="flex-1 px-4 py-6">
@@ -95,7 +95,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
               </a>
             </Button>
             
-            <Button
+            {/* <Button
               variant="ghost"
               className="w-full justify-start"
               asChild
@@ -137,7 +137,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
                 )}
               </a>
             </Button>
-            
+             */}
             <Separator className="my-4" />
             
             <Button
