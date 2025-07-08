@@ -120,11 +120,11 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
             value={actionNotes}
             onChange={e => setActionNotes(e.target.value)}
             rows={3}
-            className="border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-md mb-3"
+            className="border border-gray-200 focus:border-black focus:ring-1 focus:ring-black rounded-md mb-3"
           />
           <label className="text-xs font-medium mb-1 block text-gray-700">Outcome</label>
           <Select value={outcome} onValueChange={setOutcome}>
-            <SelectTrigger className="border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-md">
+            <SelectTrigger className="border border-gray-200 focus:border-black focus:ring-1 focus:ring-black rounded-md">
               <SelectValue placeholder="Select an outcome" />
             </SelectTrigger>
             <SelectContent>
@@ -138,7 +138,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
         {/* Modal Actions */}
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
           <Button variant="outline" onClick={onClose} className="border-gray-300">Cancel</Button>
-          <Button onClick={onResolve} disabled={!actionNotes.trim()} className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300 disabled:text-gray-500">Close Event</Button>
+          <Button onClick={onResolve} disabled={!actionNotes.trim()} className="bg-black hover:bg-gray-800 text-white disabled:bg-gray-300 disabled:text-gray-500">Resolve</Button>
         </div>
         {/* SOP Box */}
         <div className="px-6 pb-6">
