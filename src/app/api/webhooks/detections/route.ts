@@ -116,7 +116,8 @@ function generateAlertMessage(detection: any, alertType: string): string {
   
   switch (alertType) {
     case 'email':
-      return `${baseMessage} Severity: ${detection.severity}. Check dashboard for details.`;
+      // Removed severity from the message
+      return `${baseMessage}`;
     case 'webhook':
       return JSON.stringify({
         type: 'detection_alert',

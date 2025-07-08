@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play } from "lucide-react";
+import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play, X } from "lucide-react";
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
 
 interface Alert {
@@ -60,6 +60,108 @@ function getSeverityColor(severity: string) {
     case "low": return "bg-green-500";
     default: return "bg-gray-500";
   }
+}
+
+// Modal component for alert details
+function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, setActionNotes, outcome, setOutcome, handleStartCall, relevantSOPs, clientName }: any) {
+  if (!alert) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-0 relative animate-fade-in">
+        {/* Close button */}
+        <button
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 focus:outline-none"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="w-6 h-6" />
+        </button>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 pt-6 pb-2">
+          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200 text-xl font-bold text-gray-700">
+            {clientName?.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1">
+            <div className="font-semibold text-lg text-gray-900 leading-tight">{clientName}</div>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge className="bg-red-100 text-red-700 border-red-200">Alert</Badge>
+              <span className="text-xs text-gray-500">Active Event</span>
+            </div>
+          </div>
+        </div>
+        {/* Alert Info */}
+        <div className="px-6 pt-2 pb-0">
+          <div className="text-sm text-gray-700 font-medium mb-1">{alert.type?.toUpperCase()} - {alert.location || 'Unknown Location'}</div>
+          <div className="text-xs text-gray-500 mb-2">{new Date(alert.createdAt).toLocaleTimeString()}</div>
+          <div className="flex gap-3 mb-2">
+            {alert.clipUrl && (
+              <Button size="sm" variant="outline" className="border-gray-300 flex items-center gap-1">
+                <Play className="w-4 h-4" /> Play Clip
+              </Button>
+            )}
+            <Button size="sm" variant="outline" className="border-gray-300 flex items-center gap-1" onClick={handleStartCall}>
+              <Phone className="w-4 h-4" /> Start Call
+            </Button>
+            {alert.status === 'pending' && (
+              <Button size="sm" className="text-green-700 border-green-600 bg-green-50 hover:bg-green-100 border" onClick={() => onAcknowledge(alert.id)}>
+                <CheckCircle className="w-4 h-4 mr-1" /> Acknowledge
+              </Button>
+            )}
+          </div>
+        </div>
+        {/* Event Notes */}
+        <div className="px-6 pt-2">
+          <label className="text-xs font-medium mb-1 block text-gray-700">Event Notes</label>
+          <Textarea
+            placeholder="What did you do? (e.g., 'Attempted contact via Google Meet - no answer')"
+            value={actionNotes}
+            onChange={e => setActionNotes(e.target.value)}
+            rows={3}
+            className="border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-md mb-3"
+          />
+          <label className="text-xs font-medium mb-1 block text-gray-700">Outcome</label>
+          <Select value={outcome} onValueChange={setOutcome}>
+            <SelectTrigger className="border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-md">
+              <SelectValue placeholder="Select an outcome" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="false-alarm">False Alarm</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+              <SelectItem value="emergency-escalated">Emergency Escalated</SelectItem>
+              <SelectItem value="scheduled-check">Scheduled Check</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Modal Actions */}
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+          <Button variant="outline" onClick={onClose} className="border-gray-300">Cancel</Button>
+          <Button onClick={onResolve} disabled={!actionNotes.trim()} className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300 disabled:text-gray-500">Close Event</Button>
+        </div>
+        {/* SOP Box */}
+        <div className="px-6 pb-6">
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="font-semibold text-blue-900 text-sm mb-2">Standard Operating Procedure</div>
+            {relevantSOPs.length === 0 ? (
+              <div className="text-blue-800 text-xs">No relevant SOPs for current alert.</div>
+            ) : (
+              <div className="space-y-2">
+                {relevantSOPs.map((sop: any) => (
+                  <div key={sop.id}>
+                    <div className="font-medium text-blue-900 text-xs mb-1">{sop.name}</div>
+                    <ol className="list-decimal list-inside text-xs text-blue-800">
+                      {sop.steps?.map((step: any, idx: number) => (
+                        <li key={idx}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ClientDashboardPage() {
@@ -260,7 +362,7 @@ export default function ClientDashboardPage() {
         <main className="flex-1 overflow-auto bg-gray-50">
           <div className="max-w-7xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Overview Card */}
-            <Card className="col-span-1 lg:col-span-1 shadow-sm rounded-xl border border-gray-200 bg-white">
+            {/* <Card className="col-span-1 lg:col-span-1 shadow-sm rounded-xl border border-gray-200 bg-white">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-semibold text-gray-900">Primary Contact</CardTitle>
               </CardHeader>
@@ -285,10 +387,10 @@ export default function ClientDashboardPage() {
                   <div className="text-gray-500 text-sm">No emergency contact information available.</div>
                 )}
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Alerts Card */}
-            <Card className="col-span-1 lg:col-span-2 shadow-sm rounded-xl border border-gray-200 bg-white">
+            <Card className="col-span-1 lg:col-span-2 shadow-sm rounded-md border border-gray-200 bg-white">
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base font-semibold text-gray-900">Alerts</CardTitle>
                 <div className="flex space-x-2">
@@ -325,13 +427,13 @@ export default function ClientDashboardPage() {
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Badge className={`${getSeverityColor(alert.severity)} text-white`}>{alert.severity}</Badge>
+                            {/* <Badge className={`${getSeverityColor(alert.severity)} text-white`}>{alert.severity}</Badge>
                             {alert.clipUrl && <Button size="icon" variant="outline" className="border-gray-300"><Play className="w-4 h-4" /></Button>}
                             {alert.status === 'pending' && (
                               <Button size="sm" onClick={e => {e.stopPropagation(); handleAcknowledgeAlert(alert.id);}} className="bg-blue-600 hover:bg-blue-700 text-white">Acknowledge</Button>
-                            )}
+                            )} */}
                             {alert.status === 'scheduled' && (
-                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">Being Handled</Badge>
+                              <div className="bg-yellow-500 text-yellow-800 border-yellow-200 rounded-full w-3 h-3"></div>
                             )}
                           </div>
                         </div>
@@ -361,50 +463,30 @@ export default function ClientDashboardPage() {
                   )
                 )}
 
-                {/* Alert Log Form */}
-                {selectedAlert && (
-                  <div className="mt-6 border-t border-gray-200 pt-6">
-                    <div className="font-semibold text-gray-900 mb-2">Alert Log</div>
-                    <div className="mb-3">
-                      <label className="text-xs font-medium mb-1 block text-gray-700">What did you do? *</label>
-                      <Textarea
-                        placeholder="Describe your actions..."
-                        value={actionNotes}
-                        onChange={e => setActionNotes(e.target.value)}
-                        rows={3}
-                        className="border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-md"
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label className="text-xs font-medium mb-1 block text-gray-700">Outcome</label>
-                      <Select value={outcome} onValueChange={setOutcome}>
-                        <SelectTrigger className="border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-md">
-                          <SelectValue placeholder="Select an outcome" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="false-alarm">False Alarm</SelectItem>
-                          <SelectItem value="resolved">Resolved</SelectItem>
-                          <SelectItem value="emergency-escalated">Emergency Escalated</SelectItem>
-                          <SelectItem value="scheduled-check">Scheduled Check</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button onClick={handleStartCall} size="sm" className="bg-green-600 hover:bg-green-700 text-white"><Phone className="w-4 h-4 mr-1" />Start Call</Button>
-                      <Button onClick={handleResolveAlert} size="sm" disabled={!actionNotes.trim()} className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300 disabled:text-gray-500"><CheckCircle className="w-4 h-4 mr-1" />Resolve Alert</Button>
-                    </div>
-                  </div>
-                )}
+                {/* Alert Modal */}
+                <AlertModal
+                  alert={selectedAlert}
+                  onClose={() => setSelectedAlert(null)}
+                  onAcknowledge={handleAcknowledgeAlert}
+                  onResolve={handleResolveAlert}
+                  actionNotes={actionNotes}
+                  setActionNotes={setActionNotes}
+                  outcome={outcome}
+                  setOutcome={setOutcome}
+                  handleStartCall={handleStartCall}
+                  relevantSOPs={relevantSOPs}
+                  clientName={client.name}
+                />
               </CardContent>
             </Card>
 
             {/* SOPs Card */}
-            <Card className="col-span-1 lg:col-span-1 shadow-sm rounded-xl border border-gray-200 bg-white">
+            <Card className="col-span-1 lg:col-span-1 shadow-sm rounded-sm border border-gray-200 bg-white">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold text-gray-900">Standard Operating Procedures</CardTitle>
+                <CardTitle className="text-base font-semibold text-gray-900">Client Information</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                {relevantSOPs.length === 0 ? (
+                {/* {relevantSOPs.length === 0 ? (
                   <div className="text-gray-500 text-sm">No relevant SOPs for current alerts.</div>
                 ) : (
                   <div className="space-y-3">
@@ -415,7 +497,7 @@ export default function ClientDashboardPage() {
                       </div>
                     ))}
                   </div>
-                )}
+                )} */}
               </CardContent>
             </Card>
           </div>
