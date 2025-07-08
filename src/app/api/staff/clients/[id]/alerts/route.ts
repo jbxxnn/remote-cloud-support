@@ -74,33 +74,68 @@ export async function PATCH(
 
   try {
     const { id: clientId } = await params;
-    const { alertId, action, notes } = await request.json();
+    const { action, notes } = await request.json();
     const currentUserId = (session.user as any).id;
     const now = new Date();
 
+    // First, get the pending alert for this client
+    const alertResult = await query(`
+      SELECT id FROM "Alert" 
+      WHERE "clientId" = $1 AND status IN ('pending', 'acknowledged')
+      ORDER BY "createdAt" DESC
+      LIMIT 1
+    `, [clientId]);
+
+    if (alertResult.rows.length === 0) {
+      return NextResponse.json({ error: "No pending alert found for this client" }, { status: 404 });
+    }
+
+    const alertId = alertResult.rows[0].id;
+    let eventType = null;
+    let alertEventMessage = notes || null;
+    let updateResult;
+
     switch (action) {
       case 'acknowledge':
-        await query(`
+        updateResult = await query(`
           UPDATE "Alert" 
           SET 
-            status = 'acknowledged',
-            "updatedAt" = $1
-          WHERE id = $2 AND "clientId" = $3
-        `, [now, alertId, clientId]);
+            status = 'scheduled',
+            "assignedTo" = $1,
+            "updatedAt" = $2
+          WHERE id = $3 AND "clientId" = $4
+        `, [currentUserId, now, alertId, clientId]);
+        eventType = 'acknowledged';
         break;
 
       case 'resolve':
-        await query(`
+        updateResult = await query(`
           UPDATE "Alert" 
           SET 
             status = 'resolved',
             "updatedAt" = $1
           WHERE id = $2 AND "clientId" = $3
         `, [now, alertId, clientId]);
+        eventType = 'resolved';
         break;
 
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    }
+
+    // Log the action in AlertEvent
+    if (eventType) {
+      await query(`
+        INSERT INTO "AlertEvent" (id, "alertId", "clientId", "staffId", "eventType", "message", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $6)
+      `, [
+        alertId,
+        clientId,
+        currentUserId,
+        eventType,
+        alertEventMessage,
+        now
+      ]);
     }
 
     return NextResponse.json({ success: true });

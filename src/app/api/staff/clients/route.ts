@@ -33,6 +33,15 @@ export async function GET() {
           ) THEN true 
           ELSE false 
         END as "hasPendingAlerts",
+        -- Check if client has any scheduled (acknowledged) alerts
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM "Alert" a2 
+            WHERE a2."clientId" = c.id 
+            AND a2.status = 'scheduled'
+          ) THEN true 
+          ELSE false 
+        END as "hasScheduledAlerts",
         -- Get the most recent pending alert details
         (
           SELECT a3.type 
@@ -57,7 +66,32 @@ export async function GET() {
           AND a3.status = 'pending' 
           ORDER BY a3."createdAt" DESC 
           LIMIT 1
-        ) as "pendingAlertTime"
+        ) as "pendingAlertTime",
+        -- Get the most recent scheduled alert details
+        (
+          SELECT a3.type 
+          FROM "Alert" a3 
+          WHERE a3."clientId" = c.id 
+          AND a3.status = 'scheduled' 
+          ORDER BY a3."createdAt" DESC 
+          LIMIT 1
+        ) as "scheduledAlertType",
+        (
+          SELECT a3.message 
+          FROM "Alert" a3 
+          WHERE a3."clientId" = c.id 
+          AND a3.status = 'scheduled' 
+          ORDER BY a3."createdAt" DESC 
+          LIMIT 1
+        ) as "scheduledAlertMessage",
+        (
+          SELECT a3."createdAt" 
+          FROM "Alert" a3 
+          WHERE a3."clientId" = c.id 
+          AND a3.status = 'scheduled' 
+          ORDER BY a3."createdAt" DESC 
+          LIMIT 1
+        ) as "scheduledAlertTime"
       FROM "Client" c
       LEFT JOIN "Device" dev ON c.id = dev."clientId" AND dev."isActive" = true
       LEFT JOIN "Alert" a ON c.id = a."clientId"
@@ -80,8 +114,16 @@ export async function GET() {
           severity: 'high', // Pending alerts are considered high priority
           message: client.pendingAlertMessage
         };
+      } else if (client.hasScheduledAlerts) {
+        status = 'scheduled';
+        lastEvent = {
+          type: client.scheduledAlertType || 'scheduled_alert',
+          timestamp: client.scheduledAlertTime,
+          severity: 'medium', // Scheduled alerts are being handled
+          message: client.scheduledAlertMessage
+        };
       } else if (client.lastAlertTime) {
-        // Client has had alerts but none pending - check if recent
+        // Client has had alerts but none pending or scheduled - check if recent
         const lastAlertTime = new Date(client.lastAlertTime);
         const hoursSinceAlert = (Date.now() - lastAlertTime.getTime()) / (1000 * 60 * 60);
         
@@ -95,9 +137,6 @@ export async function GET() {
           };
         }
       }
-
-      // Note: Scheduled status would be determined by a separate scheduling system
-      // For now, we'll keep clients as 'online' if they have no pending alerts
 
       return {
         id: client.id,

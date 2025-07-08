@@ -29,9 +29,13 @@ interface Client {
     timestamp: string;
     severity: 'low' | 'medium' | 'high';
     message?: string;
+    acknowledged?: boolean;
+    resolved?: boolean;
+    id?: string;
   };
   deviceCount: number;
   isActive: boolean;
+  _acknowledging?: boolean;
 }
 
 interface Event {
@@ -388,7 +392,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                   <tr>
                     <th className="text-left p-4 font-medium text-muted-foreground">Client</th>
                     <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left p-4 font-medium text-muted-foreground">Devices</th>
+                    {/* <th className="text-left p-4 font-medium text-muted-foreground">Devices</th> */}
                     <th className="text-left p-4 font-medium text-muted-foreground">Last Event</th>
                     <th className="text-left p-4 font-medium text-muted-foreground">Time</th>
                     <th className="text-left p-4 font-medium text-muted-foreground">Actions</th>
@@ -447,37 +451,37 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                 >
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
-                            <div className={`w-2 h-2 rounded-full ${getStatusColor(client.status)}`}></div>
+                            {/* <div className={`w-2 h-2 rounded-full ${getStatusColor(client.status)}`}></div> */}
                         <div>
                               <div className="font-medium">{client.name}</div>
-                          {client.company && (
+                          {/* {client.company && (
                                 <div className="text-sm text-muted-foreground">{client.company}</div>
-                          )}
+                          )} */}
                         </div>
                       </div>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
                             <div className={`w-3 h-3 rounded-full ${getStatusColor(client.status)}`}></div>
-                            <span className="text-sm font-medium capitalize">{client.status}</span>
+                            {/* <span className="text-sm font-medium capitalize">{client.status}</span> */}
                           </div>
                         </td>
-                        <td className="p-4">
+                        {/* <td className="p-4">
                           <div className="flex items-center space-x-2">
                             <Users className="w-4 h-4 text-muted-foreground" />
                             <span className="font-medium">{client.deviceCount}</span>
                       </div>
-                        </td>
+                        </td> */}
                         <td className="p-4">
                           {client.lastEvent ? (
                             <div>
-                              <div className="font-medium text-sm">{formatEventType(client.lastEvent.type)}</div>
+                              {/* <div className="font-medium text-sm">{formatEventType(client.lastEvent.type)}</div> */}
                               {client.lastEvent.message && (
                                 <div className="text-xs text-muted-foreground mt-1 max-w-xs truncate">
                                   {client.lastEvent.message}
                                 </div>
                               )}
-                              <Badge 
+                              {/* <Badge 
                                 variant="outline" 
                                 className={`text-xs mt-1 ${
                                   client.lastEvent.severity === 'high' ? 'border-red-200 text-red-700' :
@@ -486,7 +490,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                                 }`}
                               >
                                 {client.lastEvent.severity}
-                              </Badge>
+                              </Badge> */}
                             </div>
                           ) : (
                             <span className="text-muted-foreground text-sm">No events</span>
@@ -503,30 +507,57 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Navigate to client dashboard
-                                window.location.href = `/staff/client/${client.id}`;
-                              }}
-                            >
-                              View
-                            </Button>
+                            {(client.status === 'scheduled' || client.status === 'online') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Navigate to client dashboard
+                                  window.location.href = `/staff/client/${client.id}`;
+                                }}
+                              >
+                                View
+                              </Button>
+                            )}
                             {client.status === 'alert' && (
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={(e) => {
+                                disabled={client._acknowledging}
+                                onClick={async (e) => {
                                   e.stopPropagation();
-                                  // Navigate to client dashboard with alert focus
-                                  window.location.href = `/staff/client/${client.id}?alert=true`;
+                                  // Optimistic UI update
+                                  setClients((prev) => prev.map((c) => c.id === client.id ? { ...c, _acknowledging: true } : c));
+                                  try {
+                                    const res = await fetch(`/api/staff/clients/${client.id}/alerts`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'acknowledge' })
+                                    });
+                                    if (res.ok) {
+                                      // Navigate to client dashboard after successful acknowledgment
+                                      window.location.href = `/staff/client/${client.id}`;
+                                    } else {
+                                      // handle error
+                                      setClients((prev) => prev.map((c) => c.id === client.id ? { ...c, _acknowledging: false } : c));
+                                    }
+                                  } catch (err) {
+                                    setClients((prev) => prev.map((c) => c.id === client.id ? { ...c, _acknowledging: false } : c));
+                                  }
                                 }}
-                                title={client.lastEvent?.message || 'View alert details'}
+                                title={client.lastEvent?.message || 'Acknowledge and assign this alert to yourself'}
                               >
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                Alert
+                                {client._acknowledging ? (
+                                  <>
+                                    <span className="animate-pulse">Acknowledging...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Acknowledge
+                                  </>
+                                )}
                               </Button>
                             )}
                       </div>
