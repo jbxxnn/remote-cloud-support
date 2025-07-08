@@ -14,7 +14,9 @@ import {
   Filter,
   RefreshCw,
   Phone,
-  MessageSquare
+  MessageSquare,
+  Eye,
+  AlertCircle
 } from "lucide-react";
 
 interface Client {
@@ -26,6 +28,7 @@ interface Client {
     type: string;
     timestamp: string;
     severity: 'low' | 'medium' | 'high';
+    message?: string;
   };
   deviceCount: number;
   isActive: boolean;
@@ -51,8 +54,8 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'my-queue' | 'new-events'>('all');
-
 
   useEffect(() => {
     fetchDashboardData();
@@ -64,11 +67,15 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       // Fetch clients with their current status
       const clientsResponse = await fetch('/api/staff/clients');
       if (clientsResponse.ok) {
         const clientsData = await clientsResponse.json();
         setClients(clientsData);
+      } else {
+        throw new Error(`Failed to fetch clients: ${clientsResponse.status}`);
       }
 
       // Fetch events based on current filter
@@ -76,9 +83,12 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json();
         setEvents(eventsData);
+      } else {
+        console.warn('Failed to fetch events, continuing with clients only');
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -123,6 +133,34 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     }
   };
 
+  const formatEventType = (type: string) => {
+    // Convert API event types to user-friendly names
+    const typeMap: Record<string, string> = {
+      'fall': 'Fall Detection',
+      'motion': 'Motion Detected',
+      'door_open': 'Door Opened',
+      'alert': 'Alert',
+      'resolved_alert': 'Resolved Alert',
+      'scheduled_checkin': 'Scheduled Check-in'
+    };
+    return typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor(diffInHours * 60);
+      return `${diffInMinutes} minutes ago`;
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)} hours ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
   const handleClientClick = (clientId: string) => {
     // Navigate to client dashboard
     window.location.href = `/staff/client/${clientId}`;
@@ -144,13 +182,35 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     }
   };
 
-  // Calculate stats for sidebar (use empty arrays if loading to avoid errors)
+  // Calculate stats for sidebar based on real client data
   const stats = {
-    pendingEvents: loading ? 0 : events.filter(e => e.status === 'pending').length,
+    pendingEvents: loading ? 0 : clients.filter(c => c.status === 'alert').length,
     myQueue: loading ? 0 : events.filter(e => e.status === 'assigned' && e.assignedTo === 'current-user').length,
     resolvedToday: loading ? 0 : events.filter(e => e.status === 'resolved' && 
       new Date(e.timestamp).toDateString() === new Date().toDateString()).length
   };
+
+  // Show error state if there's an error
+  if (error && !loading) {
+    return (
+      <div className="flex h-screen">
+        <StaffSidebar user={user} stats={stats} />
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="w-96">
+            <CardContent className="p-6 text-center">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Error Loading Dashboard</h3>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={fetchDashboardData}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen">
@@ -298,22 +358,27 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h2 className="text-xl font-semibold">Client Status Overview</h2>
-              <div className="flex items-center space-x-2">
-                {/* <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span className="text-sm">Online</span>
+                  <span className="text-sm font-medium">
+                    {clients.filter(c => c.status === 'online').length} Online
+                  </span>
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span className="text-sm">Scheduled</span>
+                  <span className="text-sm font-medium">
+                    {clients.filter(c => c.status === 'scheduled').length} Scheduled
+                  </span>
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <span className="text-sm">Alert</span>
-                </div> */}
+                  <span className="text-sm font-medium">
+                    {clients.filter(c => c.status === 'alert').length} Alerts
+                  </span>
+                </div>
               </div>
             </div>
-
           </div>
 
           <div className="rounded-md border">
@@ -406,10 +471,15 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                         <td className="p-4">
                           {client.lastEvent ? (
                             <div>
-                              <div className="font-medium text-sm">{client.lastEvent.type}</div>
+                              <div className="font-medium text-sm">{formatEventType(client.lastEvent.type)}</div>
+                              {client.lastEvent.message && (
+                                <div className="text-xs text-muted-foreground mt-1 max-w-xs truncate">
+                                  {client.lastEvent.message}
+                                </div>
+                              )}
                               <Badge 
                                 variant="outline" 
-                                className={`text-xs ${
+                                className={`text-xs mt-1 ${
                                   client.lastEvent.severity === 'high' ? 'border-red-200 text-red-700' :
                                   client.lastEvent.severity === 'medium' ? 'border-yellow-200 text-yellow-700' :
                                   'border-green-200 text-green-700'
@@ -417,7 +487,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                               >
                                 {client.lastEvent.severity}
                               </Badge>
-                    </div>
+                            </div>
                           ) : (
                             <span className="text-muted-foreground text-sm">No events</span>
                           )}
@@ -425,13 +495,9 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                         <td className="p-4">
                           {client.lastEvent ? (
                             <div className="text-sm text-muted-foreground">
-                              {new Date(client.lastEvent.timestamp).toLocaleDateString()}
-                              <br />
-                              <span className="text-xs">
-                                {new Date(client.lastEvent.timestamp).toLocaleTimeString()}
-                              </span>
-            </div>
-          ) : (
+                              {formatTimestamp(client.lastEvent.timestamp)}
+                            </div>
+                          ) : (
                             <span className="text-muted-foreground text-sm">-</span>
                           )}
                         </td>
@@ -454,11 +520,13 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                                 variant="destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Handle emergency action
-                                  console.log('Emergency action for client:', client.id);
+                                  // Navigate to client dashboard with alert focus
+                                  window.location.href = `/staff/client/${client.id}?alert=true`;
                                 }}
+                                title={client.lastEvent?.message || 'View alert details'}
                               >
-                                Emergency
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Alert
                               </Button>
                             )}
                       </div>

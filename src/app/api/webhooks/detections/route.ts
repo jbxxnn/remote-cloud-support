@@ -34,10 +34,10 @@ export async function POST(request: NextRequest) {
     if (deviceResult.rows.length === 0) {
       const now = new Date();
       const newDeviceResult = await query(`
-        INSERT INTO "Device" ("clientId", name, "deviceId", location, "deviceType", "createdAt", "updatedAt")
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO "Device" (id, "clientId", name, "deviceId", location, "deviceType", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $6)
         RETURNING *
-      `, [client.id, body.data.device_id, body.data.device_id, body.data.location, 'camera', now, now]);
+      `, [client.id, body.data.device_id, body.data.device_id, body.data.location, 'camera', now]);
       device = newDeviceResult.rows[0];
     } else {
       device = deviceResult.rows[0];
@@ -58,10 +58,9 @@ export async function POST(request: NextRequest) {
         console.warn('Invalid timestamp format, using current time:', body.timestamp);
       }
     }
-    
     const detectionResult = await query(`
-      INSERT INTO "Detection" ("clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO "Detection" (id, "clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
       RETURNING *
     `, [
       client.id,
@@ -72,7 +71,6 @@ export async function POST(request: NextRequest) {
       body.data.location,
       body.data.severity || 'medium',
       detectionTimestamp,
-      now,
       now
     ]);
     
@@ -101,14 +99,13 @@ async function triggerAlerts(detection: any, client: any) {
   for (const alertType of alertTypes) {
     const now = new Date();
     await query(`
-      INSERT INTO "Alert" ("detectionId", "clientId", type, message, "createdAt", "updatedAt")
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO "Alert" (id, "detectionId", "clientId", type, message, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $5)
     `, [
       detection.id,
       client.id,
       alertType,
       generateAlertMessage(detection, alertType),
-      now,
       now
     ]);
   }

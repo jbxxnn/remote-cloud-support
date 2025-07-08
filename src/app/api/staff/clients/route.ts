@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   try {
-    // Get all active clients with their latest events and device counts
+    // Get all active clients with their device counts and alert status
     const clients = await query(`
       SELECT 
         c.id,
@@ -20,57 +20,84 @@ export async function GET() {
         c.company,
         c."isActive",
         COUNT(DISTINCT dev.id) as "deviceCount",
-        -- Get the latest detection for status determination
-        MAX(d.timestamp) as "lastDetectionTime",
-        MAX(d."detectionType") as "lastDetectionType",
-        MAX(d.severity) as "lastDetectionSeverity"
+        -- Get the latest alert for status determination
+        MAX(a."createdAt") as "lastAlertTime",
+        MAX(a.type) as "lastAlertType",
+        MAX(a.message) as "lastAlertMessage",
+        -- Check if client has any pending alerts
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM "Alert" a2 
+            WHERE a2."clientId" = c.id 
+            AND a2.status = 'pending'
+          ) THEN true 
+          ELSE false 
+        END as "hasPendingAlerts",
+        -- Get the most recent pending alert details
+        (
+          SELECT a3.type 
+          FROM "Alert" a3 
+          WHERE a3."clientId" = c.id 
+          AND a3.status = 'pending' 
+          ORDER BY a3."createdAt" DESC 
+          LIMIT 1
+        ) as "pendingAlertType",
+        (
+          SELECT a3.message 
+          FROM "Alert" a3 
+          WHERE a3."clientId" = c.id 
+          AND a3.status = 'pending' 
+          ORDER BY a3."createdAt" DESC 
+          LIMIT 1
+        ) as "pendingAlertMessage",
+        (
+          SELECT a3."createdAt" 
+          FROM "Alert" a3 
+          WHERE a3."clientId" = c.id 
+          AND a3.status = 'pending' 
+          ORDER BY a3."createdAt" DESC 
+          LIMIT 1
+        ) as "pendingAlertTime"
       FROM "Client" c
       LEFT JOIN "Device" dev ON c.id = dev."clientId" AND dev."isActive" = true
-      LEFT JOIN "Detection" d ON c.id = d."clientId" 
-        AND d.timestamp >= NOW() - INTERVAL '24 hours'
+      LEFT JOIN "Alert" a ON c.id = a."clientId"
       WHERE c."isActive" = true
       GROUP BY c.id, c.name, c.company, c."isActive"
       ORDER BY c.name
     `);
 
-    // Transform the data to include status logic
+    // Transform the data to include status logic based on alerts
     const clientsWithStatus = clients.rows.map((client: any) => {
       let status: 'online' | 'scheduled' | 'alert' = 'online';
       let lastEvent = null;
 
-      // Determine status based on recent detections
-      if (client.lastDetectionTime) {
-        const lastDetectionTime = new Date(client.lastDetectionTime);
-        const hoursSinceDetection = (Date.now() - lastDetectionTime.getTime()) / (1000 * 60 * 60);
+      // Determine status based on alerts
+      if (client.hasPendingAlerts) {
+        status = 'alert';
+        lastEvent = {
+          type: client.pendingAlertType || 'alert',
+          timestamp: client.pendingAlertTime,
+          severity: 'high', // Pending alerts are considered high priority
+          message: client.pendingAlertMessage
+        };
+      } else if (client.lastAlertTime) {
+        // Client has had alerts but none pending - check if recent
+        const lastAlertTime = new Date(client.lastAlertTime);
+        const hoursSinceAlert = (Date.now() - lastAlertTime.getTime()) / (1000 * 60 * 60);
         
-        if (hoursSinceDetection < 1) {
-          // Very recent detection - check if it's an alert
-          if (client.lastDetectionSeverity === 'high' || 
-              ['fall', 'door_open', 'motion'].includes(client.lastDetectionType)) {
-            status = 'alert';
-            lastEvent = {
-              type: client.lastDetectionType,
-              timestamp: client.lastDetectionTime,
-              severity: client.lastDetectionSeverity
-            };
-          }
-        } else if (hoursSinceDetection < 4) {
-          // Recent activity but not urgent
+        if (hoursSinceAlert < 24) {
+          // Recent alert activity but resolved
           status = 'online';
+          lastEvent = {
+            type: client.lastAlertType || 'resolved_alert',
+            timestamp: client.lastAlertTime,
+            severity: 'medium'
+          };
         }
       }
 
-      // Check for scheduled events (this would be expanded based on your scheduling system)
-      // For now, we'll simulate some scheduled events
-      const hasScheduledEvent = Math.random() < 0.1; // 10% chance for demo
-      if (hasScheduledEvent && status !== 'alert') {
-        status = 'scheduled';
-        lastEvent = {
-          type: 'scheduled_checkin',
-          timestamp: new Date(Date.now() + Math.random() * 3600000).toISOString(), // Random time in next hour
-          severity: 'medium'
-        };
-      }
+      // Note: Scheduled status would be determined by a separate scheduling system
+      // For now, we'll keep clients as 'online' if they have no pending alerts
 
       return {
         id: client.id,
