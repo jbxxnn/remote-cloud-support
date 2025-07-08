@@ -8,8 +8,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play, X } from "lucide-react";
+import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play, X, Loader } from "lucide-react";
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
+
 
 interface Alert {
   id: string;
@@ -93,7 +94,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
         </div>
         {/* Alert Info */}
         <div className="px-6 pt-2 pb-0">
-          <div className="text-sm text-gray-700 font-medium mb-1">{alert.type?.toUpperCase()} - {alert.location || 'Unknown Location'}</div>
+         <div className="text-sm text-gray-700 font-medium mb-1">{alert.message}</div>
           <div className="text-xs text-gray-500 mb-8">{new Date(alert.createdAt).toLocaleTimeString()}</div>
           <div className="flex gap-3 mb-2">
             {alert.clipUrl && (
@@ -291,7 +292,8 @@ export default function ClientDashboardPage() {
         body: JSON.stringify({ 
           action: 'resolve',
           notes: actionNotes,
-          outcome 
+          outcome,
+          alertId: selectedAlert.id
         })
       });
 
@@ -323,7 +325,9 @@ export default function ClientDashboardPage() {
       <div className="min-h-screen bg-gray-50 flex">
         <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Loading...</div>
+          <div className="text-gray-500 text-lg">
+            <Loader className="w-8 h-8 animate-spin" />
+          </div>
         </div>
       </div>
     );
@@ -517,7 +521,7 @@ export default function ClientDashboardPage() {
                             </div>
                             <div className="flex items-center space-x-2">
                               <Badge variant="default" className="bg-green-600 text-white">Resolved</Badge>
-                              {alert.clipUrl && <Button size="icon" variant="outline" className="border-gray-300"><Play className="w-4 h-4" /></Button>}
+                              {/* {alert.clipUrl && <Button size="icon" variant="outline" className="border-gray-300"><Play className="w-4 h-4" /></Button>} */}
                             </div>
                           </div>
                         ))}

@@ -82,25 +82,29 @@ export async function PATCH(
 
   try {
     const { id: clientId } = await params;
-    const { action, notes } = await request.json();
+    const { action, notes, outcome, alertId } = await request.json();
     const currentUserId = (session.user as any).id;
     const now = new Date();
 
-    // First, get the pending alert for this client
-    const alertResult = await query(`
-      SELECT id FROM "Alert" 
-      WHERE "clientId" = $1 AND status IN ('pending', 'acknowledged')
-      ORDER BY "createdAt" DESC
-      LIMIT 1
-    `, [clientId]);
+    // If alertId is provided, use it; otherwise get the most recent pending alert
+    let targetAlertId = alertId;
+    if (!targetAlertId) {
+      const alertResult = await query(`
+        SELECT id FROM "Alert" 
+        WHERE "clientId" = $1 AND status IN ('pending', 'acknowledged')
+        ORDER BY "createdAt" DESC
+        LIMIT 1
+      `, [clientId]);
 
-    if (alertResult.rows.length === 0) {
-      return NextResponse.json({ error: "No pending alert found for this client" }, { status: 404 });
+      if (alertResult.rows.length === 0) {
+        return NextResponse.json({ error: "No pending alert found for this client" }, { status: 404 });
+      }
+      targetAlertId = alertResult.rows[0].id;
     }
 
-    const alertId = alertResult.rows[0].id;
     let eventType = null;
     let alertEventMessage = notes || null;
+    let metadata = null;
     let updateResult;
 
     switch (action) {
@@ -112,7 +116,7 @@ export async function PATCH(
             "assignedTo" = $1,
             "updatedAt" = $2
           WHERE id = $3 AND "clientId" = $4
-        `, [currentUserId, now, alertId, clientId]);
+        `, [currentUserId, now, targetAlertId, clientId]);
         eventType = 'acknowledged';
         break;
 
@@ -123,8 +127,16 @@ export async function PATCH(
             status = 'resolved',
             "updatedAt" = $1
           WHERE id = $2 AND "clientId" = $3
-        `, [now, alertId, clientId]);
+        `, [now, targetAlertId, clientId]);
         eventType = 'resolved';
+        
+        // Create metadata with outcome and notes
+        metadata = {
+          outcome: outcome || null,
+          notes: notes || null,
+          resolvedAt: now.toISOString(),
+          resolvedBy: currentUserId
+        };
         break;
 
       default:
@@ -134,14 +146,15 @@ export async function PATCH(
     // Log the action in AlertEvent
     if (eventType) {
       await query(`
-        INSERT INTO "AlertEvent" (id, "alertId", "clientId", "staffId", "eventType", "message", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $6)
+        INSERT INTO "AlertEvent" (id, "alertId", "clientId", "staffId", "eventType", "message", "metadata", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $7)
       `, [
-        alertId,
+        targetAlertId,
         clientId,
         currentUserId,
         eventType,
         alertEventMessage,
+        metadata ? JSON.stringify(metadata) : null,
         now
       ]);
     }
