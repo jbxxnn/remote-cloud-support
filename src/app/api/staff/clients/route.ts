@@ -107,8 +107,8 @@ export async function GET() {
 
       // Determine status based on alerts
       if (client.hasPendingAlerts) {
-        status = 'alert';
-        lastEvent = {
+            status = 'alert';
+            lastEvent = {
           type: client.pendingAlertType || 'alert',
           timestamp: client.pendingAlertTime,
           severity: 'high', // Pending alerts are considered high priority
@@ -133,8 +133,8 @@ export async function GET() {
           lastEvent = {
             type: client.lastAlertType || 'resolved_alert',
             timestamp: client.lastAlertTime,
-            severity: 'medium'
-          };
+          severity: 'medium'
+        };
         }
       }
 

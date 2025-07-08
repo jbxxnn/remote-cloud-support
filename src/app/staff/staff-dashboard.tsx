@@ -363,7 +363,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <div className="flex items-center space-x-4">
               <h2 className="text-xl font-semibold">Client Status Overview</h2>
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <span className="text-sm font-medium">
                     {clients.filter(c => c.status === 'online').length} Online
@@ -491,7 +491,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                               >
                                 {client.lastEvent.severity}
                               </Badge> */}
-                            </div>
+                    </div>
                           ) : (
                             <span className="text-muted-foreground text-sm">No events</span>
                           )}
@@ -500,25 +500,25 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                           {client.lastEvent ? (
                             <div className="text-sm text-muted-foreground">
                               {formatTimestamp(client.lastEvent.timestamp)}
-                            </div>
-                          ) : (
+            </div>
+          ) : (
                             <span className="text-muted-foreground text-sm">-</span>
                           )}
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
                             {(client.status === 'scheduled' || client.status === 'online') && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Navigate to client dashboard
-                                  window.location.href = `/staff/client/${client.id}`;
-                                }}
-                              >
-                                View
-                              </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Navigate to client dashboard
+                                window.location.href = `/staff/client/${client.id}`;
+                              }}
+                            >
+                              View
+                            </Button>
                             )}
                             {client.status === 'alert' && (
                               <Button

@@ -39,9 +39,9 @@ The Staff Dashboard is a web-based PWA (Progressive Web App) accessible via tabl
 
 * **Header**:
 
-  * Client name and photo (optional)
+  * Client name
   * Status pill (green/yellow/red)
-  * Emergency Services info (pre-filled from admin config)
+  * Emergency Services info (pre-filled from client table)
 
 * **Active Event Panel**:
 

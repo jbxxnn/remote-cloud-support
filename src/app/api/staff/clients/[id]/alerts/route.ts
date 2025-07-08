@@ -36,6 +36,12 @@ export async function GET(
       }
     }
 
+    // Debugging logs
+    console.log('[ALERTS API] Fetching alerts for client:', clientId);
+    console.log('[ALERTS API] Status filter:', status);
+    console.log('[ALERTS API] SQL:', whereClause);
+    console.log('[ALERTS API] Params:', queryParams);
+
     const alerts = await query(`
       SELECT 
         a.id,
@@ -54,7 +60,9 @@ export async function GET(
       ORDER BY a."createdAt" DESC
     `, queryParams);
 
-    return NextResponse.json(alerts);
+    console.log('[ALERTS API] Alerts returned:', alerts.rows.length);
+
+    return NextResponse.json(alerts.rows);
   } catch (error) {
     console.error('Failed to fetch alerts:', error);
     return NextResponse.json({ error: "Failed to fetch alerts" }, { status: 500 });

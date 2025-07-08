@@ -75,6 +75,13 @@ export default function ClientDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [relevantSOPs, setRelevantSOPs] = useState<SOP[]>([]);
 
+  // Debug alerts
+  useEffect(() => {
+    console.log('All alerts:', alerts);
+    console.log('Filtered alerts:', alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)));
+    console.log('Filtered length:', alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)).length);
+  }, [alerts]);
+
   // Fetch client data
   useEffect(() => {
     const fetchClient = async () => {
@@ -99,11 +106,16 @@ export default function ClientDashboardPage() {
     const fetchAlerts = async () => {
       try {
         setLoading(true);
-        const status = selectedTab === 'active' ? 'pending' : 'acknowledged,resolved';
+        const status = selectedTab === 'active' ? 'pending,scheduled' : 'resolved';
+        console.log('Fetching alerts with status:', status);
         const response = await fetch(`/api/staff/clients/${clientId}/alerts?status=${status}`);
         if (response.ok) {
           const alertsData = await response.json();
+          console.log('API response:', alertsData);
+          console.log('Is array?', Array.isArray(alertsData));
           setAlerts(Array.isArray(alertsData) ? alertsData : []);
+        } else {
+          console.error('API response not ok:', response.status, response.statusText);
         }
       } catch (error) {
         console.error('Failed to fetch alerts:', error);
@@ -141,12 +153,12 @@ export default function ClientDashboardPage() {
       const response = await fetch(`/api/staff/clients/${clientId}/alerts`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alertId, action: 'acknowledge' })
+        body: JSON.stringify({ action: 'acknowledge' })
       });
 
       if (response.ok) {
         // Refresh alerts
-        const status = selectedTab === 'active' ? 'pending' : 'acknowledged,resolved';
+        const status = selectedTab === 'active' ? 'pending,scheduled' : 'resolved';
         const alertsResponse = await fetch(`/api/staff/clients/${clientId}/alerts?status=${status}`);
         if (alertsResponse.ok) {
           const alertsData = await alertsResponse.json();
@@ -166,7 +178,6 @@ export default function ClientDashboardPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          alertId: selectedAlert.id, 
           action: 'resolve',
           notes: actionNotes,
           outcome 
@@ -179,7 +190,7 @@ export default function ClientDashboardPage() {
         setOutcome("");
         
         // Refresh alerts
-        const status = selectedTab === 'active' ? 'pending' : 'acknowledged,resolved';
+        const status = selectedTab === 'active' ? 'pending,scheduled' : 'resolved';
         const alertsResponse = await fetch(`/api/staff/clients/${clientId}/alerts?status=${status}`);
         if (alertsResponse.ok) {
           const alertsData = await alertsResponse.json();
@@ -301,11 +312,11 @@ export default function ClientDashboardPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 {selectedTab === 'active' ? (
-                  alerts.filter(alert => alert.status === 'pending').length === 0 ? (
+                  alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)).length === 0 ? (
                     <div className="text-center py-8 text-gray-500 text-sm">No active alerts.</div>
                   ) : (
                     <div className="space-y-3">
-                      {alerts.filter(alert => alert.status === 'pending').map((alert) => (
+                      {alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)).map((alert) => (
                         <div key={alert.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors bg-white" onClick={() => setSelectedAlert(alert)}>
                           <div>
                             <div className="font-medium text-gray-900">{alert.message}</div>
@@ -316,18 +327,23 @@ export default function ClientDashboardPage() {
                           <div className="flex items-center space-x-2">
                             <Badge className={`${getSeverityColor(alert.severity)} text-white`}>{alert.severity}</Badge>
                             {alert.clipUrl && <Button size="icon" variant="outline" className="border-gray-300"><Play className="w-4 h-4" /></Button>}
-                            <Button size="sm" onClick={e => {e.stopPropagation(); handleAcknowledgeAlert(alert.id);}} className="bg-blue-600 hover:bg-blue-700 text-white">Acknowledge</Button>
+                            {alert.status === 'pending' && (
+                              <Button size="sm" onClick={e => {e.stopPropagation(); handleAcknowledgeAlert(alert.id);}} className="bg-blue-600 hover:bg-blue-700 text-white">Acknowledge</Button>
+                            )}
+                            {alert.status === 'scheduled' && (
+                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">Being Handled</Badge>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                   )
                 ) : (
-                  alerts.filter(alert => ['acknowledged', 'resolved'].includes(alert.status)).length === 0 ? (
+                  alerts.filter(alert => alert.status === 'resolved').length === 0 ? (
                     <div className="text-center py-8 text-gray-500 text-sm">No alert history.</div>
                   ) : (
                     <div className="space-y-3">
-                      {alerts.filter(alert => ['acknowledged', 'resolved'].includes(alert.status)).map((alert) => (
+                      {alerts.filter(alert => alert.status === 'resolved').map((alert) => (
                         <div key={alert.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between bg-white">
                           <div>
                             <div className="font-medium text-gray-900">{alert.message}</div>
@@ -336,7 +352,7 @@ export default function ClientDashboardPage() {
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Badge variant={alert.status === 'resolved' ? 'default' : 'secondary'} className={alert.status === 'resolved' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'}>{alert.status}</Badge>
+                            <Badge variant="default" className="bg-green-600 text-white">Resolved</Badge>
                             {alert.clipUrl && <Button size="icon" variant="outline" className="border-gray-300"><Play className="w-4 h-4" /></Button>}
                           </div>
                         </div>
