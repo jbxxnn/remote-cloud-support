@@ -7,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { 
   Dialog,
   DialogContent,
   DialogDescription,
@@ -58,6 +66,10 @@ export function StaffManagement({ user }: StaffManagementProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+  const [deletingStaff, setDeletingStaff] = useState<Staff | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -104,12 +116,12 @@ export function StaffManagement({ user }: StaffManagementProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.password !== formData.confirmPassword) {
+    if (!editingStaff && formData.password !== formData.confirmPassword) {
       alert("Passwords do not match");
       return;
     }
 
-    if (formData.password.length < 6) {
+    if (!editingStaff && formData.password.length < 6) {
       alert("Password must be at least 6 characters long");
       return;
     }
@@ -117,41 +129,52 @@ export function StaffManagement({ user }: StaffManagementProps) {
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/users", {
-        method: "POST",
+      const url = editingStaff ? `/api/users/${editingStaff.id}` : "/api/users";
+      const method = editingStaff ? "PUT" : "POST";
+      
+      const requestBody = editingStaff ? {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        clientId: formData.clientId || null,
+        isActive: formData.isActive
+      } : {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        role: "staff",
+        clientId: formData.clientId || null,
+        isActive: formData.isActive
+      };
+
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-          role: "staff",
-          clientId: formData.clientId || null,
-          isActive: formData.isActive
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
-        const newStaff = await response.json();
-        setStaff([newStaff, ...staff]);
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          password: "",
-          confirmPassword: "",
-          clientId: "",
-          isActive: true
-        });
-        setShowAddDialog(false);
+        const updatedStaff = await response.json();
+        
+        if (editingStaff) {
+          setStaff(staff.map(staffMember => staffMember.id === editingStaff.id ? updatedStaff : staffMember));
+          setShowEditDialog(false);
+          setEditingStaff(null);
+        } else {
+          setStaff([updatedStaff, ...staff]);
+          setShowAddDialog(false);
+        }
+        
+        resetForm();
       } else {
         const error = await response.json();
-        alert(error.error || "Failed to create staff member");
+        alert(error.error || `Failed to ${editingStaff ? 'update' : 'create'} staff member`);
       }
     } catch (error) {
-      alert("Failed to create staff member");
+      alert(`Failed to ${editingStaff ? 'update' : 'create'} staff member`);
     } finally {
       setSubmitting(false);
     }
@@ -169,6 +192,67 @@ export function StaffManagement({ user }: StaffManagementProps) {
       ...formData,
       [e.target.name]: e.target.checked,
     });
+  };
+
+  const handleEdit = (staffMember: Staff) => {
+    setEditingStaff(staffMember);
+    setFormData({
+      name: staffMember.name,
+      email: staffMember.email,
+      phone: staffMember.phone || "",
+      password: "",
+      confirmPassword: "",
+      clientId: staffMember.clientId || "",
+      isActive: staffMember.isActive
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingStaff) return;
+    
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/users/${deletingStaff.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setStaff(staff.filter(staffMember => staffMember.id !== deletingStaff.id));
+        setShowDeleteDialog(false);
+        setDeletingStaff(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete staff member");
+      }
+    } catch (error) {
+      alert("Failed to delete staff member");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      confirmPassword: "",
+      clientId: "",
+      isActive: true
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditDialog(false);
+    setEditingStaff(null);
+    resetForm();
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteDialog(false);
+    setDeletingStaff(null);
   };
 
   const filteredStaff = staff.filter(staffMember =>
@@ -230,7 +314,7 @@ export function StaffManagement({ user }: StaffManagementProps) {
           </div>
         </div>
 
-        {/* Staff Grid */}
+        {/* Staff Table */}
         {filteredStaff.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -248,84 +332,113 @@ export function StaffManagement({ user }: StaffManagementProps) {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredStaff.map((staffMember) => (
-              <Card key={staffMember.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center space-x-2">
-                        <Users className="w-5 h-5 text-primary" />
-                        <span>{staffMember.name}</span>
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {staffMember.email}
-                      </CardDescription>
-                    </div>
-                    <div className="flex space-x-1">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Contact Info */}
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2 text-sm">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span>{staffMember.email}</span>
-                    </div>
-                    {staffMember.phone && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span>{staffMember.phone}</span>
-                      </div>
-                    )}
-                    {staffMember.clientName && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Building className="w-4 h-4 text-muted-foreground" />
-                        <span>{staffMember.clientName}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Status and Role */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      <Badge variant={staffMember.isActive ? "default" : "secondary"}>
-                        {staffMember.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                      <Badge variant="outline" className="text-blue-600 border-blue-200">
-                        <Shield className="w-3 h-3 mr-1" />
-                        {staffMember.role}
-                      </Badge>
-                      {staffMember.clientId ? (
-                        <Badge variant="outline" className="text-green-600 border-green-200">
-                          <UserCheck className="w-3 h-3 mr-1" />
-                          Assigned
+          <Card className="shadow-none rounded-md">
+            <CardHeader>
+              <CardTitle>Staff Members</CardTitle>
+              <CardDescription>
+                Manage staff accounts for client support
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff Member</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Assignment</TableHead>
+                    <TableHead>Status</TableHead>
+                    {/* <TableHead>Role</TableHead> */}
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredStaff.map((staffMember) => (
+                    <TableRow key={staffMember.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Users className="w-4 h-4 text-primary" />
+                          <div>
+                            <div className="font-medium">{staffMember.name}</div>
+                            {/* <div className="text-sm text-muted-foreground">{staffMember.email}</div> */}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2 text-sm">
+                            <Mail className="w-3 h-3 text-muted-foreground" />
+                            <span>{staffMember.email}</span>
+                          </div>
+                          {staffMember.phone && (
+                            <div className="flex items-center space-x-2 text-sm">
+                              <Phone className="w-3 h-3 text-muted-foreground" />
+                              <span>{staffMember.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {staffMember.clientName ? (
+                          <div className="flex items-center space-x-2">
+                            <Building className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-sm">{staffMember.clientName}</span>
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-orange-600 border-orange-200">
+                            <UserX className="w-3 h-3 mr-1" />
+                            Unassigned
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={staffMember.isActive ? "default" : "secondary"}>
+                          {staffMember.isActive ? "Active" : "Inactive"}
                         </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-orange-600 border-orange-200">
-                          <UserX className="w-3 h-3 mr-1" />
-                          Unassigned
+                      </TableCell>
+                      {/* <TableCell>
+                        <Badge variant="outline" className="text-blue-600 border-blue-200">
+                          <Shield className="w-3 h-3 mr-1" />
+                          {staffMember.role}
                         </Badge>
-                      )}
-                    </div>
-                    <div className="text-right text-xs text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{new Date(staffMember.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                      </TableCell> */}
+                      <TableCell>
+                        <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                          <span>{new Date(staffMember.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-1">
+                          {/* <Button variant="ghost" size="sm" title="View Staff">
+                            <Eye className="w-4 h-4" />
+                          </Button> */}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="Edit Staff"
+                            onClick={() => handleEdit(staffMember)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="Delete Staff"
+                            onClick={() => {
+                              setDeletingStaff(staffMember);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
       </div>
 
@@ -453,6 +566,135 @@ export function StaffManagement({ user }: StaffManagementProps) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Staff Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+            <DialogDescription>
+              Update staff member information
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Full Name *</Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Enter staff member's full name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email Address *</Label>
+                <Input
+                  id="edit-email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="staff@example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone Number</Label>
+                <Input
+                  id="edit-phone"
+                  name="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="+1 (555) 123-4567"
+                />
+              </div>
+            </div>
+
+            {/* Assignment */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-clientId">Assign to Client (Optional)</Label>
+                <select
+                  id="edit-clientId"
+                  name="clientId"
+                  title="Select a client"
+                  value={formData.clientId}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded-md"
+                >
+                  <option value="">No assignment (general staff)</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit-isActive"
+                  name="isActive"
+                  title="Active account"
+                  checked={formData.isActive}
+                  onChange={handleCheckboxChange}
+                />
+                <Label htmlFor="edit-isActive">Active account</Label>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelEdit}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Updating..." : "Update Staff Member"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Staff Member</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{deletingStaff?.name}&quot;? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelDelete}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={submitting}
+            >
+              {submitting ? "Deleting..." : "Delete Staff Member"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

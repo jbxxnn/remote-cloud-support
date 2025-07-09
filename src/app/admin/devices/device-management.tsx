@@ -424,6 +424,7 @@ export function DeviceManagement() {
             </CardContent>
           </Card>
         ) : (
+          <Card className="shadow-none rounded-md">         
           <Table>
             <TableHeader>
               <TableRow>
@@ -486,6 +487,7 @@ export function DeviceManagement() {
               })}
             </TableBody>
           </Table>
+          </Card>
         )}
       </div>
 

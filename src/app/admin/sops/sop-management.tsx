@@ -8,6 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { 
   Dialog,
   DialogContent,
   DialogDescription,
@@ -62,6 +70,10 @@ export function SOPManagement({ user }: SOPManagementProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [editingSOP, setEditingSOP] = useState<SOP | null>(null);
+  const [deletingSOP, setDeletingSOP] = useState<SOP | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -69,7 +81,11 @@ export function SOPManagement({ user }: SOPManagementProps) {
     description: "",
     isGlobal: true,
     clientId: "",
-    steps: [{ step: 1, action: "", details: "" }]
+    steps: [{ step: 1, action: "", details: "" }] as Array<{
+      step: number;
+      action: string;
+      details: string;
+    }>
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -109,8 +125,11 @@ export function SOPManagement({ user }: SOPManagementProps) {
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/sops", {
-        method: "POST",
+      const url = editingSOP ? `/api/sops/${editingSOP.id}` : "/api/sops";
+      const method = editingSOP ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -121,26 +140,101 @@ export function SOPManagement({ user }: SOPManagementProps) {
       });
 
       if (response.ok) {
-        const newSOP = await response.json();
-        setSops([newSOP, ...sops]);
-        setFormData({
-          name: "",
-          eventType: "",
-          description: "",
-          isGlobal: true,
-          clientId: "",
-          steps: [{ step: 1, action: "", details: "" }]
-        });
-        setShowAddDialog(false);
+        const updatedSOP = await response.json();
+        
+        if (editingSOP) {
+          setSops(sops.map(sop => sop.id === editingSOP.id ? updatedSOP : sop));
+          setShowEditDialog(false);
+          setEditingSOP(null);
+        } else {
+          setSops([updatedSOP, ...sops]);
+          setShowAddDialog(false);
+        }
+        
+        resetForm();
       } else {
         const error = await response.json();
-        alert(error.error || "Failed to create SOP");
+        alert(error.error || `Failed to ${editingSOP ? 'update' : 'create'} SOP`);
       }
     } catch (error) {
-      alert("Failed to create SOP");
+      alert(`Failed to ${editingSOP ? 'update' : 'create'} SOP`);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = (sop: SOP) => {
+    setEditingSOP(sop);
+    setFormData({
+      name: sop.name,
+      eventType: sop.eventType,
+      description: sop.description || "",
+      isGlobal: sop.isGlobal,
+      clientId: sop.clientId || "",
+      steps: sop.steps.length > 0 ? sop.steps.map(step => ({
+        ...step,
+        details: step.details || ""
+      })) as Array<{
+        step: number;
+        action: string;
+        details: string;
+      }> : [{ step: 1, action: "", details: "" }] as Array<{
+        step: number;
+        action: string;
+        details: string;
+      }>
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingSOP) return;
+    
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/sops/${deletingSOP.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setSops(sops.filter(sop => sop.id !== deletingSOP.id));
+        setShowDeleteDialog(false);
+        setDeletingSOP(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete SOP");
+      }
+    } catch (error) {
+      alert("Failed to delete SOP");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      eventType: "",
+      description: "",
+      isGlobal: true,
+      clientId: "",
+      steps: [{ step: 1, action: "", details: "" }] as Array<{
+        step: number;
+        action: string;
+        details: string;
+      }>
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditDialog(false);
+    setEditingSOP(null);
+    resetForm();
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteDialog(false);
+    setDeletingSOP(null);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -244,7 +338,7 @@ export function SOPManagement({ user }: SOPManagementProps) {
           </div>
         </div>
 
-        {/* SOPs Grid */}
+        {/* SOPs Table */}
         {filteredSOPs.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -262,87 +356,112 @@ export function SOPManagement({ user }: SOPManagementProps) {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredSOPs.map((sop) => (
-              <Card key={sop.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center space-x-2">
-                        <FileText className="w-5 h-5 text-primary" />
-                        <span>{sop.name}</span>
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {sop.eventType}
-                      </CardDescription>
-                    </div>
-                    <div className="flex space-x-1">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Description */}
-                  {sop.description && (
-                    <p className="text-sm text-muted-foreground">
-                      {sop.description}
-                    </p>
-                  )}
-
-                  {/* Steps Preview */}
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium">Steps ({sop.steps.length})</h4>
-                    <div className="space-y-1">
-                      {sop.steps.slice(0, 3).map((step, index) => (
-                        <div key={index} className="flex items-start space-x-2 text-sm">
-                          <Badge variant="outline" className="text-xs">
-                            {step.step}
-                          </Badge>
-                          <span className="flex-1">{step.action}</span>
+          <Card className="shadow-none rounded-md">
+            <CardHeader>
+              <CardTitle>SOPs</CardTitle>
+              <CardDescription>
+                Manage standard operating procedures for staff responses to events
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SOP Name</TableHead>
+                    <TableHead>Event Type</TableHead>
+                    <TableHead>Scope</TableHead>
+                    <TableHead>Steps</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSOPs.map((sop) => (
+                    <TableRow key={sop.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <FileText className="w-4 h-4 text-primary" />
+                          <div>
+                            <div className="font-medium">{sop.name}</div>
+                            {sop.description && (
+                              <div className="text-sm text-muted-foreground truncate max-w-xs">
+                                {sop.description}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      ))}
-                      {sop.steps.length > 3 && (
-                        <p className="text-xs text-muted-foreground">
-                          +{sop.steps.length - 3} more steps
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Status and Scope */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      <Badge variant={sop.isActive ? "default" : "secondary"}>
-                        {sop.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                      {sop.isGlobal ? (
-                        <Badge variant="outline" className="text-blue-600 border-blue-200">
-                          <Globe className="w-3 h-3 mr-1" />
-                          Global
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{sop.eventType}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {sop.isGlobal ? (
+                          <Badge variant="outline" className="text-blue-600 border-blue-200">
+                            <Globe className="w-3 h-3 mr-1" />
+                            Global
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-green-600 border-green-200">
+                            <User className="w-3 h-3 mr-1" />
+                            {sop.clientName || "Client-specific"}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="secondary">{sop.steps.length}</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={sop.isActive ? "default" : "secondary"}>
+                          {sop.isActive ? (
+                            <>
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Active
+                            </>
+                          ) : (
+                            <>
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Inactive
+                            </>
+                          )}
                         </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-green-600 border-green-200">
-                          <User className="w-3 h-3 mr-1" />
-                          {sop.clientName || "Client-specific"}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-right text-xs text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{new Date(sop.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                          <span>{new Date(sop.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="Edit SOP"
+                            onClick={() => handleEdit(sop)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="Delete SOP"
+                            onClick={() => {
+                              setDeletingSOP(sop);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
       </div>
 
@@ -522,6 +641,215 @@ export function SOPManagement({ user }: SOPManagementProps) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit SOP Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit SOP</DialogTitle>
+            <DialogDescription>
+              Update the standard operating procedure
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Basic Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">SOP Name *</Label>
+                  <Input
+                    id="edit-name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="e.g., Fall Detection Response"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-eventType">Event Type *</Label>
+                  <Input
+                    id="edit-eventType"
+                    name="eventType"
+                    value={formData.eventType}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="e.g., fall, intrusion, medical"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Describe when and how to use this SOP"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* Scope */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Scope</h3>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="edit-global"
+                    name="edit-scope"
+                    title="Global (applies to all clients)"
+                    checked={formData.isGlobal}
+                    onChange={() => setFormData({ ...formData, isGlobal: true, clientId: "" })}
+                  />
+                  <Label htmlFor="edit-global" className="flex items-center space-x-2">
+                    <Globe className="w-4 h-4" />
+                    <span>Global (applies to all clients)</span>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="edit-client-specific"
+                    name="edit-scope"
+                    title="Client-specific (applies to a specific client)"
+                    checked={!formData.isGlobal}
+                    onChange={() => setFormData({ ...formData, isGlobal: false })}
+                  />
+                  <Label htmlFor="edit-client-specific" className="flex items-center space-x-2">
+                    <User className="w-4 h-4" />
+                    <span>Client-specific</span>
+                  </Label>
+                </div>
+                {!formData.isGlobal && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-clientId">Select Client</Label>
+                    <select
+                      id="edit-clientId"
+                      name="clientId"
+                      title="Select a client"
+                      value={formData.clientId}
+                      onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                      required={!formData.isGlobal}
+                    >
+                      <option value="">Select a client...</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Steps */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Steps</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addStep}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Step
+                </Button>
+              </div>
+              <div className="space-y-4">
+                {formData.steps.map((step, index) => (
+                  <div key={index} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline">Step {step.step}</Badge>
+                      {formData.steps.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeStep(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`edit-action-${index}`}>Action *</Label>
+                      <Input
+                        id={`edit-action-${index}`}
+                        value={step.action}
+                        onChange={(e) => updateStep(index, 'action', e.target.value)}
+                        placeholder="e.g., Attempt contact with client"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`edit-details-${index}`}>Details</Label>
+                      <Textarea
+                        id={`edit-details-${index}`}
+                        value={step.details}
+                        onChange={(e) => updateStep(index, 'details', e.target.value)}
+                        placeholder="Additional details or instructions for this step"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelEdit}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Updating..." : "Update SOP"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete SOP</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{deletingSOP?.name}&quot;? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelDelete}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={submitting}
+            >
+              {submitting ? "Deleting..." : "Delete SOP"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
