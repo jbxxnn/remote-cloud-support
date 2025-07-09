@@ -35,7 +35,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Settings
+  Settings,
+  Loader
 } from "lucide-react";
 
 interface SOP {
@@ -289,7 +290,7 @@ export function SOPManagement({ user }: SOPManagementProps) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <Loader className="w-8 h-8 animate-spin mx-auto" />
           <p className="mt-2 text-muted-foreground">Loading SOPs...</p>
         </div>
       </div>
@@ -576,15 +577,7 @@ export function SOPManagement({ user }: SOPManagementProps) {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Steps</h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addStep}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Step
-                </Button>
+               
               </div>
               <div className="space-y-4">
                 {formData.steps.map((step, index) => (
@@ -624,6 +617,16 @@ export function SOPManagement({ user }: SOPManagementProps) {
                     </div>
                   </div>
                 ))}
+
+               <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addStep}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Step
+                </Button>
               </div>
             </div>
 

@@ -19,7 +19,8 @@ export async function GET() {
         c.name,
         c.company,
         c."isActive",
-        COUNT(DISTINCT dev.id) as "deviceCount",
+        -- Since devices are global, we'll count all active devices
+        (SELECT COUNT(*) FROM "Device" WHERE "isActive" = true) as "deviceCount",
         -- Get the latest alert for status determination
         MAX(a."createdAt") as "lastAlertTime",
         MAX(a.type) as "lastAlertType",
@@ -93,7 +94,6 @@ export async function GET() {
           LIMIT 1
         ) as "scheduledAlertTime"
       FROM "Client" c
-      LEFT JOIN "Device" dev ON c.id = dev."clientId" AND dev."isActive" = true
       LEFT JOIN "Alert" a ON c.id = a."clientId"
       WHERE c."isActive" = true
       GROUP BY c.id, c.name, c.company, c."isActive"

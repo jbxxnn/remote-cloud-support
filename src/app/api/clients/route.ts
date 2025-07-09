@@ -26,27 +26,27 @@ export async function GET() {
     
     // Get all devices (global devices)
     const allDevices = await query(`
-      SELECT 
-        dev.id,
-        dev.name,
-        dev."deviceType",
-        dev."isActive",
-        COUNT(d.id) as "detectionCount"
-      FROM "Device" dev
-      LEFT JOIN "Detection" d ON dev.id = d."deviceId"
-      GROUP BY dev.id
+          SELECT 
+            dev.id,
+            dev.name,
+            dev."deviceType",
+            dev."isActive",
+            COUNT(d.id) as "detectionCount"
+          FROM "Device" dev
+          LEFT JOIN "Detection" d ON dev.id = d."deviceId"
+          GROUP BY dev.id
     `);
-    
+        
     const clientsWithDevices = clients.rows.map((client: any) => {
-      return {
-        ...client,
+        return {
+          ...client,
         devices: allDevices.rows, // All devices are global
-        _count: {
-          detections: parseInt(client.detectionCount),
+          _count: {
+            detections: parseInt(client.detectionCount),
           devices: allDevices.rows.length, // Total device count
-          users: parseInt(client.userCount)
-        }
-      };
+            users: parseInt(client.userCount)
+          }
+        };
     });
     
     return NextResponse.json(clientsWithDevices);

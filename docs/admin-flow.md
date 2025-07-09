@@ -61,3 +61,22 @@ The Admin Dashboard is the control center for configuring clients, managing devi
   * Define or update event trigger metadata (e.g., subject line match, Home Assistant entity ID)
 
 ---
+
+### 4. Logs
+
+**Purpose:** Generate Log records based on staff actions and events.
+
+**Actions:**
+
+* Filter events:
+
+  * By client
+  * By staff
+  * By date range
+  * By event type
+* View each event:
+
+  * Staff member who responded
+  * Timestamp
+  * Event notes
+---

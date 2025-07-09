@@ -25,7 +25,8 @@ import {
   CheckCircle,
   Clock,
   MapPin,
-  Settings
+  Settings,
+  Loader
 } from "lucide-react";
 
 interface Client {
@@ -304,8 +305,7 @@ export function DeviceManagement() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading devices...</p>
+          <Loader className="w-8 h-8 animate-spin mx-auto" />
         </div>
       </div>
     );

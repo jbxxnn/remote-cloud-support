@@ -54,10 +54,11 @@ export async function POST(request: NextRequest) {
       }
     }
     const detectionResult = await query(`
-      INSERT INTO "Detection" (id, "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
-      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO "Detection" (id, "clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
       RETURNING *
     `, [
+      client.id,
       device.id,
       body.data.detection_type,
       body.data.confidence,
@@ -93,10 +94,11 @@ async function triggerAlerts(detection: any, client: any) {
   for (const alertType of alertTypes) {
     const now = new Date();
     await query(`
-      INSERT INTO "Alert" (id, "detectionId", type, message, "createdAt", "updatedAt")
-      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $4)
+      INSERT INTO "Alert" (id, "detectionId", "clientId", type, message, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $5)
     `, [
       detection.id,
+      client.id,
       alertType,
       generateAlertMessage(detection, alertType),
       now

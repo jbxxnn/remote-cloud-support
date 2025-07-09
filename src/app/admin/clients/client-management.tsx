@@ -35,7 +35,8 @@ import {
   Mail,
   Building,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Loader
 } from "lucide-react";
 
 interface Client {
@@ -70,6 +71,10 @@ export function ClientManagement({ user }: ClientManagementProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -109,8 +114,11 @@ export function ClientManagement({ user }: ClientManagementProps) {
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/clients", {
-        method: "POST",
+      const url = editingClient ? `/api/clients/${editingClient.id}` : "/api/clients";
+      const method = editingClient ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -118,31 +126,96 @@ export function ClientManagement({ user }: ClientManagementProps) {
       });
 
       if (response.ok) {
-        const newClient = await response.json();
-        setClients([newClient, ...clients]);
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          address: "",
-          timezone: "",
-          emergencyContact: "",
-          emergencyServicesNumber: "",
-          serviceProviderId: "",
-          company: "",
-          webhookUrl: "",
-          notes: "",
-        });
-        setShowAddModal(false);
+        const updatedClient = await response.json();
+        
+        if (editingClient) {
+          setClients(clients.map(client => client.id === editingClient.id ? updatedClient : client));
+          setShowEditDialog(false);
+          setEditingClient(null);
+        } else {
+          setClients([updatedClient, ...clients]);
+          setShowAddModal(false);
+        }
+        
+        resetForm();
       } else {
         const error = await response.json();
-        alert(error.error || "Failed to create client");
+        alert(error.error || `Failed to ${editingClient ? 'update' : 'create'} client`);
       }
     } catch (error) {
-      alert("Failed to create client");
+      alert(`Failed to ${editingClient ? 'update' : 'create'} client`);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = (client: Client) => {
+    setEditingClient(client);
+    setFormData({
+      name: client.name,
+      email: client.email,
+      phone: client.phone || "",
+      address: client.address || "",
+      timezone: client.timezone || "",
+      emergencyContact: client.emergencyContact || "",
+      emergencyServicesNumber: client.emergencyServicesNumber || "",
+      serviceProviderId: client.serviceProviderId || "",
+      company: client.company || "",
+      webhookUrl: client.webhookUrl || "",
+      notes: client.notes || "",
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingClient) return;
+    
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/clients/${deletingClient.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setClients(clients.filter(client => client.id !== deletingClient.id));
+        setShowDeleteDialog(false);
+        setDeletingClient(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete client");
+      }
+    } catch (error) {
+      alert("Failed to delete client");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      timezone: "",
+      emergencyContact: "",
+      emergencyServicesNumber: "",
+      serviceProviderId: "",
+      company: "",
+      webhookUrl: "",
+      notes: "",
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditDialog(false);
+    setEditingClient(null);
+    resetForm();
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteDialog(false);
+    setDeletingClient(null);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -162,8 +235,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading clients...</p>
+          <Loader className="w-8 h-8 animate-spin mx-auto" />
         </div>
       </div>
     );
@@ -251,9 +323,9 @@ export function ClientManagement({ user }: ClientManagementProps) {
                           <Users className="w-4 h-4 text-primary" />
                           <div>
                             <div className="font-medium">{client.name}</div>
-                            <div className="text-sm text-muted-foreground">
+                            {/* <div className="text-sm text-muted-foreground">
                               {client.company || "No company specified"}
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       </TableCell>
@@ -286,18 +358,12 @@ export function ClientManagement({ user }: ClientManagementProps) {
                           <Badge variant={client.isActive ? "default" : "secondary"}>
                             {client.isActive ? "Active" : "Inactive"}
                           </Badge>
-                          {client.emergencyContact && (
-                            <Badge variant="outline" className="text-orange-600 border-orange-200">
-                              <AlertTriangle className="w-3 h-3 mr-1" />
-                              Emergency
-                            </Badge>
-                          )}
+                        
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Badge variant="secondary">{client._count?.devices || 0}</Badge>
-                          <span className="text-sm text-muted-foreground">devices</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -307,13 +373,26 @@ export function ClientManagement({ user }: ClientManagementProps) {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-1">
-                          <Button variant="ghost" size="sm" title="View Client">
+                          {/* <Button variant="ghost" size="sm" title="View Client">
                             <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" title="Edit Client">
+                          </Button> */}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="Edit Client"
+                            onClick={() => handleEdit(client)}
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" title="Delete Client">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="Delete Client"
+                            onClick={() => {
+                              setDeletingClient(client);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -499,6 +578,211 @@ export function ClientManagement({ user }: ClientManagementProps) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Client Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Client</DialogTitle>
+            <DialogDescription>
+              Update client profile information
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Basic Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Full Name *</Label>
+                  <Input
+                    id="edit-name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Enter client's full name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">Email Address *</Label>
+                  <Input
+                    id="edit-email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="client@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-phone">Phone Number</Label>
+                  <Input
+                    id="edit-phone"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-company">Company/Organization</Label>
+                  <Input
+                    id="edit-company"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleInputChange}
+                    placeholder="Company name"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Address and Location */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Address & Location</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-address">Address</Label>
+                  <Textarea
+                    id="edit-address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    placeholder="Enter full address"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-timezone">Timezone</Label>
+                    <Input
+                      id="edit-timezone"
+                      name="timezone"
+                      value={formData.timezone}
+                      onChange={handleInputChange}
+                      placeholder="e.g., America/New_York"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-serviceProviderId">Service Provider ID</Label>
+                    <Input
+                      id="edit-serviceProviderId"
+                      name="serviceProviderId"
+                      value={formData.serviceProviderId}
+                      onChange={handleInputChange}
+                      placeholder="Provider ID (if applicable)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Emergency Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-emergencyContact">Emergency Contact</Label>
+                  <Input
+                    id="edit-emergencyContact"
+                    name="emergencyContact"
+                    value={formData.emergencyContact}
+                    onChange={handleInputChange}
+                    placeholder="Emergency contact name and phone"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-emergencyServicesNumber">Local Emergency Services</Label>
+                  <Input
+                    id="edit-emergencyServicesNumber"
+                    name="emergencyServicesNumber"
+                    value={formData.emergencyServicesNumber}
+                    onChange={handleInputChange}
+                    placeholder="Local emergency number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Additional Information</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-webhookUrl">Webhook URL</Label>
+                  <Input
+                    id="edit-webhookUrl"
+                    name="webhookUrl"
+                    type="url"
+                    value={formData.webhookUrl}
+                    onChange={handleInputChange}
+                    placeholder="https://example.com/webhook"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-notes">Notes</Label>
+                  <Textarea
+                    id="edit-notes"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    placeholder="Additional notes about the client"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelEdit}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Updating..." : "Update Client"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Client</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{deletingClient?.name}&quot;? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelDelete}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={submitting}
+            >
+              {submitting ? "Deleting..." : "Delete Client"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

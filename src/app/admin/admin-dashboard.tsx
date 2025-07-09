@@ -19,7 +19,8 @@ import {
   Eye,
   Edit,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Loader
 } from "lucide-react";
 
 interface Client {
@@ -109,8 +110,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading dashboard...</p>
+          <Loader className="w-8 h-8 animate-spin mx-auto" />
         </div>
       </div>
     );
@@ -130,12 +130,12 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             </div>
           </div>
           <div className="ml-auto flex items-center space-x-4">
-            <Button asChild>
+            {/* <Button asChild>
               <a href="/detections">
                 <Activity className="w-4 h-4 mr-2" />
                 View Detections
               </a>
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>
@@ -171,7 +171,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        {/* <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="clients">Clients</TabsTrigger>
@@ -395,7 +395,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+        </Tabs> */}
       </div>
     </div>
   );

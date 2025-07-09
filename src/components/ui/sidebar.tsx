@@ -12,7 +12,8 @@ import {
   Home,
   Activity,
   Database,
-  FileText
+  FileText,
+  FileSearch
 } from "lucide-react"
 import Link from "next/link"
 
@@ -108,6 +109,17 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
               className="w-full justify-start"
               asChild
             >
+              <a href="/admin/logs">
+                <FileSearch className="w-4 h-4 mr-3" />
+                Logs
+              </a>
+            </Button>
+            
+            {/* <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
               <a href="/detections">
                 <Activity className="w-4 h-4 mr-3" />
                 Detections
@@ -123,7 +135,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
                 <BarChart3 className="w-4 h-4 mr-3" />
                 Analytics
               </a>
-            </Button>
+            </Button> */}
           </nav>
         </div>
 
