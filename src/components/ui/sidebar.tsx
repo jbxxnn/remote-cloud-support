@@ -75,7 +75,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
               className="w-full justify-start"
               asChild
             >
-              <a href="/admin#devices">
+              <a href="/admin/devices">
                 <Database className="w-4 h-4 mr-3" />
                 Devices
               </a>

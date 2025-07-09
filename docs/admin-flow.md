@@ -42,3 +42,22 @@ The Admin Dashboard is the control center for configuring clients, managing devi
 * Staff can view (but not edit) these in the Client Dashboard when handling an event
 
 ---
+
+### 3. Devices & Sensors (Per Client)
+
+**Purpose:** Define and manage the hardware installed at each client’s home (door sensors, fall detection cameras, stoves, bed sensors, etc.)
+
+**Actions:**
+
+* For each client:
+
+  * Add new device/sensor:
+
+    * Device type (camera, contact sensor, stove monitor, etc.)
+    * Location label (e.g., “Front Door” or “Living Room”)
+    * Device ID or identifier (for mapping webhook alerts)
+    * AI behavior or event types expected (e.g., “fall”, “motion”, “door opened”)
+  * Edit/delete existing device
+  * Define or update event trigger metadata (e.g., subject line match, Home Assistant entity ID)
+
+---

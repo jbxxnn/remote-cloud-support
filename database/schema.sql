@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS "Client" (
 -- Devices table
 CREATE TABLE IF NOT EXISTS "Device" (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    "clientId" TEXT NOT NULL,
+    "clientId" TEXT,
     name TEXT NOT NULL,
     "deviceId" TEXT NOT NULL,
     location TEXT,

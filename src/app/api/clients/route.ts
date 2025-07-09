@@ -16,43 +16,38 @@ export async function GET() {
       SELECT 
         c.*,
         COUNT(DISTINCT d.id) as "detectionCount",
-        COUNT(DISTINCT dev.id) as "deviceCount",
         COUNT(DISTINCT u.id) as "userCount"
       FROM "Client" c
       LEFT JOIN "Detection" d ON c.id = d."clientId"
-      LEFT JOIN "Device" dev ON c.id = dev."clientId"
       LEFT JOIN "User" u ON c.id = u."clientId"
       GROUP BY c.id
       ORDER BY c."createdAt" DESC
     `);
     
-    // Get devices for each client
-    const clientsWithDevices = await Promise.all(
-      clients.rows.map(async (client: any) => {
-        const devices = await query(`
-          SELECT 
-            dev.id,
-            dev.name,
-            dev."deviceType",
-            dev."isActive",
-            COUNT(d.id) as "detectionCount"
-          FROM "Device" dev
-          LEFT JOIN "Detection" d ON dev.id = d."deviceId"
-          WHERE dev."clientId" = $1
-          GROUP BY dev.id
-        `, [client.id]);
-        
-        return {
-          ...client,
-          devices: devices.rows,
-          _count: {
-            detections: parseInt(client.detectionCount),
-            devices: parseInt(client.deviceCount),
-            users: parseInt(client.userCount)
-          }
-        };
-      })
-    );
+    // Get all devices (global devices)
+    const allDevices = await query(`
+      SELECT 
+        dev.id,
+        dev.name,
+        dev."deviceType",
+        dev."isActive",
+        COUNT(d.id) as "detectionCount"
+      FROM "Device" dev
+      LEFT JOIN "Detection" d ON dev.id = d."deviceId"
+      GROUP BY dev.id
+    `);
+    
+    const clientsWithDevices = clients.rows.map((client: any) => {
+      return {
+        ...client,
+        devices: allDevices.rows, // All devices are global
+        _count: {
+          detections: parseInt(client.detectionCount),
+          devices: allDevices.rows.length, // Total device count
+          users: parseInt(client.userCount)
+        }
+      };
+    });
     
     return NextResponse.json(clientsWithDevices);
   } catch (error) {
@@ -124,25 +119,27 @@ export async function POST(request: NextRequest) {
     const counts = await query(`
       SELECT 
         COUNT(DISTINCT d.id) as "detectionCount",
-        COUNT(DISTINCT dev.id) as "deviceCount",
         COUNT(DISTINCT u.id) as "userCount"
       FROM "Client" c
       LEFT JOIN "Detection" d ON c.id = d."clientId"
-      LEFT JOIN "Device" dev ON c.id = dev."clientId"
       LEFT JOIN "User" u ON c.id = u."clientId"
       WHERE c.id = $1
       GROUP BY c.id
     `, [client.id]);
 
+    // Get total device count (global devices)
+    const deviceCount = await query('SELECT COUNT(*) as count FROM "Device"');
+    const totalDevices = parseInt(deviceCount.rows[0].count);
+
     const clientWithCounts = {
       ...client,
       _count: counts.rows.length > 0 ? {
         detections: parseInt(counts.rows[0].detectionCount),
-        devices: parseInt(counts.rows[0].deviceCount),
+        devices: totalDevices, // Global device count
         users: parseInt(counts.rows[0].userCount)
       } : {
         detections: 0,
-        devices: 0,
+        devices: totalDevices, // Global device count
         users: 0
       },
       devices: []

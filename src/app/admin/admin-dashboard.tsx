@@ -323,11 +323,19 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           </TabsContent>
 
           <TabsContent value="devices" className="space-y-4">
+            <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">Devices</h2>
               <p className="text-muted-foreground">
                 Monitor and manage connected devices
               </p>
+              </div>
+              <Button asChild>
+                <a href="/admin/devices">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Manage Devices
+                </a>
+              </Button>
             </div>
 
             <Card>
