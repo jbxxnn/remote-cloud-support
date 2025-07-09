@@ -7,8 +7,9 @@ import bcrypt from "bcryptjs";
 // GET /api/users/[id] - Get a specific user
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user || (session.user as any).role !== "admin") {
@@ -23,7 +24,7 @@ export async function GET(
       FROM "User" u
       LEFT JOIN "Client" c ON u."clientId" = c.id
       WHERE u.id = $1
-    `, [params.id]);
+    `, [id]);
     
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -43,8 +44,9 @@ export async function GET(
 // PUT /api/users/[id] - Update a specific user
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user || (session.user as any).role !== "admin") {
@@ -70,7 +72,7 @@ export async function PUT(
     // Check if email already exists for other users
     const existingUser = await query(
       'SELECT id FROM "User" WHERE email = $1 AND id != $2',
-      [email, params.id]
+      [email, id]
     );
 
     if (existingUser.rows.length > 0) {
@@ -91,7 +93,7 @@ export async function PUT(
       WHERE id = $7
       RETURNING *
     `, [
-      name, email, phone, clientId, isActive, now, params.id
+      name, email, phone, clientId, isActive, now, id
     ]);
 
     if (result.rows.length === 0) {
@@ -124,8 +126,9 @@ export async function PUT(
 // DELETE /api/users/[id] - Delete a specific user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user || (session.user as any).role !== "admin") {
@@ -136,7 +139,7 @@ export async function DELETE(
     // First check if the user exists
     const checkResult = await query(
       'SELECT id, role FROM "User" WHERE id = $1',
-      [params.id]
+      [id]
     );
     
     if (checkResult.rows.length === 0) {
@@ -153,7 +156,7 @@ export async function DELETE(
     // Delete the user
     await query(
       'DELETE FROM "User" WHERE id = $1',
-      [params.id]
+      [id]
     );
 
     return NextResponse.json({ message: "User deleted successfully" });

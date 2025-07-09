@@ -6,8 +6,9 @@ import { query } from "@/lib/database";
 // GET /api/sops/[id] - Get a specific SOP
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user || (session.user as any).role !== "admin") {
@@ -22,7 +23,7 @@ export async function GET(
       FROM "SOP" s
       LEFT JOIN "Client" c ON s."clientId" = c.id
       WHERE s.id = $1
-    `, [params.id]);
+    `, [id]);
     
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "SOP not found" }, { status: 404 });
@@ -38,8 +39,9 @@ export async function GET(
 // PUT /api/sops/[id] - Update a specific SOP
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user || (session.user as any).role !== "admin") {
@@ -88,7 +90,7 @@ export async function PUT(
       WHERE id = $8
       RETURNING *
     `, [
-      name, eventType, description, JSON.stringify(steps), isGlobal, clientId, now, params.id
+      name, eventType, description, JSON.stringify(steps), isGlobal, clientId, now, id
     ]);
 
     if (result.rows.length === 0) {
@@ -118,8 +120,9 @@ export async function PUT(
 // DELETE /api/sops/[id] - Delete a specific SOP
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user || (session.user as any).role !== "admin") {
@@ -130,7 +133,7 @@ export async function DELETE(
     // First check if the SOP exists
     const checkResult = await query(
       'SELECT id FROM "SOP" WHERE id = $1',
-      [params.id]
+      [id]
     );
     
     if (checkResult.rows.length === 0) {
@@ -140,7 +143,7 @@ export async function DELETE(
     // Delete the SOP
     await query(
       'DELETE FROM "SOP" WHERE id = $1',
-      [params.id]
+      [id]
     );
 
     return NextResponse.json({ message: "SOP deleted successfully" });

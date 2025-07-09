@@ -357,12 +357,12 @@ export function SOPManagement({ user }: SOPManagementProps) {
           </Card>
         ) : (
           <Card className="shadow-none rounded-md">
-            <CardHeader>
+            {/* <CardHeader>
               <CardTitle>SOPs</CardTitle>
               <CardDescription>
                 Manage standard operating procedures for staff responses to events
               </CardDescription>
-            </CardHeader>
+            </CardHeader> */}
             <CardContent>
               <Table>
                 <TableHeader>

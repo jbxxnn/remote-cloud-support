@@ -8,6 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { 
   Dialog,
   DialogContent,
   DialogDescription,
@@ -203,7 +211,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
           </div>
         </div>
 
-        {/* Clients Grid */}
+        {/* Clients Table */}
         {filteredClients.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -221,79 +229,101 @@ export function ClientManagement({ user }: ClientManagementProps) {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredClients.map((client) => (
-              <Card key={client.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center space-x-2">
-                        <Users className="w-5 h-5 text-primary" />
-                        <span>{client.name}</span>
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {client.company || "No company specified"}
-                      </CardDescription>
-                    </div>
-                    <div className="flex space-x-1">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Contact Info */}
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2 text-sm">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span>{client.email}</span>
-                    </div>
-                    {client.phone && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span>{client.phone}</span>
-                      </div>
-                    )}
-                    {client.address && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="truncate">{client.address}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Status and Stats */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      <Badge variant={client.isActive ? "default" : "secondary"}>
-                        {client.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                      {client.emergencyContact && (
-                        <Badge variant="outline" className="text-orange-600 border-orange-200">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          Emergency Contact
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-right text-sm text-muted-foreground">
-                      <div>{client._count?.devices || 0} devices</div>
-                      <div>{client._count?.detections || 0} detections</div>
-                    </div>
-                  </div>
-
-                  {/* Created Date */}
-                  <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    <span>Created {new Date(client.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card className="shadow-none rounded-md">
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Devices</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredClients.map((client) => (
+                    <TableRow key={client.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Users className="w-4 h-4 text-primary" />
+                          <div>
+                            <div className="font-medium">{client.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {client.company || "No company specified"}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2 text-sm">
+                            <Mail className="w-3 h-3 text-muted-foreground" />
+                            <span>{client.email}</span>
+                          </div>
+                          {client.phone && (
+                            <div className="flex items-center space-x-2 text-sm">
+                              <Phone className="w-3 h-3 text-muted-foreground" />
+                              <span>{client.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {client.address ? (
+                          <div className="flex items-center space-x-2">
+                            <MapPin className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-sm truncate max-w-xs">{client.address}</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No address</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={client.isActive ? "default" : "secondary"}>
+                            {client.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                          {client.emergencyContact && (
+                            <Badge variant="outline" className="text-orange-600 border-orange-200">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Emergency
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="secondary">{client._count?.devices || 0}</Badge>
+                          <span className="text-sm text-muted-foreground">devices</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                          <span>{new Date(client.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-1">
+                          <Button variant="ghost" size="sm" title="View Client">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" title="Edit Client">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" title="Delete Client">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
       </div>
 

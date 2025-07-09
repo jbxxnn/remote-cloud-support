@@ -333,12 +333,12 @@ export function StaffManagement({ user }: StaffManagementProps) {
           </Card>
         ) : (
           <Card className="shadow-none rounded-md">
-            <CardHeader>
+            {/* <CardHeader>
               <CardTitle>Staff Members</CardTitle>
               <CardDescription>
                 Manage staff accounts for client support
               </CardDescription>
-            </CardHeader>
+            </CardHeader> */}
             <CardContent>
               <Table>
                 <TableHeader>
