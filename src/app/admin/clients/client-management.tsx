@@ -73,8 +73,10 @@ export function ClientManagement({ user }: ClientManagementProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -90,6 +92,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
     notes: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     fetchClients();
@@ -376,6 +379,17 @@ export function ClientManagement({ user }: ClientManagementProps) {
                           {/* <Button variant="ghost" size="sm" title="View Client">
                             <Eye className="w-4 h-4" />
                           </Button> */}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="View Client"
+                            onClick={() => {
+                              setViewingClient(client);
+                              setShowViewDialog(true);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -781,6 +795,162 @@ export function ClientManagement({ user }: ClientManagementProps) {
               disabled={submitting}
             >
               {submitting ? "Deleting..." : "Delete Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Client Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Client Details</DialogTitle>
+            <DialogDescription>
+              {viewingClient?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingClient && (
+            <div className="space-y-4">
+              {/* Header with Status */}
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <h3 className="font-semibold text-lg">{viewingClient.name}</h3>
+                  <p className="text-sm text-muted-foreground">{viewingClient.email}</p>
+                </div>
+                <Badge variant={viewingClient.isActive ? "default" : "secondary"}>
+                  {viewingClient.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{viewingClient._count?.devices || 0}</div>
+                  <div className="text-xs text-muted-foreground">Devices</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{viewingClient._count?.detections || 0}</div>
+                  <div className="text-xs text-muted-foreground">Detections</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{viewingClient._count?.users || 0}</div>
+                  <div className="text-xs text-muted-foreground">Users</div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Contact</h4>
+                <div className="space-y-2">
+                  {viewingClient.phone && (
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <span>{viewingClient.phone}</span>
+                    </div>
+                  )}
+                  {viewingClient.company && (
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Building className="w-4 h-4 text-muted-foreground" />
+                      <span>{viewingClient.company}</span>
+                    </div>
+                  )}
+                  {viewingClient.address && (
+                    <div className="flex items-center space-x-2 text-sm">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <span className="truncate">{viewingClient.address}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Emergency Information */}
+              {(viewingClient.emergencyContact || viewingClient.emergencyServicesNumber) && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Emergency</h4>
+                  <div className="space-y-2">
+                    {viewingClient.emergencyContact && (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Contact:</span> {viewingClient.emergencyContact}
+                      </div>
+                    )}
+                    {viewingClient.emergencyServicesNumber && (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Services:</span> {viewingClient.emergencyServicesNumber}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* System Info */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">System</h4>
+                <div className="space-y-2">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">API Key:</span>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <div className="font-mono text-xs bg-muted p-2 rounded flex-1 select-all cursor-pointer hover:bg-muted/80 transition-colors" 
+                           onClick={async () => {
+                             await navigator.clipboard.writeText(viewingClient.apiKey);
+                             setCopiedKey(viewingClient.apiKey);
+                             setTimeout(() => setCopiedKey(null), 2000);
+                           }}>
+                        {viewingClient.apiKey}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={copiedKey === viewingClient.apiKey ? "default" : "outline"}
+                        className="h-8 px-2 min-w-[60px]"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(viewingClient.apiKey);
+                          setCopiedKey(viewingClient.apiKey);
+                          setTimeout(() => setCopiedKey(null), 2000);
+                        }}
+                      >
+                        {copiedKey === viewingClient.apiKey ? "Copied!" : "Copy"}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Created:</span> {new Date(viewingClient.createdAt).toLocaleDateString()}
+                  </div>
+                  {viewingClient.timezone && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Timezone:</span> {viewingClient.timezone}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {viewingClient.notes && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Notes</h4>
+                  <div className="text-sm bg-muted p-3 rounded whitespace-pre-wrap">
+                    {viewingClient.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowViewDialog(false)}
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowViewDialog(false);
+                handleEdit(viewingClient!);
+              }}
+            >
+              Edit Client
             </Button>
           </DialogFooter>
         </DialogContent>
