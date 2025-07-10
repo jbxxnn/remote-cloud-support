@@ -336,22 +336,35 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                                   disabled={client._acknowledging}
                                   onClick={async (e) => {
                                     e.stopPropagation();
+                                    console.log('[STAFF DASHBOARD] Acknowledging alert for client:', client.id);
+                                    console.log('[STAFF DASHBOARD] Client status:', client.status);
+                                    console.log('[STAFF DASHBOARD] Last event:', client.lastEvent);
+                                    
                                     // Optimistic UI update
                                     setClients((prev) => prev.map((c) => c.id === client.id ? { ...c, _acknowledging: true } : c));
                                     try {
+                                      console.log('[STAFF DASHBOARD] Making PATCH request to:', `/api/staff/clients/${client.id}/alerts`);
                                       const res = await fetch(`/api/staff/clients/${client.id}/alerts`, {
                                         method: 'PATCH',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ action: 'acknowledge' })
                                       });
+                                      console.log('[STAFF DASHBOARD] Response status:', res.status);
+                                      console.log('[STAFF DASHBOARD] Response ok:', res.ok);
+                                      
                                       if (res.ok) {
+                                        console.log('[STAFF DASHBOARD] Success - navigating to client dashboard');
                                         // Navigate to client dashboard after successful acknowledgment
                                         window.location.href = `/staff/client/${client.id}`;
                                       } else {
+                                        console.log('[STAFF DASHBOARD] Error response:', res.status, res.statusText);
+                                        const errorData = await res.text();
+                                        console.log('[STAFF DASHBOARD] Error data:', errorData);
                                         // handle error
                                         setClients((prev) => prev.map((c) => c.id === client.id ? { ...c, _acknowledging: false } : c));
                                       }
                                     } catch (err) {
+                                      console.error('[STAFF DASHBOARD] Fetch error:', err);
                                       setClients((prev) => prev.map((c) => c.id === client.id ? { ...c, _acknowledging: false } : c));
                                     }
                                   }}

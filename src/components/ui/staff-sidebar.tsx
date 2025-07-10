@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
@@ -20,6 +22,7 @@ import {
   CheckCircle
 } from "lucide-react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 interface StaffSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   user?: {
@@ -36,6 +39,15 @@ interface StaffSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
   ({ className, user, stats, ...props }, ref) => {
+    const pathname = usePathname();
+
+    const isActive = (path: string) => {
+      if (path === "/staff") {
+        return pathname === "/staff";
+      }
+      return pathname.startsWith(path);
+    };
+
     return (
       <div
         ref={ref}
@@ -85,7 +97,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
         <div className="flex-1 px-4 py-6">
           <nav className="space-y-2">
             <Button
-              variant="ghost"
+              variant={isActive("/staff") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -140,8 +152,8 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
              */}
             <Separator className="my-4" />
             
-            <Button
-              variant="ghost"
+            {/* <Button
+              variant={isActive("/staff/calls") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -152,7 +164,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
             </Button>
             
             <Button
-              variant="ghost"
+              variant={isActive("/staff/reports") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -163,7 +175,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
             </Button>
             
             <Button
-              variant="ghost"
+              variant={isActive("/staff/sops") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -176,7 +188,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
             <Separator className="my-4" />
             
             <Button
-              variant="ghost"
+              variant={isActive("/staff/settings") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -184,7 +196,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
                 <Settings className="w-4 h-4 mr-3" />
                 Settings
               </a>
-            </Button>
+            </Button> */}
           </nav>
         </div>
 

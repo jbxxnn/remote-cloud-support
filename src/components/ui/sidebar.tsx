@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
@@ -16,6 +18,7 @@ import {
   FileSearch
 } from "lucide-react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   user?: {
@@ -27,6 +30,15 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
   ({ className, user, ...props }, ref) => {
+    const pathname = usePathname();
+
+    const isActive = (path: string) => {
+      if (path === "/admin") {
+        return pathname === "/admin";
+      }
+      return pathname.startsWith(path);
+    };
+
     return (
       <div
         ref={ref}
@@ -50,7 +62,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
         <div className="flex-1 px-4 py-6">
           <nav className="space-y-2">
             <Button
-              variant="ghost"
+              variant={isActive("/admin") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -61,7 +73,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
             </Button>
             
             <Button
-              variant="ghost"
+              variant={isActive("/admin/clients") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -72,7 +84,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
             </Button>
             
             <Button
-              variant="ghost"
+              variant={isActive("/admin/devices") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -83,7 +95,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
             </Button>
             
             <Button
-              variant="ghost"
+              variant={isActive("/admin/sops") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -94,7 +106,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
             </Button>
             
             <Button
-              variant="ghost"
+              variant={isActive("/admin/staff") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >
@@ -105,7 +117,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
             </Button>
             
             <Button
-              variant="ghost"
+              variant={isActive("/admin/logs") ? "secondary" : "ghost"}
               className="w-full justify-start"
               asChild
             >

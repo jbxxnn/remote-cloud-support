@@ -62,6 +62,7 @@ interface AdminDashboardProps {
 export function AdminDashboard({ user }: AdminDashboardProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [staffCount, setStaffCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -69,6 +70,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   useEffect(() => {
     fetchClients();
     fetchDevices();
+    fetchStaffCount();
   }, []);
 
   const fetchClients = async () => {
@@ -97,6 +99,18 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     }
   };
 
+  const fetchStaffCount = async () => {
+    try {
+      const response = await fetch("/api/users?role=staff");
+      if (response.ok) {
+        const data = await response.json();
+        setStaffCount(data.length);
+      }
+    } catch (error) {
+      console.error("Failed to fetch staff count:", error);
+    }
+  };
+
 
 
   // Calculate stats
@@ -104,7 +118,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   const totalDevices = devices.length;
   const totalDetections = clients.reduce((sum, client) => sum + (client._count?.detections || 0), 0);
   const activeClients = clients.filter(client => client.isActive).length;
-  const totalStaff = 0; // This would be fetched from the staff API
+  const totalStaff = staffCount;
 
   if (loading) {
     return (

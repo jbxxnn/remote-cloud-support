@@ -86,20 +86,39 @@ export async function PATCH(
     const currentUserId = (session.user as any).id;
     const now = new Date();
 
+    console.log('[ALERTS PATCH] Client ID:', clientId);
+    console.log('[ALERTS PATCH] Action:', action);
+    console.log('[ALERTS PATCH] Alert ID provided:', alertId);
+    console.log('[ALERTS PATCH] Current user ID:', currentUserId);
+
+    // First, let's see what alerts exist for this client
+    const allAlertsResult = await query(`
+      SELECT id, status, type, message, "createdAt" 
+      FROM "Alert" 
+      WHERE "clientId" = $1
+      ORDER BY "createdAt" DESC
+    `, [clientId]);
+
+    console.log('[ALERTS PATCH] All alerts for client:', allAlertsResult.rows);
+
     // If alertId is provided, use it; otherwise get the most recent pending alert
     let targetAlertId = alertId;
     if (!targetAlertId) {
       const alertResult = await query(`
-        SELECT id FROM "Alert" 
+        SELECT id, status, type, message FROM "Alert" 
         WHERE "clientId" = $1 AND status IN ('pending', 'acknowledged')
         ORDER BY "createdAt" DESC
         LIMIT 1
       `, [clientId]);
 
+      console.log('[ALERTS PATCH] Pending/acknowledged alerts found:', alertResult.rows);
+
       if (alertResult.rows.length === 0) {
+        console.log('[ALERTS PATCH] No pending alert found - returning 404');
         return NextResponse.json({ error: "No pending alert found for this client" }, { status: 404 });
       }
       targetAlertId = alertResult.rows[0].id;
+      console.log('[ALERTS PATCH] Using alert ID:', targetAlertId);
     }
 
     let eventType = null;
@@ -109,6 +128,7 @@ export async function PATCH(
 
     switch (action) {
       case 'acknowledge':
+        console.log('[ALERTS PATCH] Acknowledging alert:', targetAlertId);
         updateResult = await query(`
           UPDATE "Alert" 
           SET 
@@ -121,6 +141,7 @@ export async function PATCH(
         break;
 
       case 'resolve':
+        console.log('[ALERTS PATCH] Resolving alert:', targetAlertId);
         updateResult = await query(`
           UPDATE "Alert" 
           SET 
@@ -140,11 +161,15 @@ export async function PATCH(
         break;
 
       default:
+        console.log('[ALERTS PATCH] Invalid action:', action);
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
+    console.log('[ALERTS PATCH] Update result:', updateResult);
+
     // Log the action in AlertEvent
     if (eventType) {
+      console.log('[ALERTS PATCH] Logging alert event:', eventType);
       await query(`
         INSERT INTO "AlertEvent" (id, "alertId", "clientId", "staffId", "eventType", "message", "metadata", "createdAt", "updatedAt")
         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $7)
@@ -159,9 +184,10 @@ export async function PATCH(
       ]);
     }
 
+    console.log('[ALERTS PATCH] Success - returning response');
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to update alert:', error);
+    console.error('[ALERTS PATCH] Error:', error);
     return NextResponse.json({ error: "Failed to update alert" }, { status: 500 });
   }
 } 

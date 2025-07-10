@@ -28,7 +28,12 @@ interface Alert {
 interface Client {
   id: string;
   name: string;
+  email: string;
+  phone?: string;
   company: string;
+  address?: string;
+  notes?: string;
+  serviceProviderId?: string;
   status: string;
   emergencyServices?: {
     name: string;
@@ -95,11 +100,16 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
         {/* Alert Info */}
         <div className="px-6 pt-2 pb-0">
          <div className="text-sm text-gray-700 font-medium mb-1">{alert.message}</div>
-          <div className="text-xs text-gray-500 mb-8">{new Date(alert.createdAt).toLocaleTimeString()}</div>
+          <div className="text-xs text-gray-500 mb-2">{new Date(alert.createdAt).toLocaleTimeString()}</div>
+          {alert.detectionType && (
+            <div className="text-xs text-gray-500 mb-8">
+              Detection Type: <span className="font-medium capitalize">{alert.detectionType.replace(/_/g, ' ')}</span>
+            </div>
+          )}
           <div className="flex gap-3 mb-2">
             {alert.clipUrl && (
               <Button size="sm" variant="default" className="border-gray-300 flex items-center gap-1">
-                <Play className="w-4 h-4" /> Play Clip
+                <Play className="w-4 h-4" /> View Clip
               </Button>
             )}
             <Button size="sm" variant="outline" className="border-gray-300 flex items-center gap-1" onClick={handleStartCall}>
@@ -112,50 +122,90 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
             )}
           </div>
         </div>
-        {/* Event Notes */}
-        <div className="px-6 pt-2">
-          <label className="text-xs font-medium mb-1 block text-gray-700">Event Notes</label>
-          <Textarea
-            placeholder="What did you do? (e.g., 'Attempted contact via Google Meet - no answer')"
-            value={actionNotes}
-            onChange={e => setActionNotes(e.target.value)}
-            rows={3}
-            className="border border-gray-200 focus:border-black focus:ring-1 focus:ring-black rounded-md mb-3"
-          />
-          <label className="text-xs font-medium mb-1 block text-gray-700">Outcome</label>
-          <Select value={outcome} onValueChange={setOutcome}>
-            <SelectTrigger className="border border-gray-200 focus:border-black focus:ring-1 focus:ring-black rounded-md">
-              <SelectValue placeholder="Select an outcome" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="false-alarm">False Alarm</SelectItem>
-              <SelectItem value="resolved">Resolved</SelectItem>
-              <SelectItem value="emergency-escalated">Emergency Escalated</SelectItem>
-              <SelectItem value="scheduled-check">Scheduled Check</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {/* Modal Actions */}
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-          <Button variant="outline" onClick={onClose} className="border-gray-300">Cancel</Button>
-          <Button onClick={onResolve} disabled={!actionNotes.trim()} className="bg-black hover:bg-gray-800 text-white disabled:bg-gray-300 disabled:text-gray-500">Resolve</Button>
-        </div>
+        {/* Event Notes - Only show if not pending */}
+        {alert.status !== 'pending' && (
+          <>
+            <div className="px-6 pt-2">
+              <label className="text-xs font-medium mb-1 block text-gray-700">Event Notes</label>
+              <Textarea
+                placeholder="What did you do? (e.g., 'Attempted contact via Google Meet - no answer')"
+                value={actionNotes}
+                onChange={e => setActionNotes(e.target.value)}
+                rows={3}
+                className="border border-gray-200 focus:border-black focus:ring-1 focus:ring-black rounded-md mb-3"
+              />
+              <label className="text-xs font-medium mb-1 block text-gray-700">Outcome</label>
+              <Select value={outcome} onValueChange={setOutcome}>
+                <SelectTrigger className="border border-gray-200 focus:border-black focus:ring-1 focus:ring-black rounded-md">
+                  <SelectValue placeholder="Select an outcome" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="false-alarm">False Alarm</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="emergency-escalated">Emergency Escalated</SelectItem>
+                  <SelectItem value="scheduled-check">Scheduled Check</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Modal Actions - Only show if not pending */}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <Button variant="outline" onClick={onClose} className="border-gray-300">Cancel</Button>
+              <Button onClick={onResolve} disabled={!actionNotes.trim()} className="bg-black hover:bg-gray-800 text-white disabled:bg-gray-300 disabled:text-gray-500">Resolve</Button>
+            </div>
+          </>
+        )}
+        {/* Modal Actions for pending alerts - Only Cancel button */}
+        {alert.status === 'pending' && (
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+            <Button variant="outline" onClick={onClose} className="border-gray-300">Cancel</Button>
+          </div>
+        )}
         {/* SOP Box */}
         <div className="px-6 pb-6">
           <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="font-semibold text-blue-900 text-sm mb-2">Standard Operating Procedure</div>
+            <div className="font-semibold text-blue-900 text-sm mb-2">
+              Standard Operating Procedures
+              {alert.detectionType && (
+                <span className="text-xs font-normal text-blue-700 ml-2">
+                  (for {alert.detectionType.replace(/_/g, ' ')} detection)
+                </span>
+              )}
+            </div>
             {relevantSOPs.length === 0 ? (
-              <div className="text-blue-800 text-xs">No relevant SOPs for current alert.</div>
+              <div className="text-blue-800 text-xs">No relevant SOPs found for this detection type.</div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {relevantSOPs.map((sop: any) => (
-                  <div key={sop.id}>
-                    <div className="font-medium text-blue-900 text-xs mb-1">{sop.name}</div>
-                    <ol className="list-decimal list-inside text-xs text-blue-800">
-                      {sop.steps?.map((step: any, idx: number) => (
-                        <li key={idx}>{step}</li>
-                      ))}
-                    </ol>
+                  <div key={sop.id} className="border-l-2 border-blue-300 pl-3">
+                    <div className="font-medium text-blue-900 text-sm mb-1">
+                      {sop.name}
+                      {sop.isGlobal && (
+                        <span className="text-xs text-blue-600 ml-2">(Global)</span>
+                      )}
+                    </div>
+                    {sop.description && (
+                      <div className="text-xs text-blue-700 mb-2">{sop.description}</div>
+                    )}
+                    {sop.steps && Array.isArray(sop.steps) && (
+                      <ol className="list-decimal list-inside text-xs text-blue-800 space-y-1">
+                        {sop.steps.map((step: any, idx: number) => {
+                          let stepText = '';
+                          if (typeof step === 'string') {
+                            stepText = step;
+                          } else if (typeof step === 'object' && step.action) {
+                            stepText = step.action;
+                          } else if (typeof step === 'object') {
+                            // Fallback to other properties
+                            stepText = step.step || step.description || step.text || step.content || '';
+                          }
+                          return (
+                            <li key={idx}>
+                              {stepText || `Step ${idx + 1}`}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
                   </div>
                 ))}
               </div>
@@ -260,8 +310,33 @@ export default function ClientDashboardPage() {
     }
   }, [clientId]);
 
+  // Fetch relevant SOPs when an alert is selected
+  const fetchRelevantSOPs = async (detectionType: string) => {
+    try {
+      console.log('[CLIENT PAGE] Fetching SOPs for detection type:', detectionType);
+      const response = await fetch(`/api/staff/clients/${clientId}/sops?detectionType=${detectionType}`);
+      if (response.ok) {
+        const sopsData = await response.json();
+        console.log('[CLIENT PAGE] SOPs received:', sopsData);
+        // Debug the structure of steps
+        sopsData.forEach((sop: any, index: number) => {
+          console.log(`[CLIENT PAGE] SOP ${index + 1} steps:`, sop.steps);
+          if (sop.steps && Array.isArray(sop.steps)) {
+            sop.steps.forEach((step: any, stepIndex: number) => {
+              console.log(`[CLIENT PAGE] Step ${stepIndex + 1}:`, step, 'Type:', typeof step);
+            });
+          }
+        });
+        setRelevantSOPs(Array.isArray(sopsData) ? sopsData : []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch relevant SOPs:', error);
+    }
+  };
+
   const handleAcknowledgeAlert = async (alertId: string) => {
     try {
+      console.log('[CLIENT PAGE] Acknowledging alert:', alertId);
       const response = await fetch(`/api/staff/clients/${clientId}/alerts`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -269,13 +344,29 @@ export default function ClientDashboardPage() {
       });
 
       if (response.ok) {
-        // Refresh alerts
-        const status = selectedTab === 'active' ? 'pending,scheduled' : 'resolved';
-        const alertsResponse = await fetch(`/api/staff/clients/${clientId}/alerts?status=${status}`);
-        if (alertsResponse.ok) {
-          const alertsData = await alertsResponse.json();
-          setAlerts(Array.isArray(alertsData) ? alertsData : []);
+        console.log('[CLIENT PAGE] Alert acknowledged successfully');
+        
+        // Refresh the selected alert data to get updated status
+        if (selectedAlert) {
+          const status = selectedTab === 'active' ? 'pending,scheduled' : 'resolved';
+          const alertsResponse = await fetch(`/api/staff/clients/${clientId}/alerts?status=${status}`);
+          if (alertsResponse.ok) {
+            const alertsData = await alertsResponse.json();
+            const updatedAlerts = Array.isArray(alertsData) ? alertsData : [];
+            
+            // Find and update the selected alert
+            const updatedAlert = updatedAlerts.find((alert: any) => alert.id === selectedAlert.id);
+            if (updatedAlert) {
+              console.log('[CLIENT PAGE] Updating selected alert with new status:', updatedAlert.status);
+              setSelectedAlert(updatedAlert);
+            }
+            
+            // Also update the alerts list
+            setAlerts(updatedAlerts);
+          }
         }
+      } else {
+        console.error('[CLIENT PAGE] Failed to acknowledge alert:', response.status);
       }
     } catch (error) {
       console.error('Failed to acknowledge alert:', error);
@@ -451,7 +542,13 @@ export default function ClientDashboardPage() {
                     <>
                       <div className="space-y-3">
                         {getCurrentAlerts().map((alert) => (
-                          <div key={alert.id} className="p-4 border border-gray-200 rounded-sm flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors bg-white" onClick={() => setSelectedAlert(alert)}>
+                          <div key={alert.id} className="p-4 border border-gray-200 rounded-sm flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors bg-white" onClick={() => {
+                            setSelectedAlert(alert);
+                            // Fetch relevant SOPs based on detection type
+                            if (alert.detectionType) {
+                              fetchRelevantSOPs(alert.detectionType);
+                            }
+                          }}>
                             <div>
                               <div className="font-medium text-gray-900">{alert.message}</div>
                               <div className="text-xs text-gray-500">
@@ -584,18 +681,105 @@ export default function ClientDashboardPage() {
                 <CardTitle className="text-base font-semibold text-gray-900">Client Information</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                {/* {relevantSOPs.length === 0 ? (
-                  <div className="text-gray-500 text-sm">No relevant SOPs for current alerts.</div>
-                ) : (
-                  <div className="space-y-3">
-                    {relevantSOPs.map((sop: any) => (
-                      <div key={sop.id} className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors bg-white">
-                        <div className="font-medium text-sm text-gray-900 mb-1">{sop.name}</div>
-                        <div className="text-xs text-gray-600">{sop.description?.substring(0, 100)}...</div>
-                      </div>
-                    ))}
+                <div className="space-y-4">
+                  {/* Client Status */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Status</span>
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${getStatusColor(client.status)}`}></div>
+                      <span className="text-sm font-medium capitalize">{client.status}</span>
+                    </div>
                   </div>
-                )} */}
+
+                  {/* Company */}
+                  {client.company && (
+                    <div>
+                      <span className="text-sm text-gray-900 font-medium block mb-1">Company</span>
+                      <span className="text-xs text-gray-900">{client.company}</span>
+                    </div>
+                    
+                  )}
+
+                  {client.serviceProviderId && (
+                    <div>
+                      <span className="text-sm text-gray-900 font-medium block mb-1">Service Provider ID</span>
+                      <span className="text-xs text-gray-900">{client.serviceProviderId}</span>
+                    </div>
+                    
+                  )}
+
+                  {/* Contact Information */}
+                  <div>
+                    <span className="text-sm text-gray-900 font-medium block mb-2">Contact Information</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-500">Email:</span>
+                        <span className="text-xs text-gray-900">{client.email || 'Not provided'}</span>
+                      </div>
+                      {client.phone && (
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-500">Phone:</span>
+                          <span className="text-xs text-gray-900">{client.phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Emergency Services */}
+                  {client.emergencyServices && (
+                    <div>
+                      <span className="text-sm text-gray-900 font-medium block mb-2">Emergency Contact</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-500">Name:</span>
+                          <span className="text-xs text-gray-900">{client.emergencyServices.name}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-500">Phone:</span>
+                          <span className="text-xs text-gray-900">{client.emergencyServices.phone}</span>
+                        </div>
+                        {client.emergencyServices.address && (
+                          <div className="flex items-start space-x-2">
+                            <span className="text-xs text-gray-500 mt-0.5">Address:</span>
+                            <span className="text-xs text-gray-900">{client.emergencyServices.address}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Client Notes */}
+                  {client.notes && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-900 block mb-1">Client Notes</span>
+                      <span className="text-xs text-gray-600 font-mono">{client.notes}</span>
+                    </div>
+                  )}
+
+                  {/* Quick Actions */}
+                  {/* <div className="pt-2 border-t border-gray-100">
+                    <span className="text-sm text-gray-600 block mb-2">Quick Actions</span>
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full justify-start border-gray-300 text-gray-700 hover:bg-gray-50"
+                        onClick={handleStartCall}
+                      >
+                        <Phone className="w-3 h-3 mr-2" />
+                        Call Client
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full justify-start border-gray-300 text-gray-700 hover:bg-gray-50"
+                      >
+                        <FileText className="w-3 h-3 mr-2" />
+                        View SOPs
+                      </Button>
+                    </div>
+                  </div> */}
+                </div>
               </CardContent>
             </Card>
           </div>

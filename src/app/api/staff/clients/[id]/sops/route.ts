@@ -16,31 +16,41 @@ export async function GET(
 
   try {
     const { id: clientId } = await params;
+    const { searchParams } = new URL(request.url);
+    const detectionType = searchParams.get('detectionType'); // Filter by detection type
 
-    // For now, return some sample SOPs. In a real implementation,
-    // you might have client-specific SOPs or general SOPs
-    const sops = [
-      {
-        id: "sop-1",
-        title: "Fall Detection Response",
-        content: "When a fall is detected: 1) Immediately attempt to contact the client via video call. 2) If no response, check the video clip for severity. 3) If serious, contact emergency services immediately. 4) Document all actions taken.",
-        eventType: "detection"
-      },
-      {
-        id: "sop-2", 
-        title: "Scheduled Check-in Procedure",
-        content: "For scheduled check-ins: 1) Initiate video call at scheduled time. 2) Verify client is safe and well. 3) Ask about any concerns or needs. 4) Document the interaction.",
-        eventType: "scheduled"
-      },
-      {
-        id: "sop-3",
-        title: "Emergency Escalation",
-        content: "If emergency services are needed: 1) Call 911 immediately. 2) Provide client location and situation details. 3) Stay on the line until help arrives. 4) Notify family/emergency contacts.",
-        eventType: "detection"
-      }
-    ];
+    console.log('[SOPS API] Client ID:', clientId);
+    console.log('[SOPS API] Detection Type:', detectionType);
 
-    return NextResponse.json(sops);
+    let whereClause = 'WHERE ("clientId" = $1 OR "isGlobal" = true) AND "isActive" = true';
+    let queryParams = [clientId];
+
+    if (detectionType) {
+      whereClause += ' AND LOWER("eventType") = LOWER($2)';
+      queryParams.push(detectionType);
+    }
+
+    console.log('[SOPS API] SQL Query:', whereClause);
+    console.log('[SOPS API] Query Params:', queryParams);
+
+    const result = await query(`
+      SELECT 
+        id,
+        name,
+        description,
+        "eventType",
+        steps,
+        "isGlobal",
+        "clientId"
+      FROM "SOP"
+      ${whereClause}
+      ORDER BY "isGlobal" DESC, name ASC
+    `, queryParams);
+
+    console.log('[SOPS API] SOPs found:', result.rows.length);
+    console.log('[SOPS API] SOPs:', result.rows);
+
+    return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Failed to fetch client SOPs:', error);
     return NextResponse.json({ error: "Failed to fetch client SOPs" }, { status: 500 });

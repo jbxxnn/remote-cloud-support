@@ -19,7 +19,7 @@ export async function GET(
 
     const result = await query(`
       SELECT 
-        id, name, company, status, "emergencyContact", "emergencyServicesNumber"
+        id, name, email, phone, company, address, notes, "serviceProviderId", status, "emergencyContact", "emergencyServicesNumber"
       FROM "Client" 
       WHERE id = $1
     `, [clientId]);
@@ -34,13 +34,18 @@ export async function GET(
     const clientData = {
       id: client.id,
       name: client.name,
+      email: client.email,
+      phone: client.phone,
       company: client.company,
+      address: client.address,
+      notes: client.notes,
+      serviceProviderId: client.serviceProviderId,
       status: client.status,
       photo: undefined, // Not in schema yet
       emergencyServices: client.emergencyContact ? {
         name: client.emergencyContact,
         phone: client.emergencyServicesNumber,
-        address: 'Contact for address' // Not in schema yet
+        address: client.address || 'Contact for address'
       } : undefined
     };
 
