@@ -27,12 +27,12 @@ export async function POST(request: NextRequest) {
     // Find existing device (no auto-creation)
     const deviceResult = await query(
       'SELECT * FROM "Device" WHERE "deviceId" = $1',
-      [body.data.device_id]
+      [body.device_id]
     );
     
     if (deviceResult.rows.length === 0) {
       return NextResponse.json({ 
-        error: `Device not found: ${body.data.device_id}. Please create this device in the admin interface first.` 
+        error: `Device not found: ${body.device_id}. Please create this device in the admin interface first.` 
       }, { status: 404 });
     }
     
@@ -43,14 +43,14 @@ export async function POST(request: NextRequest) {
     
     // Parse timestamp safely
     let detectionTimestamp = now;
-    if (body.timestamp) {
+    if (body.ts) {
       try {
-        const parsedTimestamp = new Date(body.timestamp);
+        const parsedTimestamp = new Date(body.ts);
         if (!isNaN(parsedTimestamp.getTime())) {
           detectionTimestamp = parsedTimestamp;
         }
       } catch (error) {
-        console.warn('Invalid timestamp format, using current time:', body.timestamp);
+        console.warn('Invalid timestamp format, using current time:', body.ts);
       }
     }
     const detectionResult = await query(`
@@ -60,11 +60,11 @@ export async function POST(request: NextRequest) {
     `, [
       client.id,
       device.id,
-      body.data.detection_type,
-      body.data.confidence,
-      body.data.clip_url,
-      body.data.location,
-      body.data.severity || 'medium',
+      body.reason || 'fall_detected',
+      body.confidence,
+      body.image_topic || null,
+      body.camera || body.device_id,
+      body.severity || 'high',
       detectionTimestamp,
       now
     ]);
