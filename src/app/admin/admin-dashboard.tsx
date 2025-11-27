@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { StatsCard } from "@/components/ui/stats-card";
 import { HeaderBar } from "@/components/layout/header-bar";
 import { AssistantIcon } from "@/components/assistant/assistant-icon";
+import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 import { 
   Users, 
   Shield, 
@@ -62,6 +63,7 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ user }: AdminDashboardProps) {
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [staffCount, setStaffCount] = useState(0);
@@ -140,10 +142,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         activeAlerts={0} // TODO: Get actual active alerts count
         staffOnline={staffCount}
         openSOPs={0} // TODO: Get actual open SOPs count
-        onAssistantClick={() => {
-          // TODO: Open Assistant drawer
-          console.log("Assistant clicked");
-        }}
+        onAssistantClick={() => setAssistantOpen(true)}
       />
       
       {/* Main Content */}
@@ -409,6 +408,14 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         <AssistantIcon
           module="Admin Dashboard"
           userRole="admin"
+          drawerOpen={assistantOpen}
+          onDrawerOpenChange={setAssistantOpen}
+        />
+
+        {/* SupportSense Assistant Drawer */}
+        <AssistantDrawer
+          open={assistantOpen}
+          onOpenChange={setAssistantOpen}
         />
       </div>
     </div>

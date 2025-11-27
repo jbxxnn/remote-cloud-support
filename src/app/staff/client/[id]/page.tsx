@@ -12,6 +12,7 @@ import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play, X, Loader
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
 import { HeaderBar } from "@/components/layout/header-bar";
 import { AssistantIcon } from "@/components/assistant/assistant-icon";
+import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 
 
 interface Alert {
@@ -222,6 +223,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
 export default function ClientDashboardPage() {
   const params = useParams();
   const clientId = params.id as string;
+  const [assistantOpen, setAssistantOpen] = useState(false);
   
   const [selectedTab, setSelectedTab] = useState<'active' | 'history'>("active");
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
@@ -484,10 +486,7 @@ export default function ClientDashboardPage() {
           activeAlerts={activeAlertsCount}
           staffOnline={1}
           openSOPs={relevantSOPs.length}
-          onAssistantClick={() => {
-            // TODO: Open Assistant drawer
-            console.log("Assistant clicked");
-          }}
+          onAssistantClick={() => setAssistantOpen(true)}
         />
 
         {/* Main Content */}
@@ -800,6 +799,14 @@ export default function ClientDashboardPage() {
           module="Client Dashboard"
           clientId={clientId}
           userRole="staff"
+          drawerOpen={assistantOpen}
+          onDrawerOpenChange={setAssistantOpen}
+        />
+
+        {/* SupportSense Assistant Drawer */}
+        <AssistantDrawer
+          open={assistantOpen}
+          onOpenChange={setAssistantOpen}
         />
       </div>
     </div>

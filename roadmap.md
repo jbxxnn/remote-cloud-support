@@ -146,7 +146,7 @@ Create a minimal Assistant UI accessible everywhere with context awareness. This
 - Text area + "Send" button
 - Static response: "I'm SupportSense. Training mode only."
 - Message history (user messages + static responses)
-- Accessible via "Assistant" button in header
+- Accessible via "Assistant" button in header and other assistant button available
 
 **Note:** No AI backend required. This is a UI placeholder for future integration.
 
@@ -175,7 +175,7 @@ Create a minimal Assistant UI accessible everywhere with context awareness. This
 
 #### AI-3: Integrate Assistant Button in Header
 **Files to modify:**
-- `src/components/layout/header-bar.tsx` - Add Assistant button
+- `src/components/layout/header-bar.tsx` - Add Assistant button if it doesn't already exist
 - All dashboard pages - Ensure header includes Assistant button
 
 **Features:**

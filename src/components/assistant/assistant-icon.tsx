@@ -16,6 +16,8 @@ interface AssistantIconProps {
   onOpen?: () => void;
   onAssistantClick?: () => void; // Alias for onOpen for backward compatibility
   className?: string;
+  drawerOpen?: boolean;
+  onDrawerOpenChange?: (open: boolean) => void;
 }
 
 export function AssistantIcon({
@@ -26,7 +28,9 @@ export function AssistantIcon({
   userRole = "staff",
   onOpen,
   onAssistantClick,
-  className
+  className,
+  drawerOpen,
+  onDrawerOpenChange
 }: AssistantIconProps) {
   const handleOpen = onOpen || onAssistantClick;
   const [isVisible, setIsVisible] = useState(true);
@@ -50,13 +54,14 @@ export function AssistantIcon({
   }, [module, clientId, eventId, sopId, userRole]);
 
   const handleClick = () => {
-    if (handleOpen) {
+    if (onDrawerOpenChange) {
+      onDrawerOpenChange(true);
+    } else if (handleOpen) {
       handleOpen();
     } else {
       // Default behavior: log context (will be replaced with drawer opening)
       const context = contextService.getContextPayload();
       console.log("SupportSense Assistant - Context:", context);
-      // TODO: Open assistant drawer
     }
   };
 

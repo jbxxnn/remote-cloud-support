@@ -9,6 +9,7 @@ import { LiveAlertsFeed } from "@/components/staff/live-alerts-feed";
 import { ActiveClientsGrid } from "@/components/staff/active-clients-grid";
 import { SystemSnapshot } from "@/components/staff/system-snapshot";
 import { AssistantIcon } from "@/components/assistant/assistant-icon";
+import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
 interface Client {
@@ -38,6 +39,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -130,10 +132,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
           activeAlerts={activeAlertsCount}
           staffOnline={1} // TODO: Get actual staff online count
           openSOPs={openSOPsCount}
-          onAssistantClick={() => {
-            // TODO: Open Assistant drawer
-            console.log("Assistant clicked");
-          }}
+          onAssistantClick={() => setAssistantOpen(true)}
         />
 
         {/* Main Content - 3 Column Layout */}
@@ -188,10 +187,14 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
         <AssistantIcon
           module="Staff Dashboard"
           userRole="staff"
-          onOpen={() => {
-            // TODO: Open Assistant drawer
-            console.log("Assistant clicked");
-          }}
+          drawerOpen={assistantOpen}
+          onDrawerOpenChange={setAssistantOpen}
+        />
+
+        {/* SupportSense Assistant Drawer */}
+        <AssistantDrawer
+          open={assistantOpen}
+          onOpenChange={setAssistantOpen}
         />
       </div>
     </div>
