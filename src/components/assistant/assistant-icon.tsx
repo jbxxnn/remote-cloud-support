@@ -6,6 +6,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { MessageSquare, X } from "lucide-react";
 import { contextService } from "@/lib/assistant/context-service";
 import { cn } from "@/lib/utils";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Comment01Icon } from "@hugeicons/core-free-icons";
 
 interface AssistantIconProps {
   module?: string;
@@ -83,7 +85,7 @@ export function AssistantIcon({
             <Button
               size="lg"
               className={cn(
-                "h-14 w-14 rounded-full shadow-lg",
+                "h-12 w-12 rounded-full shadow-lg p-0",
                 "bg-[var(--rce-green)] hover:bg-[var(--rce-green)]/90",
                 "text-[var(--rce-black)]",
                 "transition-all duration-300",
@@ -93,7 +95,7 @@ export function AssistantIcon({
               onClick={handleClick}
               aria-label="Open SupportSense Assistant"
             >
-              <MessageSquare className="h-6 w-6" />
+                <HugeiconsIcon icon={Comment01Icon} className="h-12 w-12 text-primary-foreground"/>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="left" className="max-w-xs">

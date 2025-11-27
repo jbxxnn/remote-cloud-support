@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* RCE Color Scheme - Light Mode */
-    --rce-green: #00FF00;
+    --rce-green: #3ace3c;
     --rce-black: #000000;
     --rce-white: #FFFFFF;
     
@@ -65,7 +65,7 @@
 
   .dark {
     /* RCE Color Scheme - Dark Mode (default) */
-    --rce-green: #00FF00;
+    --rce-green: #3ace3c;
     --rce-black: #000000;
     --rce-white: #FFFFFF;
     

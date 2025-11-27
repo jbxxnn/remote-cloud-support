@@ -160,9 +160,6 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
               showText={false}
               className="flex-shrink-0"
             />
-            <span className="font-semibold text-lg bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Admin Panel
-            </span>
           </div>
         </div>
 

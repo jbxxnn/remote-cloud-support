@@ -30,6 +30,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { AlertCircleIcon, CallIcon, ChartRadarIcon, Doc01Icon, File01Icon, MessageMultiple01Icon, TransactionHistoryIcon, UserMultipleIcon, Video02Icon, HelpCircleIcon, Clock05Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 interface StaffSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   user?: {
@@ -179,9 +181,6 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
               showText={false}
               className="flex-shrink-0"
             />
-            <span className="font-semibold text-lg bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Staff Portal
-            </span>
           </div>
         </div>
 
@@ -217,14 +216,14 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
             {/* Main Section */}
             <NavButton
               href="/staff"
-              icon={Home}
+              icon={() => <HugeiconsIcon icon={ChartRadarIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="Dashboard"
               tooltip="Ask SupportSense: Show me the dashboard overview"
             />
 
             <NavButton
               href="/staff#alerts"
-              icon={AlertTriangle}
+              icon={() => <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="Active Alerts"
               badge={liveStats.activeAlerts}
               badgeVariant="destructive"
@@ -233,61 +232,67 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
 
             <NavButton
               href="/staff#clients"
-              icon={Users}
+              icon={() => <HugeiconsIcon icon={UserMultipleIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="Clients"
               badge={liveStats.activeClients}
               tooltip="Ask SupportSense: Show me all active clients"
             />
 
-            <Separator className="my-3 opacity-50" />
+            <div className="!my-3">
+            <Separator className="opacity-50" />
+            </div>
 
             {/* SOP & Documentation Section */}
             <NavButton
               href="/staff#sops"
-              icon={FileText}
+              icon={() => <HugeiconsIcon icon={File01Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="SOP Responses"
               badge={liveStats.openSOPs}
-              badgeVariant={liveStats.openSOPs > 0 ? "secondary" : "default"}
+              badgeVariant={liveStats.openSOPs ? liveStats.openSOPs > 0 ? "secondary" : "default" : "default"}
               tooltip="Ask SupportSense: What SOPs need responses?"
             />
 
             <NavButton
               href="/staff#documentation"
-              icon={BookOpen}
+              icon={() => <HugeiconsIcon icon={Doc01Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="Documentation"
               tooltip="Ask SupportSense: Help me with documentation"
             />
 
-            <Separator className="my-3 opacity-50" />
+            <div className="!my-3">
+              <Separator className="opacity-50" />
+            </div>
 
             {/* Communication Section */}
             <NavButton
               href="/staff#communication"
-              icon={MessageSquare}
+              icon={() => <HugeiconsIcon icon={MessageMultiple01Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="Communication Center"
               tooltip="Ask SupportSense: Show communication history"
             />
 
             <NavButton
               href="/staff#calls"
-              icon={Phone}
+              icon={() => <HugeiconsIcon icon={CallIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="Call History"
               tooltip="Ask SupportSense: Show recent calls"
             />
 
             <NavButton
               href="/staff#video"
-              icon={Video}
+              icon={() => <HugeiconsIcon icon={Video02Icon} />}
               label="Video Sessions"
               tooltip="Ask SupportSense: Show video session history"
             />
 
-            <Separator className="my-3 opacity-50" />
+            <div className="!my-3">
+              <Separator className="opacity-50" />
+            </div>
 
             {/* History & Help Section */}
             <NavButton
               href="/staff#history"
-              icon={History}
+              icon={() => <HugeiconsIcon icon={TransactionHistoryIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="History"
               badge={liveStats.resolvedToday}
               tooltip="Ask SupportSense: Show resolved events today"
@@ -295,20 +300,22 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
 
             <NavButton
               href="/staff#help"
-              icon={HelpCircle}
+              icon={() => <HugeiconsIcon icon={HelpCircleIcon} />}
               label="Help & Training"
               tooltip="Ask SupportSense: Help me with training materials"
             />
 
-            <Separator className="my-3 opacity-50" />
+            <div className="!my-3">
+              <Separator className="opacity-50" />
+            </div>
 
             {/* My Queue - Highlighted */}
             <NavButton
               href="/staff#my-queue"
-              icon={Clock}
+              icon={() => <HugeiconsIcon icon={Clock05Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="My Queue"
               badge={liveStats.myQueue}
-              badgeVariant={liveStats.myQueue > 0 ? "destructive" : "secondary"}
+              badgeVariant={liveStats.myQueue ? liveStats.myQueue > 0 ? "destructive" : "secondary" : "default"}
               tooltip="Ask SupportSense: What's in my queue?"
             />
           </nav>

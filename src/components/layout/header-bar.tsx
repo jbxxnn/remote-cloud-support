@@ -14,7 +14,10 @@ import {
   Users,
   FileText,
   MessageSquare,
+  VolumeOffIcon,
 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { File01Icon, UserMultipleIcon, VolumeMute02Icon, VolumeUpIcon, AlertCircleIcon, Comment01Icon, Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons";
 
 interface HeaderBarProps {
   module?: string;
@@ -96,22 +99,20 @@ export function HeaderBar({
 
         {/* Center: Quick Metrics */}
         <div className="mx-6 flex flex-1 items-center justify-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Alerts:</span>
-            <Badge variant={activeAlerts > 0 ? "destructive" : "secondary"}>
-              {activeAlerts}
-            </Badge>
+          <div className="flex items-center space-x-2 bg-secondary rounded-full px-4 py-1.5">
+          <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-muted-foreground"/>
+            <span className="text-xs text-muted-foreground">Alerts:</span>
+            <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">{activeAlerts}</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Staff:</span>
-            <Badge variant="secondary">{staffOnline}</Badge>
+          <div className="flex items-center space-x-2 bg-secondary rounded-full px-4 py-1.5">
+          <HugeiconsIcon icon={UserMultipleIcon} className="h-4 w-4 text-muted-foreground"/>
+            <span className="text-xs text-muted-foreground">Staff:</span>
+            <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">{staffOnline}</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">SOPs:</span>
-            <Badge variant="secondary">{openSOPs}</Badge>
+          <div className="flex items-center space-x-2 bg-secondary rounded-full px-4 py-1.5">
+          <HugeiconsIcon icon={File01Icon} className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">SOPs:</span>
+            <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">{openSOPs}</span>
           </div>
         </div>
 
@@ -133,10 +134,15 @@ export function HeaderBar({
             variant="ghost"
             size="sm"
             onClick={() => setAlertTonesEnabled(!alertTonesEnabled)}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 rounded-full"
             title={alertTonesEnabled ? "Disable alert tones" : "Enable alert tones"}
           >
-            <MessageSquare className={`h-4 w-4 ${alertTonesEnabled ? "text-[var(--rce-green)]" : "text-muted-foreground"}`} />
+            {alertTonesEnabled ? (
+              <HugeiconsIcon icon={VolumeUpIcon} />
+            ) : (
+              <HugeiconsIcon icon={VolumeMute02Icon} />
+            )}
+            
           </Button>
 
           {/* Theme Toggle */}
@@ -144,13 +150,13 @@ export function HeaderBar({
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 rounded-full"
             title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           >
             {theme === "dark" ? (
-              <Sun className="h-4 w-4" />
+              <HugeiconsIcon icon={Sun03Icon} className="h-4 w-4 text-muted-foreground"/>
             ) : (
-              <Moon className="h-4 w-4" />
+              <HugeiconsIcon icon={Moon02Icon} className="h-4 w-4 text-muted-foreground"/>
             )}
           </Button>
 
@@ -160,9 +166,9 @@ export function HeaderBar({
               variant="default"
               size="sm"
               onClick={onAssistantClick}
-              className="bg-[var(--rce-green)] text-[var(--rce-black)] hover:bg-[var(--rce-green)]/90"
+              className="bg-[var(--rce-green)] text-primary-foreground hover:bg-primary rounded-full text-xs"
             >
-              <MessageSquare className="mr-2 h-4 w-4" />
+              <HugeiconsIcon icon={Comment01Icon} className="h-4 w-4 text-primary-foreground"/>
               Assistant
             </Button>
           )}
