@@ -118,8 +118,8 @@ export function HeaderBar({
         {/* Right: Controls */}
         <div className="flex items-center space-x-4">
           {/* Live Clock */}
-          <div className="flex items-center space-x-2 rounded-md border px-3 py-1.5">
-            <span className="text-sm font-mono font-medium">{formatTime(currentTime)}</span>
+          <div className="flex items-center space-x-2 bg-secondary rounded-full px-4 py-1.5">
+            <span className="text-xs font-mono font-medium">{formatTime(currentTime)}</span>
           </div>
 
           {/* Connection Status */}
