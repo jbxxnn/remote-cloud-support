@@ -11,6 +11,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play, X, Loader } from "lucide-react";
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
 import { HeaderBar } from "@/components/layout/header-bar";
+import { AssistantIcon } from "@/components/assistant/assistant-icon";
 
 
 interface Alert {
@@ -793,6 +794,13 @@ export default function ClientDashboardPage() {
             </Card>
           </div>
         </main>
+
+        {/* SupportSense Assistant Icon */}
+        <AssistantIcon
+          module="Client Dashboard"
+          clientId={clientId}
+          userRole="staff"
+        />
       </div>
     </div>
   );

@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { componentAnimations } from "@/lib/animations";
+import { cn } from "@/lib/utils";
 import { 
   CheckCircle, 
   Clock, 
@@ -112,9 +114,12 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
         return (
           <Card
             key={client.id}
-            className={`cursor-pointer transition-all duration-300 ${
-              isHovered ? 'shadow-lg border-primary/50 scale-[1.02]' : 'hover:shadow-md'
-            }`}
+            className={cn(
+              "cursor-pointer",
+              componentAnimations.clientTile,
+              isHovered && "shadow-lg border-primary/50 scale-[1.02]",
+              !isHovered && "hover:shadow-md"
+            )}
             onMouseEnter={() => setHoveredClient(client.id)}
             onMouseLeave={() => setHoveredClient(null)}
             onClick={() => onClientClick?.(client)}

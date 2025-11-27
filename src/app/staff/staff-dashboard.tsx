@@ -8,6 +8,7 @@ import { HeaderBar } from "@/components/layout/header-bar";
 import { LiveAlertsFeed } from "@/components/staff/live-alerts-feed";
 import { ActiveClientsGrid } from "@/components/staff/active-clients-grid";
 import { SystemSnapshot } from "@/components/staff/system-snapshot";
+import { AssistantIcon } from "@/components/assistant/assistant-icon";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
 interface Client {
@@ -182,6 +183,16 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             </div>
           </div>
         </div>
+
+        {/* SupportSense Assistant Icon */}
+        <AssistantIcon
+          module="Staff Dashboard"
+          userRole="staff"
+          onOpen={() => {
+            // TODO: Open Assistant drawer
+            console.log("Assistant clicked");
+          }}
+        />
       </div>
     </div>
   );

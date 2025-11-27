@@ -1,15 +1,17 @@
 "use client";
 
 import * as React from "react"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
 import { Separator } from "./separator"
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar"
 import { Badge } from "./badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip"
+import { RCELogo } from "@/components/layout/rce-logo"
 import { 
   Users, 
   Shield, 
-  BarChart3, 
   Settings, 
   LogOut, 
   Home,
@@ -19,7 +21,12 @@ import {
   Phone,
   MessageSquare,
   FileText,
-  CheckCircle
+  CheckCircle,
+  BookOpen,
+  History,
+  HelpCircle,
+  Video,
+  Mail
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -34,12 +41,43 @@ interface StaffSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     pendingEvents?: number
     myQueue?: number
     resolvedToday?: number
+    activeAlerts?: number
+    scheduledAlerts?: number
+    activeClients?: number
+    openSOPs?: number
   }
 }
 
 const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
   ({ className, user, stats, ...props }, ref) => {
     const pathname = usePathname();
+    const [liveStats, setLiveStats] = useState(stats || {
+      activeAlerts: 0,
+      scheduledAlerts: 0,
+      myQueue: 0,
+      activeClients: 0,
+      openSOPs: 0,
+      resolvedToday: 0
+    });
+
+    // Fetch live stats
+    useEffect(() => {
+      const fetchStats = async () => {
+        try {
+          const response = await fetch('/api/staff/sidebar-stats');
+          if (response.ok) {
+            const data = await response.json();
+            setLiveStats(data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch sidebar stats:', error);
+        }
+      };
+
+      fetchStats();
+      const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }, []);
 
     const isActive = (path: string) => {
       if (path === "/staff") {
@@ -48,22 +86,102 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
       return pathname.startsWith(path);
     };
 
+    const NavButton = ({ 
+      href, 
+      icon: Icon, 
+      label, 
+      badge, 
+      badgeVariant = "default",
+      tooltip,
+      ...props 
+    }: {
+      href: string;
+      icon: React.ElementType;
+      label: string;
+      badge?: number;
+      badgeVariant?: "default" | "destructive" | "secondary";
+      tooltip?: string;
+      [key: string]: any;
+    }) => {
+      const active = isActive(href);
+      const button = (
+        <Button
+          variant={active ? "secondary" : "ghost"}
+          className={cn(
+            "w-full justify-start group relative transition-all duration-200",
+            "hover:bg-accent/50 hover:text-accent-foreground",
+            active && "bg-secondary/80 text-secondary-foreground shadow-sm",
+            "rounded-lg"
+          )}
+          asChild
+          {...props}
+        >
+          <a href={href} className="flex items-center w-full">
+            <div className={cn(
+              "absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full transition-all duration-200",
+              active ? "bg-primary opacity-100" : "bg-transparent opacity-0 group-hover:opacity-30"
+            )} />
+            <Icon className={cn(
+              "w-4 h-4 mr-3 transition-all duration-200 flex-shrink-0",
+              active ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+              "group-hover:scale-110"
+            )} />
+            <span className="flex-1 text-left text-sm font-medium">{label}</span>
+            {badge !== undefined && badge > 0 && (
+              <Badge 
+                variant={badgeVariant} 
+                className={cn(
+                  "ml-auto text-xs min-w-[20px] h-5 flex items-center justify-center px-1.5",
+                  badgeVariant === "destructive" && "bg-destructive/90 text-destructive-foreground shadow-sm",
+                  badgeVariant === "secondary" && "bg-secondary/80",
+                  !active && badgeVariant === "destructive" && "animate-pulse"
+                )}
+              >
+                {badge > 99 ? "99+" : badge}
+              </Badge>
+            )}
+          </a>
+        </Button>
+      );
+
+      if (tooltip) {
+        return (
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              {button}
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs">
+              {tooltip}
+            </TooltipContent>
+          </Tooltip>
+        );
+      }
+
+      return button;
+    };
+
     return (
-      <div
-        ref={ref}
-        className={cn(
-          "flex h-screen w-64 flex-col bg-background border-r",
-          className
-        )}
-        {...props}
-      >
+      <TooltipProvider>
+        <div
+          ref={ref}
+          className={cn(
+            "flex h-screen w-64 flex-col bg-background/95 backdrop-blur-sm border-r border-border/50",
+            "shadow-sm",
+            className
+          )}
+          {...props}
+        >
         {/* Logo/Brand */}
-        <div className="flex h-16 items-center px-6 border-b">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg">Staff Portal</span>
+        <div className="flex h-16 items-center px-6 border-b border-border/50 bg-muted/30">
+          <div className="flex items-center space-x-3">
+            <RCELogo 
+              variant="auto"
+              showText={false}
+              className="flex-shrink-0"
+            />
+            <span className="font-semibold text-lg bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              Staff Portal
+            </span>
           </div>
         </div>
 
@@ -94,129 +212,125 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
         )} */}
 
         {/* Navigation */}
-        <div className="flex-1 px-4 py-6">
-          <nav className="space-y-2">
-            <Button
-              variant={isActive("/staff") ? "secondary" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <a href="/staff">
-                <Home className="w-4 h-4 mr-3" />
-                Dashboard
-              </a>
-            </Button>
-            
-            {/* <Button
-              variant="ghost"
-              className="w-full justify-start"
-              asChild
-            >
-              <a href="/staff?tab=events">
-                <AlertTriangle className="w-4 h-4 mr-3" />
-                Event Queue
-                {stats?.pendingEvents && stats.pendingEvents > 0 && (
-                  <Badge variant="destructive" className="ml-auto text-xs">
-                    {stats.pendingEvents}
-                  </Badge>
-                )}
-              </a>
-            </Button>
-            
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              asChild
-            >
-              <a href="/staff?tab=clients">
-                <Users className="w-4 h-4 mr-3" />
-                Client Status
-              </a>
-            </Button>
-            
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              asChild
-            >
-              <a href="/staff?tab=my-queue">
-                <Clock className="w-4 h-4 mr-3" />
-                My Queue
-                {stats?.myQueue && stats.myQueue > 0 && (
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    {stats.myQueue}
-                  </Badge>
-                )}
-              </a>
-            </Button>
-             */}
-            <Separator className="my-4" />
-            
-            {/* <Button
-              variant={isActive("/staff/calls") ? "secondary" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <a href="/staff/calls">
-                <Phone className="w-4 h-4 mr-3" />
-                Call History
-              </a>
-            </Button>
-            
-            <Button
-              variant={isActive("/staff/reports") ? "secondary" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <a href="/staff/reports">
-                <FileText className="w-4 h-4 mr-3" />
-                Reports
-              </a>
-            </Button>
-            
-            <Button
-              variant={isActive("/staff/sops") ? "secondary" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <a href="/staff/sops">
-                <FileText className="w-4 h-4 mr-3" />
-                SOPs
-              </a>
-            </Button>
-            
-            <Separator className="my-4" />
-            
-            <Button
-              variant={isActive("/staff/settings") ? "secondary" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <a href="/staff/settings">
-                <Settings className="w-4 h-4 mr-3" />
-                Settings
-              </a>
-            </Button> */}
+        <div className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+          <nav className="space-y-1">
+            {/* Main Section */}
+            <NavButton
+              href="/staff"
+              icon={Home}
+              label="Dashboard"
+              tooltip="Ask SupportSense: Show me the dashboard overview"
+            />
+
+            <NavButton
+              href="/staff#alerts"
+              icon={AlertTriangle}
+              label="Active Alerts"
+              badge={liveStats.activeAlerts}
+              badgeVariant="destructive"
+              tooltip="Ask SupportSense: What alerts need attention?"
+            />
+
+            <NavButton
+              href="/staff#clients"
+              icon={Users}
+              label="Clients"
+              badge={liveStats.activeClients}
+              tooltip="Ask SupportSense: Show me all active clients"
+            />
+
+            <Separator className="my-3 opacity-50" />
+
+            {/* SOP & Documentation Section */}
+            <NavButton
+              href="/staff#sops"
+              icon={FileText}
+              label="SOP Responses"
+              badge={liveStats.openSOPs}
+              badgeVariant={liveStats.openSOPs > 0 ? "secondary" : "default"}
+              tooltip="Ask SupportSense: What SOPs need responses?"
+            />
+
+            <NavButton
+              href="/staff#documentation"
+              icon={BookOpen}
+              label="Documentation"
+              tooltip="Ask SupportSense: Help me with documentation"
+            />
+
+            <Separator className="my-3 opacity-50" />
+
+            {/* Communication Section */}
+            <NavButton
+              href="/staff#communication"
+              icon={MessageSquare}
+              label="Communication Center"
+              tooltip="Ask SupportSense: Show communication history"
+            />
+
+            <NavButton
+              href="/staff#calls"
+              icon={Phone}
+              label="Call History"
+              tooltip="Ask SupportSense: Show recent calls"
+            />
+
+            <NavButton
+              href="/staff#video"
+              icon={Video}
+              label="Video Sessions"
+              tooltip="Ask SupportSense: Show video session history"
+            />
+
+            <Separator className="my-3 opacity-50" />
+
+            {/* History & Help Section */}
+            <NavButton
+              href="/staff#history"
+              icon={History}
+              label="History"
+              badge={liveStats.resolvedToday}
+              tooltip="Ask SupportSense: Show resolved events today"
+            />
+
+            <NavButton
+              href="/staff#help"
+              icon={HelpCircle}
+              label="Help & Training"
+              tooltip="Ask SupportSense: Help me with training materials"
+            />
+
+            <Separator className="my-3 opacity-50" />
+
+            {/* My Queue - Highlighted */}
+            <NavButton
+              href="/staff#my-queue"
+              icon={Clock}
+              label="My Queue"
+              badge={liveStats.myQueue}
+              badgeVariant={liveStats.myQueue > 0 ? "destructive" : "secondary"}
+              tooltip="Ask SupportSense: What's in my queue?"
+            />
           </nav>
         </div>
 
         {/* User Profile */}
-        <div className="border-t p-4">
+        <div className="border-t border-border/50 p-4 bg-muted/20">
           <div className="flex items-center space-x-3">
-            <Avatar>
+            <Avatar className="ring-2 ring-border/50">
               <AvatarImage src={user?.image || ""} alt={user?.name || ""} />
-              <AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                 {user?.name?.charAt(0) || "S"}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name || "Staff"}</p>
+              <p className="text-sm font-semibold truncate">{user?.name || "Staff"}</p>
               <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
               asChild
             >
               <Link href="/api/auth/signout">
@@ -226,6 +340,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
           </div>
         </div>
       </div>
+      </TooltipProvider>
     )
   }
 )

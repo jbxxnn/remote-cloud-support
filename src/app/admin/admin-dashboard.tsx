@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { StatsCard } from "@/components/ui/stats-card";
 import { HeaderBar } from "@/components/layout/header-bar";
+import { AssistantIcon } from "@/components/assistant/assistant-icon";
 import { 
   Users, 
   Shield, 
@@ -403,6 +404,12 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           </TabsContent>
         </Tabs> */}
         </div>
+
+        {/* SupportSense Assistant Icon */}
+        <AssistantIcon
+          module="Admin Dashboard"
+          userRole="admin"
+        />
       </div>
     </div>
   );

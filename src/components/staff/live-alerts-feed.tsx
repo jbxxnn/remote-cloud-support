@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { componentAnimations } from "@/lib/animations";
+import { cn } from "@/lib/utils";
 import { 
   AlertTriangle, 
   Clock, 
@@ -122,15 +124,22 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
       {alerts.map((alert, index) => (
         <Card
           key={alert.id}
-          className={`cursor-pointer hover:border-primary/50 transition-all duration-300 ${
-            index === 0 ? 'animate-slide-in' : ''
-          }`}
+          className={cn(
+            "cursor-pointer hover:border-primary/50",
+            componentAnimations.alertCard,
+            index === 0 && "animate-slide-in"
+          )}
+          style={{ animationDelay: `${index * 50}ms` }}
           onClick={() => onAlertClick?.(alert)}
         >
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center space-x-2 flex-1 min-w-0">
-                <div className={`w-2 h-2 rounded-full ${getSeverityColor(alert.severity, alert.status)} flex-shrink-0`} />
+                <div className={cn(
+                  "w-2 h-2 rounded-full flex-shrink-0",
+                  getSeverityColor(alert.severity, alert.status),
+                  componentAnimations.statusIndicator
+                )} />
                 <Badge variant={alert.status === 'scheduled' ? 'secondary' : 'destructive'} className="text-xs">
                   {alert.status === 'scheduled' ? 'Scheduled' : 'Pending'}
                 </Badge>
