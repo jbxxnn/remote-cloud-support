@@ -1,23 +1,11 @@
 import type { Metadata } from "next";
-import { Oxanium, Merriweather, Fira_Code } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const fontSans = Oxanium({
+const fontSans = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["200", "300", "400", "500", "600", "700", "800"],
-});
-
-const fontSerif = Merriweather({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["300", "400", "700", "900"],
-});
-
-const fontMono = Fira_Code({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
@@ -33,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} font-sans antialiased`}
+        className={`${fontSans.variable} font-sans antialiased`}
       >
         {children}
       </body>
