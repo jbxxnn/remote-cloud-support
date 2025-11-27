@@ -4,6 +4,11 @@
 
 @layer base {
   :root {
+    /* RCE Color Scheme - Light Mode */
+    --rce-green: #00FF00;
+    --rce-black: #000000;
+    --rce-white: #FFFFFF;
+    
     --background: oklch(0.9900 0 0);
     --foreground: oklch(0 0 0);
     --card: oklch(1 0 0);
@@ -59,6 +64,11 @@
   }
 
   .dark {
+    /* RCE Color Scheme - Dark Mode (default) */
+    --rce-green: #00FF00;
+    --rce-black: #000000;
+    --rce-white: #FFFFFF;
+    
     --background: oklch(0 0 0);
     --foreground: oklch(1 0 0);
     --card: oklch(0.1400 0 0);

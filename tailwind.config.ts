@@ -10,6 +10,12 @@ const config: Config = {
   theme: {
   	extend: {
   		colors: {
+  			// RCE Brand Colors
+  			rce: {
+  				green: 'var(--rce-green)',
+  				black: 'var(--rce-black)',
+  				white: 'var(--rce-white)',
+  			},
   			border: 'var(--border)',
   			input: 'var(--input)',
   			ring: 'var(--ring)',

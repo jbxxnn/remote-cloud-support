@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
+import { HeaderBar } from "@/components/layout/header-bar";
 import { 
   Users, 
   AlertTriangle, 
@@ -175,6 +176,14 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     );
   }
 
+  const activeAlertsCount = clients.filter(c => c.status === 'alert').length;
+  const openSOPsCount = clients.reduce((acc, client) => {
+    if (client.lastEvent && !client.lastEvent.resolved) {
+      return acc + 1;
+    }
+    return acc;
+  }, 0);
+
   return (
     <div className="flex h-screen">
       <StaffSidebar 
@@ -182,30 +191,17 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
         stats={stats}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-16 items-center px-6">
-            <div className="flex items-center space-x-4">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight">Staff Dashboard</h1>
-                <p className="text-sm text-muted-foreground">
-                  Monitor client status and respond to alerts
-                </p>
-              </div>
-            </div>
-            <div className="ml-auto flex items-center space-x-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchDashboardData}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
-          </div>
-        </div>
+        {/* Header Bar */}
+        <HeaderBar
+          module="Staff Dashboard"
+          activeAlerts={activeAlertsCount}
+          staffOnline={1} // TODO: Get actual staff online count
+          openSOPs={openSOPsCount}
+          onAssistantClick={() => {
+            // TODO: Open Assistant drawer
+            console.log("Assistant clicked");
+          }}
+        />
 
         {/* Main Content */}
         <div className="flex-1 overflow-auto">

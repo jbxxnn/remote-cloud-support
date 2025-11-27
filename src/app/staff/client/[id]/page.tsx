@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play, X, Loader } from "lucide-react";
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
+import { HeaderBar } from "@/components/layout/header-bar";
 
 
 interface Alert {
@@ -453,32 +454,40 @@ export default function ClientDashboardPage() {
     return Math.ceil(filteredAlerts.length / itemsPerPage);
   };
 
+  const activeAlertsCount = alerts.filter(a => ['pending', 'scheduled'].includes(a.status)).length;
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="border-b border-gray-200 bg-white px-8 py-4 flex items-center justify-between shadow-sm">
-          <div className="flex items-center space-x-4">
-            <Link href="/staff">
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900 hover:bg-gray-100">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200">
-                <span className="text-lg font-semibold text-gray-600">{client.name.charAt(0).toUpperCase()}</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900 leading-tight">{client.name}</h1>
-                {/* {client.company && <p className="text-gray-500 text-sm">{client.company}</p>} */}
-              </div>
-              {/* <div className={`w-2 h-2 rounded-full ${getStatusColor(client.status)}`}></div> */}
-              {/* <span className="text-xs font-medium text-gray-700 capitalize">{client.status}</span> */}
+        {/* Client Info Bar */}
+        <div className="flex items-center space-x-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3">
+          <Link href="/staff">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center border">
+              <span className="text-lg font-semibold">{client.name.charAt(0).toUpperCase()}</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold leading-tight">{client.name}</h1>
             </div>
           </div>
-        </header>
+        </div>
+        {/* Header Bar */}
+        <HeaderBar
+          module={`Client: ${client.name}`}
+          activeAlerts={activeAlertsCount}
+          staffOnline={1}
+          openSOPs={relevantSOPs.length}
+          onAssistantClick={() => {
+            // TODO: Open Assistant drawer
+            console.log("Assistant clicked");
+          }}
+        />
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto bg-gray-50">

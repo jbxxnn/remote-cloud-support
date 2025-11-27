@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { StatsCard } from "@/components/ui/stats-card";
+import { HeaderBar } from "@/components/layout/header-bar";
 import { 
   Users, 
   Shield, 
@@ -131,31 +132,22 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-6">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-              <p className="text-sm text-muted-foreground">
-                Welcome back, {user.name}
-              </p>
-            </div>
-          </div>
-          <div className="ml-auto flex items-center space-x-4">
-            {/* <Button asChild>
-              <a href="/detections">
-                <Activity className="w-4 h-4 mr-2" />
-                View Detections
-              </a>
-            </Button> */}
-          </div>
-        </div>
-      </div>
-
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header Bar */}
+      <HeaderBar
+        module="Admin Dashboard"
+        activeAlerts={0} // TODO: Get actual active alerts count
+        staffOnline={staffCount}
+        openSOPs={0} // TODO: Get actual open SOPs count
+        onAssistantClick={() => {
+          // TODO: Open Assistant drawer
+          console.log("Assistant clicked");
+        }}
+      />
+      
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 overflow-auto">
+        <div className="space-y-6 p-6">
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
@@ -410,6 +402,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             </Card>
           </TabsContent>
         </Tabs> */}
+        </div>
       </div>
     </div>
   );
