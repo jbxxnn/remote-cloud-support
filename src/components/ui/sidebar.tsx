@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { RCELogo } from "@/components/layout/rce-logo"
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   user?: {
@@ -50,11 +51,12 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
       >
         {/* Logo/Brand */}
         <div className="flex h-16 items-center px-6 border-b">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg">Admin Panel</span>
+          <div className="flex items-center space-x-3">
+            <RCELogo 
+              variant="auto"
+              showText={false}
+              className="flex-shrink-0"
+            />
           </div>
         </div>
 

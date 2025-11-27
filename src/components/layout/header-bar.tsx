@@ -88,12 +88,8 @@ export function HeaderBar({
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-6">
-        {/* Left: RCE Logo */}
         <div className="flex items-center space-x-6">
-          <RCELogo variant={theme === "dark" ? "white" : "black"} />
-          <div className="h-6 w-px bg-border" />
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-muted-foreground">Module:</span>
             <span className="text-sm font-semibold">{module}</span>
           </div>
         </div>

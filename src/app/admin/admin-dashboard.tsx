@@ -135,7 +135,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header Bar */}
       <HeaderBar
-        module="Admin Dashboard"
+        module="Dashboard"
         activeAlerts={0} // TODO: Get actual active alerts count
         staffOnline={staffCount}
         openSOPs={0} // TODO: Get actual open SOPs count
