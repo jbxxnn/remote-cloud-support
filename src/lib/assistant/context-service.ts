@@ -82,3 +82,4 @@ export function useAssistantContext(): AssistantContext | null {
   return contextService.getContext();
 }
 
+

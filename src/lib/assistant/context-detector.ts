@@ -61,7 +61,7 @@ export function detectContext(): Partial<AssistantContext> {
   }
 
   const pathname = window.location.pathname;
-  const module = detectModuleFromPath(pathname);
+  const moduleName = detectModuleFromPath(pathname);
   const clientId = extractClientIdFromPath(pathname);
 
   // Try to get role from session or localStorage
@@ -69,9 +69,9 @@ export function detectContext(): Partial<AssistantContext> {
   const role = pathname.startsWith('/admin') ? 'admin' : 'staff';
 
   return {
-    module,
+    module: moduleName,
     client_id: clientId,
-    role,
+    role: role,
     userRole: role,
   };
 }
@@ -84,4 +84,5 @@ export function autoDetectAndSetContext(): void {
   // This will be called by components to auto-set context
   // The context service will be imported and used
 }
+
 

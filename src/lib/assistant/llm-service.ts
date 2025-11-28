@@ -55,3 +55,4 @@ export async function* streamQueryToLLM(
   yield "I'm SupportSense. Training mode only. Streaming not yet implemented.";
 }
 
+
