@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { contextService } from "@/lib/assistant/context-service";
 import { AssistantContext } from "@/lib/assistant/types";
+import { detectContext } from "@/lib/assistant/context-detector";
 
 export interface AssistantMessage {
   id: string;
