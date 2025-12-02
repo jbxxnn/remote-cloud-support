@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { componentAnimations } from "@/lib/animations";
 import { cn } from "@/lib/utils";
-import { 
-  AlertTriangle, 
-  Clock, 
+import {
+  AlertTriangle,
+  Clock,
   CheckCircle,
   ArrowRight,
   AlertCircle as AlertCircleIcon
@@ -41,14 +41,14 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
     try {
       const response = await fetch('/api/staff/alerts?status=pending,scheduled&limit=20');
       if (response.ok) {
-        const data = await response.json();
-        
+        const data: Alert[] = await response.json();
+
         // Detect new alerts for animation
-        const currentAlertIds = new Set(data.map((a: Alert) => a.id));
+        const currentAlertIds = new Set(data.map((a) => a.id));
         const newAlertIds = data
-          .filter((a: Alert) => !previousAlertsRef.current.has(a.id))
-          .map((a: Alert) => a.id);
-        
+          .filter((a) => !previousAlertsRef.current.has(a.id))
+          .map((a) => a.id);
+
         previousAlertsRef.current = currentAlertIds;
         setAlerts(data);
       }
@@ -76,7 +76,7 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     const diffInHours = Math.floor(diffInMinutes / 60);
@@ -148,7 +148,7 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
                 </span>
               </div>
             </div>
-            
+
             <div className="mb-2">
               <h4 className="font-medium text-sm mb-1 truncate">{alert.clientName}</h4>
               {alert.clientCompany && (
