@@ -12,7 +12,8 @@
     "db:migrate": "node scripts/run-migration.js",
     "db:migrate:users": "node scripts/migrate-user-fields.js",
     "db:migrate:events": "node scripts/migrate-add-events.js",
-    "db:migrate:acknowledged": "node scripts/migrate-add-acknowledged-column.js"
+    "db:migrate:acknowledged": "node scripts/migrate-add-acknowledged-column.js",
+    "test:webhook": "node test-webhook.js"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^2.0.0",

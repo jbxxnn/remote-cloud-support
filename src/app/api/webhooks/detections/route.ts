@@ -24,35 +24,74 @@ export async function POST(request: NextRequest) {
     
     const client = clientResult.rows[0];
     
-    // Find existing device (no auto-creation)
+    // Normalize payload - handle both nested (data) and flat structures
+    const payload = body.data || body;
+    const deviceId = payload.device_id || body.device_id;
+    const detectionType = payload.detection_type || payload.reason || body.reason || 'fall_detected';
+    const confidence = payload.confidence || body.confidence;
+    const clipUrl = payload.clip_url || payload.image_topic || body.image_topic || body.clip_url || null;
+    const location = payload.location || body.location || payload.camera || body.camera || null;
+    const severity = payload.severity || body.severity || 'high';
+    const timestamp = body.timestamp || body.ts || Date.now();
+    
+    // Find or create device (optional - auto-create if not found)
+    let device;
+    if (!deviceId) {
+      return NextResponse.json({ error: 'Missing device_id in payload' }, { status: 400 });
+    }
+    
     const deviceResult = await query(
       'SELECT * FROM "Device" WHERE "deviceId" = $1',
-      [body.device_id]
+      [deviceId]
     );
     
     if (deviceResult.rows.length === 0) {
-      return NextResponse.json({ 
-        error: `Device not found: ${body.device_id}. Please create this device in the admin interface first.` 
-      }, { status: 404 });
+      // Auto-create device if it doesn't exist
+      const deviceName = deviceId || 'Unknown Device';
+      const deviceLocation = location || null;
+      
+      const newDeviceResult = await query(`
+        INSERT INTO "Device" (id, "clientId", name, "deviceId", location, "deviceType", "isActive", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, true, $6, $6)
+        RETURNING *
+      `, [
+        client.id,
+        deviceName,
+        deviceId,
+        deviceLocation,
+        'camera', // default device type
+        new Date()
+      ]);
+      
+      device = newDeviceResult.rows[0];
+      console.log(`Auto-created device: ${device.id} for device_id: ${deviceId}`);
+    } else {
+      device = deviceResult.rows[0];
     }
-    
-    const device = deviceResult.rows[0];
     
     // Store detection
     const now = new Date();
     
     // Parse timestamp safely
     let detectionTimestamp = now;
-    if (body.ts) {
+    if (timestamp) {
       try {
-        const parsedTimestamp = new Date(body.ts);
+        // Handle both Unix timestamp (milliseconds) and ISO string
+        const parsedTimestamp = typeof timestamp === 'number' 
+          ? new Date(timestamp) 
+          : new Date(timestamp);
         if (!isNaN(parsedTimestamp.getTime())) {
           detectionTimestamp = parsedTimestamp;
         }
       } catch (error) {
-        console.warn('Invalid timestamp format, using current time:', body.ts);
+        console.warn('Invalid timestamp format, using current time:', timestamp);
       }
     }
+    
+    if (!confidence) {
+      return NextResponse.json({ error: 'Missing confidence in payload' }, { status: 400 });
+    }
+    
     const detectionResult = await query(`
       INSERT INTO "Detection" (id, "clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
@@ -60,11 +99,11 @@ export async function POST(request: NextRequest) {
     `, [
       client.id,
       device.id,
-      body.reason || 'fall_detected',
-      body.confidence,
-      body.image_topic || null,
-      body.camera || body.device_id,
-      body.severity || 'high',
+      detectionType,
+      confidence,
+      clipUrl,
+      location,
+      severity,
       detectionTimestamp,
       now
     ]);
