@@ -37,6 +37,9 @@ interface StaffDashboardProps {
 
 export function StaffDashboard({ user }: StaffDashboardProps) {
   const [clients, setClients] = useState<Client[]>([]);
+  const [activeAlertsCount, setActiveAlertsCount] = useState(0);
+  const [openSOPsCount, setOpenSOPsCount] = useState(0);
+  const [staffOnline, setStaffOnline] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -60,6 +63,18 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
         setClients(clientsData);
       } else {
         throw new Error(`Failed to fetch clients: ${clientsResponse.status}`);
+      }
+
+      // Fetch stats from sidebar stats API
+      const statsResponse = await fetch('/api/staff/sidebar-stats');
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        // Count both pending and scheduled alerts (all active alerts)
+        setActiveAlertsCount((statsData.activeAlerts || 0) + (statsData.scheduledAlerts || 0));
+        // Get open SOPs count
+        setOpenSOPsCount(statsData.openSOPs || 0);
+        // Get active staff count (for now using active staff, could be enhanced to track online sessions)
+        setStaffOnline(statsData.activeStaff || 0);
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -111,14 +126,6 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     );
   }
 
-  const activeAlertsCount = clients.filter(c => c.status === 'alert').length;
-  const openSOPsCount = clients.reduce((acc, client) => {
-    if (client.lastEvent && !client.lastEvent.resolved) {
-      return acc + 1;
-    }
-    return acc;
-  }, 0);
-
   return (
     <div className="flex h-screen">
       <StaffSidebar 
@@ -130,34 +137,34 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
         <HeaderBar
           module="Staff Dashboard"
           activeAlerts={activeAlertsCount}
-          staffOnline={1} // TODO: Get actual staff online count
+          staffOnline={staffOnline}
           openSOPs={openSOPsCount}
           onAssistantClick={() => setAssistantOpen(true)}
         />
 
         {/* Main Content - 3 Column Layout */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-hidden min-h-0">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 h-full">
             {/* Left Column: Live Alerts Feed */}
-            <div className="lg:col-span-3 flex flex-col">
-              <div className="mb-4">
+            <div className="lg:col-span-3 flex flex-col h-full min-h-0">
+              <div className="mb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold mb-1">Live Alerts</h2>
                 <p className="text-xs text-muted-foreground">Real-time alert feed</p>
               </div>
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
                 <LiveAlertsFeed onAlertClick={handleAlertClick} />
               </div>
             </div>
 
             {/* Center Column: Active Clients Grid */}
-            <div className="lg:col-span-6 flex flex-col">
-              <div className="mb-4">
+            <div className="lg:col-span-6 flex flex-col h-full min-h-0">
+              <div className="mb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold mb-1">Active Clients</h2>
                 <p className="text-xs text-muted-foreground">
                   {clients.length} active client{clients.length !== 1 ? 's' : ''}
                 </p>
               </div>
-              <div className="flex-1 overflow-y-auto pr-2">
+              <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
                 <ActiveClientsGrid 
                   clients={clients} 
                   loading={loading}
@@ -176,7 +183,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                 <SystemSnapshot
                   activeAlerts={activeAlertsCount}
                   openSOPs={openSOPsCount}
-                  staffOnline={1} // TODO: Get actual staff online count
+                  staffOnline={staffOnline}
                 />
               </div>
             </div>

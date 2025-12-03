@@ -21,11 +21,13 @@ interface Alert {
   status: string;
   message: string;
   createdAt: string;
+  sentAt?: string;
   clientId: string;
   clientName: string;
   clientCompany?: string;
   severity?: string;
   location?: string;
+  detectionType?: string;
 }
 
 interface LiveAlertsFeedProps {
@@ -48,6 +50,14 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
         const newAlertIds = data
           .filter((a) => !previousAlertsRef.current.has(a.id))
           .map((a) => a.id);
+
+        // Dispatch custom event for new alerts (for sound notifications)
+        if (newAlertIds.length > 0 && typeof window !== 'undefined') {
+          console.log('Dispatching new-alert-detected event', { count: newAlertIds.length, alertIds: newAlertIds });
+          window.dispatchEvent(new CustomEvent('new-alert-detected', {
+            detail: { count: newAlertIds.length, alertIds: newAlertIds }
+          }));
+        }
 
         previousAlertsRef.current = currentAlertIds;
         setAlerts(data);
@@ -72,15 +82,30 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
     return 'bg-blue-500';
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp: string | undefined) => {
+    if (!timestamp) return 'Unknown';
+    
     const date = new Date(timestamp);
     const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
+    // Handle timezone issues - ensure we're comparing correctly
+    const diffInMs = now.getTime() - date.getTime();
+    
+    // If negative, the date is in the future (timezone issue), show as "Just now"
+    if (diffInMs < 0) return 'Just now';
+    
+    const diffInSeconds = Math.floor(diffInMs / 1000);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
     const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInHours < 24) return `${diffInHours}h ago`;
+    if (diffInDays < 7) return `${diffInDays}d ago`;
     return date.toLocaleDateString();
   };
 
@@ -120,7 +145,7 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
   }
 
   return (
-    <div className="space-y-3 overflow-y-auto pr-2">
+    <div className="space-y-3">
       {alerts.map((alert, index) => (
         <Card
           key={alert.id}
@@ -144,7 +169,7 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
                   {alert.status === 'scheduled' ? 'Scheduled' : 'Pending'}
                 </Badge>
                 <span className="text-xs text-muted-foreground truncate">
-                  {formatTimestamp(alert.createdAt)}
+                  {formatTimestamp(alert.sentAt || alert.createdAt)}
                 </span>
               </div>
             </div>
@@ -157,14 +182,14 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
             </div>
 
             <div className="mb-2">
-              <p className="text-sm text-foreground line-clamp-2">{alert.message || formatEventType(alert.type)}</p>
+              <p className="text-sm text-foreground line-clamp-2">{alert.message || formatEventType(alert.type || alert.detectionType || 'alert')}</p>
               {alert.location && (
                 <p className="text-xs text-muted-foreground mt-1">📍 {alert.location}</p>
               )}
             </div>
 
             <div className="flex items-center justify-between mt-3">
-              <span className="text-xs text-muted-foreground">{formatEventType(alert.type)}</span>
+              <span className="text-xs text-muted-foreground">{formatEventType(alert.type || alert.detectionType || 'alert')}</span>
               <Button
                 size="sm"
                 variant="ghost"

@@ -2,125 +2,191 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/database";
 
 export async function POST(request: NextRequest) {
+  const requestId = `webhook-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${requestId}] Webhook request received`);
+  
   try {
-    const body = await request.json();
-    console.log('Webhook body:', JSON.stringify(body, null, 2));
-    const authHeader = request.headers.get('authorization');
-    
-    // Validate API key
-    const apiKey = authHeader?.replace('Bearer ', '');
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
+    // Log request metadata
+    console.log(`[${requestId}] Request URL: ${request.url}`);
+    console.log(`[${requestId}] Request method: ${request.method}`);
+    console.log(`[${requestId}] Headers:`, {
+      'content-type': request.headers.get('content-type'),
+      'authorization': request.headers.get('authorization') ? '***present***' : 'missing',
+      'user-agent': request.headers.get('user-agent'),
+    });
+
+    // Parse request body
+    let body;
+    try {
+      body = await request.json();
+      console.log(`[${requestId}] Request body parsed successfully:`, JSON.stringify(body, null, 2));
+    } catch (parseError) {
+      console.error(`[${requestId}] Failed to parse request body:`, parseError);
+      return NextResponse.json({ 
+        error: 'Invalid JSON in request body',
+        details: parseError instanceof Error ? parseError.message : 'Unknown error'
+      }, { status: 400 });
     }
 
-    const clientResult = await query(
-      'SELECT * FROM "Client" WHERE "apiKey" = $1 AND "isActive" = true',
-      [apiKey]
-    );
+    // Validate required fields
+    console.log(`[${requestId}] Validating required fields...`);
+    if (!body.device_id) {
+      console.error(`[${requestId}] Missing required field: device_id`);
+      return NextResponse.json({ 
+        error: 'Missing required field: device_id',
+        receivedFields: Object.keys(body)
+      }, { status: 400 });
+    }
+    console.log(`[${requestId}] Required fields validated. device_id: ${body.device_id}`);
+
+    // Validate API key
+    const authHeader = request.headers.get('authorization');
+    console.log(`[${requestId}] Authorization header:`, authHeader ? 'present' : 'missing');
+    
+    const apiKey = authHeader?.replace('Bearer ', '');
+    if (!apiKey) {
+      console.error(`[${requestId}] Missing API key in authorization header`);
+      return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
+    }
+    console.log(`[${requestId}] API key extracted (length: ${apiKey.length})`);
+
+    // Query client
+    console.log(`[${requestId}] Querying client with API key...`);
+    let clientResult;
+    try {
+      clientResult = await query(
+        'SELECT * FROM "Client" WHERE "apiKey" = $1 AND "isActive" = true',
+        [apiKey]
+      );
+      console.log(`[${requestId}] Client query completed. Found ${clientResult.rows.length} client(s)`);
+    } catch (dbError) {
+      console.error(`[${requestId}] Database error while querying client:`, dbError);
+      throw dbError;
+    }
     
     if (clientResult.rows.length === 0) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.error(`[${requestId}] No active client found with provided API key`);
+      return NextResponse.json({ error: 'Unauthorized - Invalid or inactive API key' }, { status: 401 });
     }
     
     const client = clientResult.rows[0];
+    console.log(`[${requestId}] Client authenticated: ${client.id} (${client.name || 'unnamed'})`);
     
-    // Normalize payload - handle both nested (data) and flat structures
-    const payload = body.data || body;
-    const deviceId = payload.device_id || body.device_id;
-    const detectionType = payload.detection_type || payload.reason || body.reason || 'fall_detected';
-    const confidence = payload.confidence || body.confidence;
-    const clipUrl = payload.clip_url || payload.image_topic || body.image_topic || body.clip_url || null;
-    const location = payload.location || body.location || payload.camera || body.camera || null;
-    const severity = payload.severity || body.severity || 'high';
-    const timestamp = body.timestamp || body.ts || Date.now();
-    
-    // Find or create device (optional - auto-create if not found)
-    let device;
-    if (!deviceId) {
-      return NextResponse.json({ error: 'Missing device_id in payload' }, { status: 400 });
+    // Find existing device (no auto-creation)
+    console.log(`[${requestId}] Querying device with device_id: ${body.device_id}...`);
+    let deviceResult;
+    try {
+      deviceResult = await query(
+        'SELECT * FROM "Device" WHERE "deviceId" = $1',
+        [body.device_id]
+      );
+      console.log(`[${requestId}] Device query completed. Found ${deviceResult.rows.length} device(s)`);
+    } catch (dbError) {
+      console.error(`[${requestId}] Database error while querying device:`, dbError);
+      throw dbError;
     }
-    
-    const deviceResult = await query(
-      'SELECT * FROM "Device" WHERE "deviceId" = $1',
-      [deviceId]
-    );
     
     if (deviceResult.rows.length === 0) {
-      // Auto-create device if it doesn't exist
-      const deviceName = deviceId || 'Unknown Device';
-      const deviceLocation = location || null;
-      
-      const newDeviceResult = await query(`
-        INSERT INTO "Device" (id, "clientId", name, "deviceId", location, "deviceType", "isActive", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, true, $6, $6)
-        RETURNING *
-      `, [
-        client.id,
-        deviceName,
-        deviceId,
-        deviceLocation,
-        'camera', // default device type
-        new Date()
-      ]);
-      
-      device = newDeviceResult.rows[0];
-      console.log(`Auto-created device: ${device.id} for device_id: ${deviceId}`);
-    } else {
-      device = deviceResult.rows[0];
+      console.error(`[${requestId}] Device not found: ${body.device_id}`);
+      return NextResponse.json({ 
+        error: `Device not found: ${body.device_id}. Please create this device in the admin interface first.` 
+      }, { status: 404 });
     }
+    
+    const device = deviceResult.rows[0];
+    console.log(`[${requestId}] Device found: ${device.id} (deviceId: ${device.deviceId})`);
     
     // Store detection
     const now = new Date();
     
     // Parse timestamp safely
     let detectionTimestamp = now;
-    if (timestamp) {
+    if (body.ts) {
       try {
-        // Handle both Unix timestamp (milliseconds) and ISO string
-        const parsedTimestamp = typeof timestamp === 'number' 
-          ? new Date(timestamp) 
-          : new Date(timestamp);
+        const parsedTimestamp = new Date(body.ts);
         if (!isNaN(parsedTimestamp.getTime())) {
           detectionTimestamp = parsedTimestamp;
+          console.log(`[${requestId}] Using provided timestamp: ${detectionTimestamp.toISOString()}`);
+        } else {
+          console.warn(`[${requestId}] Invalid timestamp format (NaN), using current time: ${body.ts}`);
         }
       } catch (error) {
-        console.warn('Invalid timestamp format, using current time:', timestamp);
+        console.warn(`[${requestId}] Error parsing timestamp, using current time:`, body.ts, error);
       }
+    } else {
+      console.log(`[${requestId}] No timestamp provided, using current time: ${now.toISOString()}`);
     }
-    
-    if (!confidence) {
-      return NextResponse.json({ error: 'Missing confidence in payload' }, { status: 400 });
+
+    // Prepare detection data
+    const detectionData = {
+      clientId: client.id,
+      deviceId: device.id,
+      detectionType: body.reason || 'fall_detected',
+      confidence: body.confidence,
+      clipUrl: body.image_topic || null,
+      location: body.camera || body.device_id,
+      severity: body.severity || 'high',
+      timestamp: detectionTimestamp,
+      createdAt: now,
+      updatedAt: now
+    };
+    console.log(`[${requestId}] Inserting detection with data:`, JSON.stringify(detectionData, null, 2));
+
+    let detectionResult;
+    try {
+      detectionResult = await query(`
+        INSERT INTO "Detection" (id, "clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+        RETURNING *
+      `, [
+        detectionData.clientId,
+        detectionData.deviceId,
+        detectionData.detectionType,
+        detectionData.confidence,
+        detectionData.clipUrl,
+        detectionData.location,
+        detectionData.severity,
+        detectionData.timestamp,
+        detectionData.createdAt
+      ]);
+      console.log(`[${requestId}] Detection inserted successfully. ID: ${detectionResult.rows[0]?.id}`);
+    } catch (dbError) {
+      console.error(`[${requestId}] Database error while inserting detection:`, dbError);
+      throw dbError;
     }
-    
-    const detectionResult = await query(`
-      INSERT INTO "Detection" (id, "clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
-      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
-      RETURNING *
-    `, [
-      client.id,
-      device.id,
-      detectionType,
-      confidence,
-      clipUrl,
-      location,
-      severity,
-      detectionTimestamp,
-      now
-    ]);
     
     const detection = detectionResult.rows[0];
     
     // Trigger alerts based on severity
-    await triggerAlerts(detection, client);
+    console.log(`[${requestId}] Triggering alerts for severity: ${detection.severity}`);
+    try {
+      await triggerAlerts(detection, client, requestId);
+      console.log(`[${requestId}] Alerts triggered successfully`);
+    } catch (alertError) {
+      console.error(`[${requestId}] Error triggering alerts:`, alertError);
+      // Don't fail the whole request if alerts fail
+    }
     
+    console.log(`[${requestId}] Webhook processed successfully`);
     return NextResponse.json({ success: true, detectionId: detection.id });
   } catch (error) {
-    console.error('Webhook error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error(`[${requestId}] Webhook error:`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : typeof error,
+    });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      requestId,
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
-async function triggerAlerts(detection: any, client: any) {
+async function triggerAlerts(detection: any, client: any, requestId?: string) {
+  const logPrefix = requestId ? `[${requestId}]` : '[triggerAlerts]';
+  console.log(`${logPrefix} Starting alert trigger for detection ${detection.id}, severity: ${detection.severity}`);
+  
   const alertConfigs = {
     critical: ['email', 'webhook'],
     high: ['email'],
@@ -129,20 +195,37 @@ async function triggerAlerts(detection: any, client: any) {
   };
   
   const alertTypes = alertConfigs[detection.severity as keyof typeof alertConfigs] || [];
+  console.log(`${logPrefix} Alert types for severity '${detection.severity}':`, alertTypes);
+  
+  if (alertTypes.length === 0) {
+    console.log(`${logPrefix} No alerts to trigger for severity: ${detection.severity}`);
+    return;
+  }
   
   for (const alertType of alertTypes) {
-    const now = new Date();
-    await query(`
-      INSERT INTO "Alert" (id, "detectionId", "clientId", type, message, "createdAt", "updatedAt")
-      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $5)
-    `, [
-      detection.id,
-      client.id,
-      alertType,
-      generateAlertMessage(detection, alertType),
-      now
-    ]);
+    try {
+      console.log(`${logPrefix} Creating ${alertType} alert...`);
+      const now = new Date();
+      const message = generateAlertMessage(detection, alertType);
+      
+      await query(`
+        INSERT INTO "Alert" (id, "detectionId", "clientId", type, message, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $5)
+      `, [
+        detection.id,
+        client.id,
+        alertType,
+        message,
+        now
+      ]);
+      console.log(`${logPrefix} ${alertType} alert created successfully`);
+    } catch (alertError) {
+      console.error(`${logPrefix} Failed to create ${alertType} alert:`, alertError);
+      throw alertError;
+    }
   }
+  
+  console.log(`${logPrefix} All alerts triggered successfully`);
 }
 
 function generateAlertMessage(detection: any, alertType: string): string {
@@ -161,4 +244,4 @@ function generateAlertMessage(detection: any, alertType: string): string {
     default:
       return baseMessage;
   }
-} 
+}

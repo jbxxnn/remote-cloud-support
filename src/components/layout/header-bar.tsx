@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { RCELogo } from "./rce-logo";
 import { useTheme } from "@/components/ui/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import { File01Icon, UserMultipleIcon, VolumeMute02Icon, VolumeUpIcon, AlertCircleIcon, Comment01Icon, Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons";
+import { playAlertSound, NEW_ALERT_EVENT, initAudioContext } from "@/lib/alert-sound";
 
 interface HeaderBarProps {
   module?: string;
@@ -39,6 +40,7 @@ export function HeaderBar({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [connectionStatus, setConnectionStatus] = useState<"online" | "offline" | "warning">("online");
   const [alertTonesEnabled, setAlertTonesEnabled] = useState(true);
+  const previousAlertCountRef = useRef(activeAlerts);
 
   // Update time every second
   useEffect(() => {
@@ -67,6 +69,32 @@ export function HeaderBar({
       window.removeEventListener("offline", checkConnection);
     };
   }, []);
+
+  // Listen for new alert events and play sound if enabled
+  useEffect(() => {
+    const handleNewAlert = (event: Event) => {
+      if (alertTonesEnabled) {
+        console.log('New alert detected, playing sound...');
+        playAlertSound();
+      }
+    };
+
+    window.addEventListener(NEW_ALERT_EVENT, handleNewAlert as EventListener);
+
+    return () => {
+      window.removeEventListener(NEW_ALERT_EVENT, handleNewAlert as EventListener);
+    };
+  }, [alertTonesEnabled]);
+
+  // Also monitor activeAlerts count changes as a backup
+  useEffect(() => {
+    if (activeAlerts > previousAlertCountRef.current && alertTonesEnabled && previousAlertCountRef.current > 0) {
+      // Only play if count increased (new alert) and we had alerts before (not initial load)
+      console.log('Active alerts increased, playing sound...', { previous: previousAlertCountRef.current, current: activeAlerts });
+      playAlertSound();
+    }
+    previousAlertCountRef.current = activeAlerts;
+  }, [activeAlerts, alertTonesEnabled]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
@@ -134,7 +162,16 @@ export function HeaderBar({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setAlertTonesEnabled(!alertTonesEnabled)}
+            onClick={() => {
+              const newState = !alertTonesEnabled;
+              setAlertTonesEnabled(newState);
+              // Initialize audio context on user interaction (required by browsers)
+              if (newState) {
+                initAudioContext();
+                // Play a test sound to ensure audio works
+                setTimeout(() => playAlertSound(), 100);
+              }
+            }}
             className="h-8 w-8 p-0 rounded-full"
             title={alertTonesEnabled ? "Disable alert tones" : "Enable alert tones"}
           >

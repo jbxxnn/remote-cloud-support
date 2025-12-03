@@ -58,6 +58,14 @@ export async function GET(request: NextRequest) {
       AND s."isActive" = true
     `);
 
+    // Get active staff count
+    const activeStaff = await query(`
+      SELECT COUNT(*) as count
+      FROM "User"
+      WHERE role = 'staff'
+      AND "isActive" = true
+    `);
+
     // Get resolved today count
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -76,6 +84,7 @@ export async function GET(request: NextRequest) {
       myQueue: parseInt(myQueue.rows[0]?.count || "0"),
       activeClients: parseInt(activeClients.rows[0]?.count || "0"),
       openSOPs: parseInt(openSOPs.rows[0]?.count || "0"),
+      activeStaff: parseInt(activeStaff.rows[0]?.count || "0"),
       resolvedToday: parseInt(resolvedToday.rows[0]?.count || "0"),
     });
   } catch (error) {
@@ -83,6 +92,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
   }
 }
+
+
 
 
 
