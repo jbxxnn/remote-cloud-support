@@ -1,7 +1,8 @@
 const fetch = require('node-fetch');
 
 const API_KEY = '6630db19-0f12-4980-81d0-4d920577bca2';
-const WEBHOOK_URL = 'http://localhost:3000/api/webhooks/detections';
+// Update this to your production URL: https://rss.re-circuit.com/api/webhooks/detections
+const WEBHOOK_URL = process.env.WEBHOOK_URL || 'http://localhost:3000/api/webhooks/detections';
 
 const testDetection = {
   timestamp: Date.now(),

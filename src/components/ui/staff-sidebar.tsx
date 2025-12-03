@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { AlertCircleIcon, CallIcon, ChartRadarIcon, Doc01Icon, File01Icon, MessageMultiple01Icon, TransactionHistoryIcon, UserMultipleIcon, Video02Icon, HelpCircleIcon, Clock05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -338,11 +339,9 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
               variant="ghost"
               size="icon"
               className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
-              asChild
+              onClick={() => signOut({ callbackUrl: "/" })}
             >
-              <Link href="/api/auth/signout">
-                <LogOut className="w-4 h-4" />
-              </Link>
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>

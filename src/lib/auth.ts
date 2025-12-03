@@ -77,4 +77,6 @@ export const authOptions: AuthOptions = {
     strategy: "jwt",
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // NextAuth automatically reads NEXTAUTH_URL from process.env
+  // Make sure NEXTAUTH_URL=https://rss.re-circuit.com is set in your environment
 }; 

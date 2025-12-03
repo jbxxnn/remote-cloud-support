@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { RCELogo } from "@/components/layout/rce-logo"
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -247,11 +248,9 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
               variant="ghost"
               size="icon"
               className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
-              asChild
+              onClick={() => signOut({ callbackUrl: "/" })}
             >
-              <Link href="/api/auth/signout">
-                <LogOut className="w-4 h-4" />
-              </Link>
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>
