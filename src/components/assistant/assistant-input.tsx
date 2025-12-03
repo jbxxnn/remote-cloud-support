@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { MessageMultiple01Icon } from "@hugeicons/core-free-icons";
 
 interface AssistantInputProps {
   onSend: (message: string) => void;
@@ -44,28 +46,34 @@ export function AssistantInput({
         placeholder={placeholder}
         disabled={isLoading || disabled}
         className={cn(
-          "min-h-[60px] max-h-[120px] resize-none",
-          "focus:ring-2 focus:ring-[var(--rce-green)]/50"
+          "min-h-[40px] max-h-[50px] resize-none",
+          "focus:ring-2 focus:ring-[var(--rce-green)]/50 focus-visible:ring-0"
         )}
         rows={2}
+        style={{
+          borderRadius: '10px',
+        }}
       />
       <Button
         onClick={handleSend}
         disabled={!message.trim() || isLoading || disabled}
         size="icon"
         className={cn(
-          "h-[60px] w-[60px] shrink-0",
+          "h-[50px] w-[50px] shrink-0",
           "bg-[var(--rce-green)] text-[var(--rce-black)]",
           "hover:bg-[var(--rce-green)]/90",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           "transition-all duration-200"
         )}
         aria-label="Send message"
+        style={{
+          borderRadius: '10px',
+        }}
       >
         {isLoading ? (
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--rce-black)] border-t-transparent" />
         ) : (
-          <Send className="h-4 w-4" />
+          <HugeiconsIcon icon={MessageMultiple01Icon} className="h-5 w-5 text-white" />
         )}
       </Button>
     </div>

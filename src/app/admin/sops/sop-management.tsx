@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { HeaderBar } from "@/components/layout/header-bar";
+import { AssistantIcon } from "@/components/assistant/assistant-icon";
+import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 import { 
   Table,
   TableBody,
@@ -67,6 +70,7 @@ interface SOPManagementProps {
 }
 
 export function SOPManagement({ user }: SOPManagementProps) {
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [sops, setSops] = useState<SOP[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -291,37 +295,26 @@ export function SOPManagement({ user }: SOPManagementProps) {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <Loader className="w-8 h-8 animate-spin mx-auto" />
-          <p className="mt-2 text-muted-foreground">Loading SOPs...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-6">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Standard Operating Procedures</h1>
-              <p className="text-sm text-muted-foreground">
-                Define instructions for staff responses to different event types
-              </p>
-            </div>
-          </div>
-          <div className="ml-auto flex items-center space-x-4">
-            <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add New SOP
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header Bar */}
+      <HeaderBar
+        module="Standard Operating Procedures"
+        activeAlerts={0} // TODO: Get actual active alerts count
+        staffOnline={0} // TODO: Get actual staff online count
+        openSOPs={0} // TODO: Get actual open SOPs count
+        onAssistantClick={() => setAssistantOpen(true)}
+      />
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-6">
-        {/* Search and Stats */}
+      <div className="flex-1 overflow-auto">
+        <div className="space-y-6 p-6">
+        {/* Action Bar */}
         <div className="flex items-center justify-between">
           <div className="relative w-96">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -336,6 +329,10 @@ export function SOPManagement({ user }: SOPManagementProps) {
             <Badge variant="secondary">
               {filteredSOPs.length} of {sops.length} SOPs
             </Badge>
+            <Button onClick={() => setShowAddDialog(true)} className="rounded-full bg-[var(--rce-green)] text-primary-foreground hover:bg-primary">
+              <Plus className="w-4 h-4 mr-2" />
+              Add New SOP
+            </Button>
           </div>
         </div>
 
@@ -349,7 +346,7 @@ export function SOPManagement({ user }: SOPManagementProps) {
                 {searchTerm ? "No SOPs match your search criteria." : "Get started by creating your first SOP."}
               </p>
               {!searchTerm && (
-                <Button onClick={() => setShowAddDialog(true)}>
+                <Button onClick={() => setShowAddDialog(true)} className="rounded-full bg-[var(--rce-green)] text-primary-foreground hover:bg-primary">
                   <Plus className="w-4 h-4 mr-2" />
                   Create First SOP
                 </Button>
@@ -855,6 +852,21 @@ export function SOPManagement({ user }: SOPManagementProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* SupportSense Assistant Icon */}
+      <AssistantIcon
+        module="Standard Operating Procedures"
+        userRole="admin"
+        drawerOpen={assistantOpen}
+        onDrawerOpenChange={setAssistantOpen}
+      />
+
+      {/* SupportSense Assistant Drawer */}
+      <AssistantDrawer
+        open={assistantOpen}
+        onOpenChange={setAssistantOpen}
+      />
+      </div>
     </div>
   );
 } 

@@ -16,23 +16,23 @@ export function RCELogo({
   if (variant === "auto") {
     return (
       <div className={`flex items-center space-x-3 ${className}`}>
-        <div className="relative h-8 w-[120px]">
+        <div className="relative h-full w-full">
           {/* Black logo - visible in light mode */}
           <Image
             src="/RCE LOGO SVG BLACK.svg"
             alt="RCE Logo"
-            width={120}
-            height={40}
-            className="h-8 w-auto object-contain dark:hidden"
+            width={240}
+            height={80}
+            className="h-16 w-full object-contain dark:hidden"
             priority
           />
           {/* White logo - visible in dark mode */}
           <Image
             src="/RCE LOGO SVG WHITE.svg"
             alt="RCE Logo"
-            width={120}
-            height={40}
-            className="h-8 w-auto object-contain hidden dark:block"
+            width={240}
+            height={80}
+            className="h-16 w-full object-contain hidden dark:block"
             priority
           />
         </div>

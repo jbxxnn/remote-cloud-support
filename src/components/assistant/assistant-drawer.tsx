@@ -80,14 +80,12 @@ export function AssistantDrawer({ open, onOpenChange }: AssistantDrawerProps) {
                       </Badge>
                     </>
                   )}
+                  <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+              Training Mode
+            </Badge>
                 </div>
               </SheetDescription>
             </div>
-          </div>
-          <div className="mt-2">
-            <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-              Training Mode
-            </Badge>
           </div>
         </SheetHeader>
 

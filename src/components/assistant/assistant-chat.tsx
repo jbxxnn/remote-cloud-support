@@ -6,6 +6,8 @@ import { AssistantInput } from "./assistant-input";
 import { AssistantMessage } from "@/hooks/use-assistant";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MessageSquare } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Comment01Icon } from "@hugeicons/core-free-icons";
 
 interface AssistantChatProps {
   messages: AssistantMessage[];
@@ -27,7 +29,7 @@ export function AssistantChat({ messages, onSend, isLoading }: AssistantChatProp
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <EmptyState
-            icon={MessageSquare}
+            icon={<HugeiconsIcon icon={Comment01Icon} className="w-8 h-8"/>}
             title="Start a conversation"
             description="Ask SupportSense anything about this page or get help with your tasks."
             variant="minimal"

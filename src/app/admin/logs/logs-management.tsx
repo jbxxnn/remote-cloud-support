@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { HeaderBar } from "@/components/layout/header-bar";
+import { AssistantIcon } from "@/components/assistant/assistant-icon";
+import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 import { 
   Table,
   TableBody,
@@ -78,6 +81,7 @@ interface LogsManagementProps {
 }
 
 export function LogsManagement({ user }: LogsManagementProps) {
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -211,29 +215,28 @@ export function LogsManagement({ user }: LogsManagementProps) {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-6">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">System Logs</h1>
-              <p className="text-sm text-muted-foreground">
-                View and filter staff actions and event logs
-              </p>
-            </div>
-          </div>
-          <div className="ml-auto flex items-center space-x-4">
-            <Button variant="outline" onClick={fetchEvents}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header Bar */}
+      <HeaderBar
+        module="System Logs"
+        activeAlerts={0} // TODO: Get actual active alerts count
+        staffOnline={0} // TODO: Get actual staff online count
+        openSOPs={0} // TODO: Get actual open SOPs count
+        onAssistantClick={() => setAssistantOpen(true)}
+      />
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 overflow-auto">
+        <div className="space-y-6 p-6">
+        {/* Action Bar */}
+        <div className="flex items-center justify-between mb-4">
+          <div></div>
+          <Button variant="outline" onClick={fetchEvents}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+
         {/* Filters */}
         <Card>
           <CardHeader>
@@ -534,6 +537,21 @@ export function LogsManagement({ user }: LogsManagementProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* SupportSense Assistant Icon */}
+      <AssistantIcon
+        module="System Logs"
+        userRole="admin"
+        drawerOpen={assistantOpen}
+        onDrawerOpenChange={setAssistantOpen}
+      />
+
+      {/* SupportSense Assistant Drawer */}
+      <AssistantDrawer
+        open={assistantOpen}
+        onOpenChange={setAssistantOpen}
+      />
+      </div>
     </div>
   );
 } 

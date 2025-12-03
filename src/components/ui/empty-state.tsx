@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -17,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { animations } from "@/lib/animations";
 
 interface EmptyStateProps {
-  icon?: "check" | "alert" | "info" | "inbox" | "search" | "file" | "users" | "database" | "activity" | "message" | LucideIcon;
+  icon?: "check" | "alert" | "info" | "inbox" | "search" | "file" | "users" | "database" | "activity" | "message" | LucideIcon | React.ReactNode;
   title: string;
   description?: string;
   actionLabel?: string;
@@ -48,18 +49,25 @@ export function EmptyState({
   className = "",
   variant = "default"
 }: EmptyStateProps) {
+  const isReactNode = React.isValidElement(icon);
   const IconComponent = typeof icon === "string" 
     ? iconMap[icon] || Info
-    : icon;
+    : (typeof icon === "function" ? icon : null);
 
   if (variant === "minimal") {
     return (
       <div className={cn("flex flex-col items-center justify-center p-6 text-center", className)}>
-        <IconComponent className={cn(
-          "w-8 h-8 text-muted-foreground mb-2",
-          animations.fadeIn
-        )} />
-        <p className="text-sm text-muted-foreground">{title}</p>
+        {isReactNode ? (
+          <div className={cn("mb-2", animations.fadeIn)}>
+            {icon}
+          </div>
+        ) : IconComponent ? (
+          <IconComponent className={cn(
+            "w-8 h-8 text-muted-foreground mb-2",
+            animations.fadeIn
+          )} />
+        ) : null}
+        <p className="text-sm font-medium text-foreground">{title}</p>
       </div>
     );
   }
@@ -72,7 +80,11 @@ export function EmptyState({
             "rounded-full bg-muted p-4 mb-6",
             animations.scaleIn
           )}>
-            <IconComponent className="w-12 h-12 text-muted-foreground" />
+            {isReactNode ? (
+              icon
+            ) : IconComponent ? (
+              <IconComponent className="w-12 h-12 text-muted-foreground" />
+            ) : null}
           </div>
           <h3 className="text-lg font-semibold mb-2">{title}</h3>
           {description && (
@@ -95,10 +107,16 @@ export function EmptyState({
         "flex flex-col items-center justify-center p-8 text-center",
         animations.fadeIn
       )}>
-        <IconComponent className={cn(
-          "w-12 h-12 text-muted-foreground mb-4",
-          animations.scaleIn
-        )} />
+        {isReactNode ? (
+          <div className={cn("mb-4", animations.scaleIn)}>
+            {icon}
+          </div>
+        ) : IconComponent ? (
+          <IconComponent className={cn(
+            "w-12 h-12 text-muted-foreground mb-4",
+            animations.scaleIn
+          )} />
+        ) : null}
         <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>
         {description && (
           <p className="text-xs text-muted-foreground/70 mt-1">{description}</p>

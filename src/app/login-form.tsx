@@ -35,7 +35,7 @@ export default function LoginForm() {
 
   return (
     <div className={cn("flex flex-col gap-6")}>
-      <Card>
+      <Card className="bg-white dark:bg-gray-900 p-2 shadow-md w-full max-w-sm" style={{borderRadius: '10px'}}>
         <CardHeader>
           <CardTitle>Login to your account</CardTitle>
           <CardDescription>
@@ -45,7 +45,7 @@ export default function LoginForm() {
           <CardContent>  
             <form
         onSubmit={handleSubmit}
-        className="bg-white dark:bg-gray-900 p-8 rounded shadow-md w-full max-w-sm"
+        className=""
       >
             <FieldGroup>
               <Field>
@@ -83,9 +83,9 @@ export default function LoginForm() {
                 {/* <Button variant="outline" type="button">
                   Login with Google
                 </Button> */}
-                <FieldDescription className="text-center">
+                {/* <FieldDescription className="text-center">
                   Don&apos;t have an account? <a href="#">Sign up</a>
-                </FieldDescription>
+                </FieldDescription> */}
               </Field>
             </FieldGroup>
           </form>

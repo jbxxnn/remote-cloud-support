@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { HeaderBar } from "@/components/layout/header-bar";
+import { AssistantIcon } from "@/components/assistant/assistant-icon";
+import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 import { 
   Table,
   TableBody,
@@ -68,6 +71,7 @@ interface ClientManagementProps {
 }
 
 export function ClientManagement({ user }: ClientManagementProps) {
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -245,30 +249,20 @@ export function ClientManagement({ user }: ClientManagementProps) {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-6">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Client Management</h1>
-              <p className="text-sm text-muted-foreground">
-                Manage client profiles, service plans, and hardware configurations
-              </p>
-            </div>
-          </div>
-          <div className="ml-auto flex items-center space-x-4">
-            <Button onClick={() => setShowAddModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Client
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header Bar */}
+      <HeaderBar
+        module="Client Management"
+        activeAlerts={0} // TODO: Get actual active alerts count
+        staffOnline={0} // TODO: Get actual staff online count
+        openSOPs={0} // TODO: Get actual open SOPs count
+        onAssistantClick={() => setAssistantOpen(true)}
+      />
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-6">
-        {/* Search and Stats */}
+      <div className="flex-1 overflow-auto">
+        <div className="space-y-6 p-6">
+        {/* Action Bar */}
         <div className="flex items-center justify-between">
           <div className="relative w-96">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -283,6 +277,10 @@ export function ClientManagement({ user }: ClientManagementProps) {
             <Badge variant="secondary">
               {filteredClients.length} of {clients.length} clients
             </Badge>
+            <Button onClick={() => setShowAddModal(true)} className="rounded-full bg-[var(--rce-green)] text-primary-foreground hover:bg-primary">
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Client
+            </Button>
           </div>
         </div>
 
@@ -418,7 +416,6 @@ export function ClientManagement({ user }: ClientManagementProps) {
             </CardContent>
           </Card>
         )}
-      </div>
 
       {/* Add Client Dialog */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
@@ -955,6 +952,22 @@ export function ClientManagement({ user }: ClientManagementProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* SupportSense Assistant Icon */}
+      <AssistantIcon
+        module="Client Management"
+        userRole="admin"
+        drawerOpen={assistantOpen}
+        onDrawerOpenChange={setAssistantOpen}
+      />
+
+      {/* SupportSense Assistant Drawer */}
+      <AssistantDrawer
+        open={assistantOpen}
+        onOpenChange={setAssistantOpen}
+      />
+        </div>
+      </div>
     </div>
   );
 } 

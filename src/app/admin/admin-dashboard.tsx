@@ -23,8 +23,11 @@ import {
   Edit,
   Trash2,
   ExternalLink,
-  Loader
+  Loader,
+  LucideIcon
 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { SmartAcIcon, ComputerActivityIcon, UserMultipleIcon } from "@hugeicons/core-free-icons";
 
 interface Client {
   id: string;
@@ -154,25 +157,25 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             title="Total Clients"
             value={totalClients}
             description="Active and inactive clients"
-            icon={Users}
+            icon={<HugeiconsIcon icon={UserMultipleIcon} className="h-4 w-4 text-muted-foreground" />}
           />
           <StatsCard
             title="Total Devices"
             value={totalDevices}
             description="Connected devices"
-            icon={Database}
+            icon={<HugeiconsIcon icon={SmartAcIcon} className="h-4 w-4 text-muted-foreground"/>}
           />
           <StatsCard
             title="Total Detections"
             value={totalDetections}
             description="Security events detected"
-            icon={Activity}
+            icon={<HugeiconsIcon icon={ComputerActivityIcon} className="h-4 w-4 text-muted-foreground"/>}
           />
           <StatsCard
             title="Staff Members"
             value={totalStaff}
             description="Active staff accounts"
-            icon={Shield}
+            icon={<HugeiconsIcon icon={UserMultipleIcon} className="h-4 w-4 text-muted-foreground"/>}
           />
         </div>
 

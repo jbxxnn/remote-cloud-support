@@ -17,6 +17,7 @@ import {
   VolumeOffIcon,
 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import { File01Icon, UserMultipleIcon, VolumeMute02Icon, VolumeUpIcon, AlertCircleIcon, Comment01Icon, Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons";
 
 interface HeaderBarProps {
@@ -146,7 +147,7 @@ export function HeaderBar({
           </Button>
 
           {/* Theme Toggle */}
-          <Button
+          {/* <Button
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
@@ -158,7 +159,8 @@ export function HeaderBar({
             ) : (
               <HugeiconsIcon icon={Moon02Icon} className="h-4 w-4 text-muted-foreground"/>
             )}
-          </Button>
+          </Button> */}
+          <AnimatedThemeToggler />
 
           {/* SupportSense Assistant Button */}
           {onAssistantClick && (

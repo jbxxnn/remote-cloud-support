@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { HeaderBar } from "@/components/layout/header-bar";
+import { AssistantIcon } from "@/components/assistant/assistant-icon";
+import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 import { 
   Plus, 
   Search, 
@@ -28,6 +31,8 @@ import {
   Settings,
   Loader
 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Database01Icon } from "@hugeicons/core-free-icons";
 
 interface Client {
   id: string;
@@ -122,6 +127,7 @@ const EVENT_TYPES = [
 ];
 
 export function DeviceManagement() {
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -312,48 +318,20 @@ export function DeviceManagement() {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-6">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Device Management</h1>
-              <p className="text-sm text-muted-foreground">
-                Manage devices and sensors for all clients
-              </p>
-            </div>
-          </div>
-          <div className="ml-auto flex items-center space-x-4">
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Device
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Add New Device</DialogTitle>
-                  <DialogDescription>
-                    Configure a new device or sensor for a client.
-                  </DialogDescription>
-                </DialogHeader>
-                <DeviceForm 
-                  formData={formData}
-                  setFormData={setFormData}
-                  clients={clients}
-                  onSubmit={handleCreateDevice}
-                  submitLabel="Create Device"
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header Bar */}
+      <HeaderBar
+        module="Device Management"
+        activeAlerts={0} // TODO: Get actual active alerts count
+        staffOnline={0} // TODO: Get actual staff online count
+        openSOPs={0} // TODO: Get actual open SOPs count
+        onAssistantClick={() => setAssistantOpen(true)}
+      />
 
-      {/* Filters */}
-      <div className="p-6 border-b">
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        {/* Filters */}
+        <div className="p-6 border-b">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -391,6 +369,29 @@ export function DeviceManagement() {
               <SelectItem value="maintenance">Maintenance</SelectItem>
             </SelectContent>
           </Select>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="rounded-full bg-[var(--rce-green)] text-primary-foreground hover:bg-primary">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Device
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add New Device</DialogTitle>
+                <DialogDescription>
+                  Configure a new device or sensor for a client.
+                </DialogDescription>
+              </DialogHeader>
+              <DeviceForm 
+                formData={formData}
+                setFormData={setFormData}
+                clients={clients}
+                onSubmit={handleCreateDevice}
+                submitLabel="Create Device"
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -408,7 +409,7 @@ export function DeviceManagement() {
         {filteredDevices.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Database className="w-12 h-12 text-muted-foreground mb-4" />
+              <HugeiconsIcon icon={Database01Icon} className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No devices found</h3>
               <p className="text-muted-foreground text-center mb-4">
                 {searchTerm || selectedDeviceType !== "all" || selectedStatus !== "all"
@@ -416,7 +417,7 @@ export function DeviceManagement() {
                   : "Get started by adding your first device."}
               </p>
               {!searchTerm && selectedDeviceType === "all" && selectedStatus === "all" && (
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-full bg-[var(--rce-green)] text-primary-foreground hover:bg-primary">
                   <Plus className="w-4 h-4 mr-2" />
                   Add First Device
                 </Button>
@@ -509,6 +510,21 @@ export function DeviceManagement() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* SupportSense Assistant Icon */}
+      <AssistantIcon
+        module="Device Management"
+        userRole="admin"
+        drawerOpen={assistantOpen}
+        onDrawerOpenChange={setAssistantOpen}
+      />
+
+      {/* SupportSense Assistant Drawer */}
+      <AssistantDrawer
+        open={assistantOpen}
+        onOpenChange={setAssistantOpen}
+      />
+      </div>
     </div>
   );
 }
