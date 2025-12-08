@@ -12,7 +12,20 @@ class ContextService {
    * Fetch related data for context
    */
   private async fetchContextData(context: AssistantContext): Promise<AssistantContext> {
-    const enhancedContext = { ...context, context: {} };
+    // Ensure context object exists
+    if (!context.context) {
+      context.context = {
+        client: undefined,
+        alert: undefined,
+        sop: undefined,
+        sopResponse: undefined,
+      };
+    }
+    
+    const enhancedContext: AssistantContext = { 
+      ...context, 
+      context: context.context
+    };
 
     // Fetch client data if client_id is provided
     if (context.client_id && typeof window !== 'undefined') {

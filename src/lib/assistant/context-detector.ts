@@ -112,17 +112,17 @@ export function detectContext(): Partial<AssistantContext> {
   const role = pathname.startsWith('/admin') ? 'admin' : 'staff';
 
   // Determine module based on path
-  let module = moduleName;
+  let detectedModule = moduleName;
   if (pathname.includes('/alerts/')) {
-    module = 'Alert Detail';
+    detectedModule = 'Alert Detail';
   } else if (pathname.includes('/sop-responses/') || sopResponseId) {
-    module = 'SOP Response Form';
+    detectedModule = 'SOP Response Form';
   } else if (pathname.includes('/client/')) {
-    module = 'Client Dashboard';
+    detectedModule = 'Client Dashboard';
   }
 
   return {
-    module: module,
+    module: detectedModule,
     client_id: clientId,
     alert_id: alertId,
     sop_response_id: sopResponseId,
