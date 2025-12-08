@@ -53,6 +53,46 @@ export function extractClientIdFromPath(pathname: string): string | undefined {
 }
 
 /**
+ * Extract alert ID from path or query params
+ */
+export function extractAlertIdFromPath(pathname: string, searchParams?: URLSearchParams): string | undefined {
+  // Check URL path for /alerts/[id]
+  const segments = pathname.split('/');
+  const alertIndex = segments.indexOf('alerts');
+  if (alertIndex !== -1 && segments[alertIndex + 1]) {
+    return segments[alertIndex + 1];
+  }
+  
+  // Check query params
+  if (searchParams) {
+    return searchParams.get('alertId') || undefined;
+  }
+  
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('alertId') || undefined;
+  }
+  
+  return undefined;
+}
+
+/**
+ * Extract SOP response ID from query params
+ */
+export function extractSOPResponseIdFromPath(pathname: string, searchParams?: URLSearchParams): string | undefined {
+  if (searchParams) {
+    return searchParams.get('sopResponseId') || undefined;
+  }
+  
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('sopResponseId') || undefined;
+  }
+  
+  return undefined;
+}
+
+/**
  * Detect context from current page
  */
 export function detectContext(): Partial<AssistantContext> {
@@ -61,16 +101,31 @@ export function detectContext(): Partial<AssistantContext> {
   }
 
   const pathname = window.location.pathname;
+  const searchParams = new URLSearchParams(window.location.search);
   const moduleName = detectModuleFromPath(pathname);
   const clientId = extractClientIdFromPath(pathname);
+  const alertId = extractAlertIdFromPath(pathname, searchParams);
+  const sopResponseId = extractSOPResponseIdFromPath(pathname, searchParams);
 
   // Try to get role from session or localStorage
   // This is a placeholder - in real implementation, get from auth context
   const role = pathname.startsWith('/admin') ? 'admin' : 'staff';
 
+  // Determine module based on path
+  let module = moduleName;
+  if (pathname.includes('/alerts/')) {
+    module = 'Alert Detail';
+  } else if (pathname.includes('/sop-responses/') || sopResponseId) {
+    module = 'SOP Response Form';
+  } else if (pathname.includes('/client/')) {
+    module = 'Client Dashboard';
+  }
+
   return {
-    module: moduleName,
+    module: module,
     client_id: clientId,
+    alert_id: alertId,
+    sop_response_id: sopResponseId,
     role: role,
     userRole: role,
   };

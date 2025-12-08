@@ -471,13 +471,13 @@ export default function ClientDashboardPage() {
       role: 'staff',
       module: 'Alert Detail',
       client_id: clientId,
-      event_id: selectedAlert?.id,
+      alert_id: selectedAlert?.id,
       userRole: 'staff',
+    }).then(() => {
+      // Open assistant with pre-filled notes help query
+      setAssistantInitialMessage("What should I write in the alert resolution notes?");
+      setAssistantOpen(true);
     });
-
-    // Open assistant with pre-filled notes help query
-    setAssistantInitialMessage("What should I write in the alert resolution notes?");
-    setAssistantOpen(true);
   };
 
   const handleResolveAlert = async () => {

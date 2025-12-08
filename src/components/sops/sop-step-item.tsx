@@ -66,10 +66,10 @@ export function SOPStepItem({
     }
   };
 
-  const handleGetNotesHelp = () => {
+  const handleGetNotesHelp = async () => {
     // Set context for the assistant
     if (sopId && clientId) {
-      contextService.setContext({
+      await contextService.setContext({
         role: 'staff',
         module: 'SOP Response',
         client_id: clientId,

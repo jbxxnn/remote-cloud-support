@@ -33,7 +33,7 @@ export function getNotesGuidance(
   }
 
   // Alert resolution context
-  if (context.event_id || context.module === 'Alert Detail') {
+  if (context.alert_id || context.module === 'Alert Detail') {
     return getAlertResolutionNotesGuidance();
   }
 
@@ -285,5 +285,288 @@ export function generateNotesHelpResponse(
   }
   
   return response;
+}
+
+/**
+ * Generate alert summary
+ */
+export function generateAlertSummary(context: AssistantContextPayload): string {
+  const alert = context.context?.alert;
+  const client = context.context?.client;
+
+  if (!alert) {
+    return "No alert context available. Please navigate to an alert to get a summary.";
+  }
+
+  let summary = `## Alert Summary\n\n`;
+  summary += `**Alert ID:** ${alert.id}\n`;
+  summary += `**Type:** ${alert.type}\n`;
+  summary += `**Status:** ${alert.status}\n`;
+  summary += `**Message:** ${alert.message}\n`;
+
+  if (alert.severity) {
+    summary += `**Severity:** ${alert.severity}\n`;
+  }
+
+  if (alert.location) {
+    summary += `**Location:** ${alert.location}\n`;
+  }
+
+  if (alert.detectionType) {
+    summary += `**Detection Type:** ${alert.detectionType}\n`;
+  }
+
+  if (client) {
+    summary += `\n**Client:** ${client.name}`;
+    if (client.company) {
+      summary += ` (${client.company})`;
+    }
+    summary += `\n`;
+  }
+
+  summary += `\n**Created:** ${new Date(alert.createdAt).toLocaleString()}\n`;
+
+  if (alert.updatedAt) {
+    summary += `**Last Updated:** ${new Date(alert.updatedAt).toLocaleString()}\n`;
+  }
+
+  // Add recommendations based on status
+  summary += `\n### Recommendations\n\n`;
+  if (alert.status === 'pending') {
+    summary += `• **Acknowledge this alert** to indicate you're working on it\n`;
+    summary += `• **Start a relevant SOP** if one is available for this alert type\n`;
+    summary += `• **Contact the client** if immediate action is required\n`;
+  } else if (alert.status === 'scheduled') {
+    summary += `• **Continue working on this alert** according to the scheduled plan\n`;
+    summary += `• **Update progress** in linked SOP responses\n`;
+    summary += `• **Resolve the alert** when all actions are complete\n`;
+  } else if (alert.status === 'resolved') {
+    summary += `• This alert has been resolved\n`;
+    summary += `• Review the resolution details and linked SOP responses\n`;
+  }
+
+  return summary;
+}
+
+/**
+ * Generate SOP response summary
+ */
+export function generateSOPSummary(context: AssistantContextPayload): string {
+  const sopResponse = context.context?.sopResponse;
+  const sop = context.context?.sop;
+  const client = context.context?.client;
+  const alert = context.context?.alert;
+
+  if (!sopResponse) {
+    return "No SOP response context available. Please navigate to an SOP response to get a summary.";
+  }
+
+  let summary = `## SOP Response Summary\n\n`;
+
+  if (sop) {
+    summary += `**SOP:** ${sop.name}\n`;
+  }
+
+  if (client) {
+    summary += `**Client:** ${client.name}\n`;
+  }
+
+  if (alert) {
+    summary += `**Related Alert:** ${alert.message}\n`;
+  }
+
+  summary += `\n**Status:** ${sopResponse.status}\n`;
+  summary += `**Started:** ${new Date(sopResponse.startedAt).toLocaleString()}\n`;
+
+  if (sopResponse.completedAt) {
+    summary += `**Completed:** ${new Date(sopResponse.completedAt).toLocaleString()}\n`;
+  }
+
+  // Step completion status
+  const totalSteps = sop?.steps?.length || 0;
+  const completedSteps = sopResponse.completedSteps?.length || 0;
+  const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  summary += `\n### Progress\n\n`;
+  summary += `**Completed Steps:** ${completedSteps} of ${totalSteps} (${progress}%)\n\n`;
+
+  if (sopResponse.completedSteps && sopResponse.completedSteps.length > 0) {
+    summary += `### Completed Steps\n\n`;
+    sopResponse.completedSteps.forEach((step: any, index: number) => {
+      summary += `${index + 1}. **Step ${step.step}:** ${step.action}\n`;
+      if (step.notes) {
+        summary += `   Notes: ${step.notes}\n`;
+      }
+      summary += `   Completed: ${new Date(step.completedAt).toLocaleString()}\n\n`;
+    });
+  }
+
+  if (sopResponse.notes) {
+    summary += `### Overall Notes\n\n${sopResponse.notes}\n\n`;
+  }
+
+  return summary;
+}
+
+/**
+ * Detect missing information
+ */
+export function detectMissingInformation(context: AssistantContextPayload): string {
+  const alert = context.context?.alert;
+  const sopResponse = context.context?.sopResponse;
+  const sop = context.context?.sop;
+
+  let missing: string[] = [];
+  let suggestions: string[] = [];
+
+  // Check SOP response completeness
+  if (sopResponse && sop) {
+    const totalSteps = sop.steps?.length || 0;
+    const completedSteps = sopResponse.completedSteps?.length || 0;
+    const incompleteSteps = totalSteps - completedSteps;
+
+    if (incompleteSteps > 0) {
+      missing.push(`${incompleteSteps} incomplete SOP step${incompleteSteps > 1 ? 's' : ''}`);
+      suggestions.push(`Complete the remaining ${incompleteSteps} step${incompleteSteps > 1 ? 's' : ''} in the SOP`);
+    }
+
+    // Check for steps without notes
+    if (sopResponse.completedSteps) {
+      const stepsWithoutNotes = sopResponse.completedSteps.filter((step: any) => !step.notes || step.notes.trim() === '');
+      if (stepsWithoutNotes.length > 0) {
+        missing.push(`${stepsWithoutNotes.length} completed step${stepsWithoutNotes.length > 1 ? 's' : ''} without notes`);
+        suggestions.push(`Add notes to completed steps for better documentation`);
+      }
+    }
+
+    if (sopResponse.status === 'in_progress' && incompleteSteps === 0) {
+      missing.push('SOP not marked as completed');
+      suggestions.push('Mark the SOP as completed since all steps are done');
+    }
+  }
+
+  // Check alert status
+  if (alert) {
+    if (alert.status === 'pending') {
+      missing.push('Alert not acknowledged');
+      suggestions.push('Acknowledge this alert to indicate you\'re working on it');
+    }
+
+    if (alert.status === 'scheduled' && !sopResponse) {
+      missing.push('No SOP response linked to this alert');
+      suggestions.push('Consider starting a relevant SOP for this alert');
+    }
+  }
+
+  if (missing.length === 0) {
+    return `## Missing Information\n\n✅ **All information is complete!**\n\nEverything looks good. No missing information detected.`;
+  }
+
+  let response = `## Missing Information\n\n`;
+  response += `The following items need attention:\n\n`;
+
+  missing.forEach((item, index) => {
+    response += `${index + 1}. ${item}\n`;
+  });
+
+  response += `\n### Suggested Actions\n\n`;
+  suggestions.forEach((suggestion, index) => {
+    response += `${index + 1}. ${suggestion}\n`;
+  });
+
+  return response;
+}
+
+/**
+ * Get contextual guidance based on full context
+ */
+export function getContextualGuidance(context: AssistantContextPayload, query: string): string {
+  const lowerQuery = query.toLowerCase();
+  const alert = context.context?.alert;
+  const client = context.context?.client;
+  const sop = context.context?.sop;
+  const sopResponse = context.context?.sopResponse;
+
+  // Summary requests
+  if (lowerQuery.includes('summarize') || lowerQuery.includes('summary')) {
+    if (lowerQuery.includes('alert') || alert) {
+      return generateAlertSummary(context);
+    }
+    if (lowerQuery.includes('sop') || sopResponse) {
+      return generateSOPSummary(context);
+    }
+  }
+
+  // Missing information requests
+  if (lowerQuery.includes('missing') || lowerQuery.includes('what\'s missing') || lowerQuery.includes('what is missing')) {
+    return detectMissingInformation(context);
+  }
+
+  // Context-specific help
+  if (lowerQuery.includes('help') || lowerQuery.includes('what should i do') || lowerQuery.includes('next step')) {
+    let response = `## Contextual Guidance\n\n`;
+
+    if (alert) {
+      response += `### Current Alert\n\n`;
+      response += `You're viewing alert: **${alert.message}**\n`;
+      response += `Status: **${alert.status}**\n\n`;
+
+      if (alert.status === 'pending') {
+        response += `**Recommended Actions:**\n`;
+        response += `1. Acknowledge this alert\n`;
+        response += `2. Review the alert details and severity\n`;
+        response += `3. Start a relevant SOP if available\n`;
+        response += `4. Contact the client if immediate action is needed\n`;
+      } else if (alert.status === 'scheduled') {
+        response += `**Recommended Actions:**\n`;
+        response += `1. Continue working on the scheduled actions\n`;
+        response += `2. Update progress in linked SOP responses\n`;
+        response += `3. Document any findings or issues\n`;
+        response += `4. Resolve the alert when complete\n`;
+      }
+    }
+
+    if (sopResponse && sop) {
+      response += `\n### Current SOP Response\n\n`;
+      response += `SOP: **${sop.name}**\n`;
+      response += `Status: **${sopResponse.status}**\n\n`;
+
+      const totalSteps = sop.steps?.length || 0;
+      const completedSteps = sopResponse.completedSteps?.length || 0;
+      const remaining = totalSteps - completedSteps;
+
+      if (remaining > 0) {
+        response += `**Next Steps:**\n`;
+        response += `1. Complete the remaining ${remaining} step${remaining > 1 ? 's' : ''}\n`;
+        response += `2. Add notes to each completed step\n`;
+        response += `3. Attach evidence if needed\n`;
+        response += `4. Mark the SOP as complete when done\n`;
+      } else {
+        response += `**All steps completed!**\n`;
+        response += `1. Review all completed steps\n`;
+        response += `2. Ensure all notes are complete\n`;
+        response += `3. Mark the SOP as complete\n`;
+      }
+    }
+
+    if (client) {
+      response += `\n### Client Information\n\n`;
+      response += `Client: **${client.name}**\n`;
+      if (client.company) {
+        response += `Company: ${client.company}\n`;
+      }
+      if (client.phone) {
+        response += `Phone: ${client.phone}\n`;
+      }
+      if (client.email) {
+        response += `Email: ${client.email}\n`;
+      }
+    }
+
+    return response;
+  }
+
+  // Default response
+  return `I'm here to help! Based on your current context, I can:\n\n`;
 }
 
