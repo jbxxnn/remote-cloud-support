@@ -38,13 +38,22 @@ export async function GET(
     const deviceCount = await query('SELECT COUNT(*) as count FROM "Device"');
     const totalDevices = parseInt(deviceCount.rows[0].count);
 
+    // Get client tags
+    const tagsResult = await query(`
+      SELECT id, tag, "tagType", color, "createdAt"
+      FROM "ClientTag"
+      WHERE "clientId" = $1
+      ORDER BY "tagType", tag
+    `, [id]);
+
     const clientWithCounts = {
       ...client,
       _count: {
         detections: parseInt(client.detectionCount),
         devices: totalDevices, // Global device count
         users: parseInt(client.userCount)
-      }
+      },
+      tags: tagsResult.rows
     };
     
     return NextResponse.json(clientWithCounts);

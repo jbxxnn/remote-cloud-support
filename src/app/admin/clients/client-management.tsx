@@ -39,8 +39,19 @@ import {
   Building,
   Clock,
   AlertTriangle,
-  Loader
+  Loader,
+  X,
+  Tag
 } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+
+interface ClientTag {
+  id: string;
+  tag: string;
+  tagType: 'risk' | 'goal' | 'custom';
+  color?: string;
+  createdAt: string;
+}
 
 interface Client {
   id: string;
@@ -59,6 +70,7 @@ interface Client {
   status: string;
   notes?: string;
   createdAt: string;
+  tags?: ClientTag[];
   _count?: {
     devices: number;
     detections: number;
@@ -97,6 +109,9 @@ export function ClientManagement({ user }: ClientManagementProps) {
   });
   const [submitting, setSubmitting] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [clientTags, setClientTags] = useState<Record<string, ClientTag[]>>({});
+  const [newTag, setNewTag] = useState<{ tag: string; tagType: 'risk' | 'goal' | 'custom'; color: string }>({ tag: '', tagType: 'custom', color: '' });
+  const [addingTag, setAddingTag] = useState<string | null>(null);
 
   useEffect(() => {
     fetchClients();
@@ -108,11 +123,106 @@ export function ClientManagement({ user }: ClientManagementProps) {
       if (response.ok) {
         const data = await response.json();
         setClients(data);
+        // Fetch tags for all clients
+        const tagsMap: Record<string, ClientTag[]> = {};
+        for (const client of data) {
+          if (client.tags) {
+            tagsMap[client.id] = client.tags;
+          } else {
+            // Fetch tags if not included
+            const tagsResponse = await fetch(`/api/clients/${client.id}/tags`);
+            if (tagsResponse.ok) {
+              tagsMap[client.id] = await tagsResponse.json();
+            }
+          }
+        }
+        setClientTags(tagsMap);
       }
     } catch (error) {
       console.error("Failed to fetch clients:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClientTags = async (clientId: string) => {
+    try {
+      const response = await fetch(`/api/clients/${clientId}/tags`);
+      if (response.ok) {
+        const tags = await response.json();
+        setClientTags(prev => ({ ...prev, [clientId]: tags }));
+        return tags;
+      }
+    } catch (error) {
+      console.error("Failed to fetch client tags:", error);
+    }
+    return [];
+  };
+
+  const handleAddTag = async (clientId: string) => {
+    if (!newTag.tag.trim()) return;
+
+    setAddingTag(clientId);
+    try {
+      const response = await fetch(`/api/clients/${clientId}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTag),
+      });
+
+      if (response.ok) {
+        const tag = await response.json();
+        setClientTags(prev => ({
+          ...prev,
+          [clientId]: [...(prev[clientId] || []), tag]
+        }));
+        setNewTag({ tag: '', tagType: 'custom', color: '' });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to add tag');
+      }
+    } catch (error) {
+      console.error("Failed to add tag:", error);
+      alert('Failed to add tag');
+    } finally {
+      setAddingTag(null);
+    }
+  };
+
+  const handleDeleteTag = async (clientId: string, tagId: string) => {
+    if (!confirm('Are you sure you want to delete this tag?')) return;
+
+    try {
+      const response = await fetch(`/api/clients/${clientId}/tags/${tagId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setClientTags(prev => ({
+          ...prev,
+          [clientId]: (prev[clientId] || []).filter(t => t.id !== tagId)
+        }));
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete tag');
+      }
+    } catch (error) {
+      console.error("Failed to delete tag:", error);
+      alert('Failed to delete tag');
+    }
+  };
+
+  const getTagColor = (tagType: string, color?: string) => {
+    if (color) return color;
+    switch (tagType) {
+      case 'risk':
+        return '#ef4444'; // red
+      case 'goal':
+        return '#3b82f6'; // blue
+      case 'custom':
+        return '#6b7280'; // gray
+      default:
+        return '#6b7280';
     }
   };
 
@@ -381,9 +491,13 @@ export function ClientManagement({ user }: ClientManagementProps) {
                             variant="ghost" 
                             size="sm" 
                             title="View Client"
-                            onClick={() => {
+                            onClick={async () => {
                               setViewingClient(client);
                               setShowViewDialog(true);
+                              // Fetch tags if not already loaded
+                              if (!clientTags[client.id] && !client.tags) {
+                                await fetchClientTags(client.id);
+                              }
                             }}
                           >
                             <Eye className="w-4 h-4" />
@@ -880,6 +994,93 @@ export function ClientManagement({ user }: ClientManagementProps) {
                 </div>
               )}
 
+              {/* Tags Management */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Tags</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (viewingClient && !clientTags[viewingClient.id]) {
+                        fetchClientTags(viewingClient.id);
+                      }
+                    }}
+                  >
+                    <Tag className="w-3 h-3 mr-1" />
+                    Refresh
+                  </Button>
+                </div>
+                
+                {/* Existing Tags */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {(clientTags[viewingClient.id] || viewingClient.tags || []).map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      className="flex items-center gap-1"
+                      style={{ 
+                        borderColor: getTagColor(tag.tagType, tag.color),
+                        color: getTagColor(tag.tagType, tag.color)
+                      }}
+                    >
+                      {tag.tag}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-destructive/20"
+                        onClick={() => handleDeleteTag(viewingClient.id, tag.id)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+
+                {/* Add New Tag */}
+                <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Tag name"
+                      value={newTag.tag}
+                      onChange={(e) => setNewTag({ ...newTag, tag: e.target.value })}
+                      className="flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newTag.tag.trim()) {
+                          handleAddTag(viewingClient.id);
+                        }
+                      }}
+                    />
+                    <Select
+                      value={newTag.tagType}
+                      onValueChange={(value: 'risk' | 'goal' | 'custom') => 
+                        setNewTag({ ...newTag, tagType: value })
+                      }
+                    >
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="risk">Risk</SelectItem>
+                        <SelectItem value="goal">Goal</SelectItem>
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAddTag(viewingClient.id)}
+                      disabled={!newTag.tag.trim() || addingTag === viewingClient.id}
+                    >
+                      {addingTag === viewingClient.id ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               {/* System Info */}
               <div className="space-y-3">
                 <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">System</h4>
@@ -917,6 +1118,93 @@ export function ClientManagement({ user }: ClientManagementProps) {
                       <span className="text-muted-foreground">Timezone:</span> {viewingClient.timezone}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Tags Management */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Tags</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (viewingClient && !clientTags[viewingClient.id]) {
+                        fetchClientTags(viewingClient.id);
+                      }
+                    }}
+                  >
+                    <Tag className="w-3 h-3 mr-1" />
+                    Refresh
+                  </Button>
+                </div>
+                
+                {/* Existing Tags */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {(clientTags[viewingClient.id] || viewingClient.tags || []).map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      className="flex items-center gap-1"
+                      style={{ 
+                        borderColor: getTagColor(tag.tagType, tag.color),
+                        color: getTagColor(tag.tagType, tag.color)
+                      }}
+                    >
+                      {tag.tag}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-destructive/20"
+                        onClick={() => handleDeleteTag(viewingClient.id, tag.id)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+
+                {/* Add New Tag */}
+                <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Tag name"
+                      value={newTag.tag}
+                      onChange={(e) => setNewTag({ ...newTag, tag: e.target.value })}
+                      className="flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newTag.tag.trim()) {
+                          handleAddTag(viewingClient.id);
+                        }
+                      }}
+                    />
+                    <Select
+                      value={newTag.tagType}
+                      onValueChange={(value: 'risk' | 'goal' | 'custom') => 
+                        setNewTag({ ...newTag, tagType: value })
+                      }
+                    >
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="risk">Risk</SelectItem>
+                        <SelectItem value="goal">Goal</SelectItem>
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAddTag(viewingClient.id)}
+                      disabled={!newTag.tag.trim() || addingTag === viewingClient.id}
+                    >
+                      {addingTag === viewingClient.id ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
 

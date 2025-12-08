@@ -226,6 +226,22 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                 </span>
               </div>
 
+              {/* Client Tags */}
+              {client.tags && client.tags.length > 0 && (
+                <div className="mb-4 flex flex-wrap gap-1.5">
+                  {client.tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      className={cn("text-xs border", getTagColor(tag.tagType))}
+                      style={tag.color ? { borderColor: tag.color, color: tag.color } : undefined}
+                    >
+                      {tag.tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
               {client.lastEvent && (
                 <div className="mb-4">
                   <div className="flex items-center space-x-2 mb-1">

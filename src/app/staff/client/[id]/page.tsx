@@ -76,6 +76,21 @@ function getSeverityColor(severity: string) {
   }
 }
 
+function getAlertCardClasses(status: string) {
+  switch (status) {
+    case "pending":
+      return "border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20";
+    case "scheduled":
+      return "border-l-4 border-l-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20";
+    case "resolved":
+      return "border-l-4 border-l-green-500 bg-green-50/50 dark:bg-green-950/20";
+    case "acknowledged":
+      return "border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20";
+    default:
+      return "border-l-4 border-l-gray-500 bg-gray-50/50 dark:bg-gray-950/20";
+  }
+}
+
 // Modal component for alert details
 function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, setActionNotes, outcome, setOutcome, handleStartCall, relevantSOPs, clientName, onStartSOP, staffId, onGetNotesHelp }: any) {
   if (!alert) return null;
@@ -263,6 +278,7 @@ export default function ClientDashboardPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alertsLoading, setAlertsLoading] = useState(false);
   const [relevantSOPs, setRelevantSOPs] = useState<SOP[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -305,6 +321,7 @@ export default function ClientDashboardPage() {
   useEffect(() => {
     const fetchClient = async () => {
       try {
+        setLoading(true);
         const response = await fetch(`/api/staff/clients/${clientId}`);
         if (response.ok) {
           const clientData = await response.json();
@@ -312,6 +329,8 @@ export default function ClientDashboardPage() {
         }
       } catch (error) {
         console.error('Failed to fetch client:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -324,7 +343,7 @@ export default function ClientDashboardPage() {
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        setLoading(true);
+        setAlertsLoading(true);
         const status = selectedTab === 'active' ? 'pending,scheduled' : 'resolved';
         console.log('Fetching alerts with status:', status);
         const response = await fetch(`/api/staff/clients/${clientId}/alerts?status=${status}`);
@@ -339,7 +358,7 @@ export default function ClientDashboardPage() {
       } catch (error) {
         console.error('Failed to fetch alerts:', error);
       } finally {
-        setLoading(false);
+        setAlertsLoading(false);
       }
     };
 
@@ -501,12 +520,23 @@ export default function ClientDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex">
-        <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-muted-foreground text-lg">
-            <Loader className="w-8 h-8 animate-spin" />
-          </div>
+      <div className="h-screen bg-background flex overflow-hidden">
+        <div className="sticky top-0 self-start h-screen overflow-y-auto">
+          <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
+        </div>
+        <div className="flex-1 flex flex-col h-screen overflow-hidden">
+          <HeaderBar
+            module="Loading..."
+            activeAlerts={0}
+            staffOnline={1}
+            openSOPs={0}
+            onAssistantClick={() => setAssistantOpen(true)}
+          />
+          <main className="flex-1 overflow-y-auto bg-background flex items-center justify-center">
+            <div className="text-muted-foreground text-lg">
+              <Loader className="w-8 h-8 animate-spin" />
+            </div>
+          </main>
         </div>
       </div>
     );
@@ -514,10 +544,21 @@ export default function ClientDashboardPage() {
 
   if (!client) {
     return (
-      <div className="min-h-screen bg-background flex">
-        <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-muted-foreground text-lg">Client not found</div>
+      <div className="h-screen bg-background flex overflow-hidden">
+        <div className="sticky top-0 self-start h-screen overflow-y-auto">
+          <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
+        </div>
+        <div className="flex-1 flex flex-col h-screen overflow-hidden">
+          <HeaderBar
+            module="Client Not Found"
+            activeAlerts={0}
+            staffOnline={1}
+            openSOPs={0}
+            onAssistantClick={() => setAssistantOpen(true)}
+          />
+          <main className="flex-1 overflow-y-auto bg-background flex items-center justify-center">
+            <div className="text-muted-foreground text-lg">Client not found</div>
+          </main>
         </div>
       </div>
     );
@@ -544,9 +585,11 @@ export default function ClientDashboardPage() {
   const activeAlertsCount = alerts.filter(a => ['pending', 'scheduled'].includes(a.status)).length;
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="h-screen bg-background flex overflow-hidden">
+      <div className="sticky top-0 self-start h-screen overflow-y-auto">
+        <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
+      </div>
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
        
         {/* Header Bar */}
         <HeaderBar
@@ -558,7 +601,7 @@ export default function ClientDashboardPage() {
         />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-background">
+        <main className="flex-1 overflow-y-auto bg-background">
           <div className="max-w-7xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Alerts Card */}
             <Card className="col-span-1 lg:col-span-2">
@@ -582,14 +625,19 @@ export default function ClientDashboardPage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-0 rounded-md">
-                {selectedTab === 'active' ? (
+                {alertsLoading ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm flex items-center justify-center gap-2">
+                    <Loader className="w-4 h-4 animate-spin" />
+                    <span>Loading alerts...</span>
+                  </div>
+                ) : selectedTab === 'active' ? (
                   alerts.filter(alert => ['pending', 'scheduled'].includes(alert.status)).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground text-sm">No active alerts.</div>
                   ) : (
                     <>
                       <div className="space-y-3">
                         {getCurrentAlerts().map((alert) => (
-                          <div key={alert.id} className="p-4 border border-border rounded-sm flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors bg-card" onClick={() => {
+                          <div key={alert.id} className={`p-4 border border-border rounded-sm flex items-center justify-between cursor-pointer hover:opacity-80 transition-all ${getAlertCardClasses(alert.status)}`} onClick={() => {
                             setSelectedAlert(alert);
                             // Fetch relevant SOPs based on detection type
                             if (alert.detectionType) {
@@ -654,7 +702,7 @@ export default function ClientDashboardPage() {
                     <>
                       <div className="space-y-3">
                         {getCurrentAlerts().map((alert) => (
-                          <div key={alert.id} className="p-4 border border-border rounded-sm flex items-center justify-between bg-card">
+                          <div key={alert.id} className={`p-4 border border-border rounded-sm flex items-center justify-between ${getAlertCardClasses(alert.status)}`}>
                             <div>
                               <div className="font-medium text-foreground">{alert.message}</div>
                               <div className="text-xs text-muted-foreground">

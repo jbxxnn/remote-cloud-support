@@ -114,6 +114,43 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     }
   };
 
+  const handleAcknowledgeAlert = async (alertId: string, clientId: string) => {
+    try {
+      const response = await fetch(`/api/staff/clients/${clientId}/alerts`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'acknowledge', alertId }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to acknowledge alert');
+      }
+    } catch (error) {
+      console.error('Failed to acknowledge alert:', error);
+      throw error;
+    }
+  };
+
+  const handleResolveAlert = async (alertId: string, clientId: string) => {
+    try {
+      const response = await fetch(`/api/staff/clients/${clientId}/alerts`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resolve', alertId, notes: 'Resolved from dashboard', outcome: 'resolved' }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to resolve alert');
+      }
+    } catch (error) {
+      console.error('Failed to resolve alert:', error);
+      throw error;
+    }
+  };
+
+  const handleViewSOP = (alertId: string, clientId: string) => {
+    // Navigate to client page where they can start SOP
+    window.location.href = `/staff/client/${clientId}`;
+  };
+
   const handleSOPResponseClick = (response: any) => {
     // Navigate to client dashboard where the SOP response was created
     if (response.clientId) {
@@ -190,9 +227,14 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                   <h2 className="text-lg font-semibold mb-1">Live Alerts</h2>
                   <p className="text-xs text-muted-foreground">Real-time alert feed</p>
                 </div>
-                <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
-                  <LiveAlertsFeed onAlertClick={handleAlertClick} />
-                </div>
+              <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
+                <LiveAlertsFeed 
+                  onAlertClick={handleAlertClick}
+                  onAcknowledge={handleAcknowledgeAlert}
+                  onResolve={handleResolveAlert}
+                  onViewSOP={handleViewSOP}
+                />
+              </div>
               </div>
 
               {/* Center Column: Active Clients Grid */}

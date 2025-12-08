@@ -107,6 +107,28 @@ export async function GET() {
       ORDER BY c.name
     `);
 
+    // Get all client tags in a single query
+    const clientIds = clients.rows.map((c: any) => c.id);
+    let allTags: Record<string, any[]> = {};
+    
+    if (clientIds.length > 0) {
+      const placeholders = clientIds.map((_: string, index: number) => `$${index + 1}`).join(',');
+      const tagsResult = await query(`
+        SELECT id, "clientId", tag, "tagType", color, "createdAt"
+        FROM "ClientTag"
+        WHERE "clientId" IN (${placeholders})
+        ORDER BY "tagType", tag
+      `, clientIds);
+      
+      // Group tags by clientId
+      tagsResult.rows.forEach((tag: any) => {
+        if (!allTags[tag.clientId]) {
+          allTags[tag.clientId] = [];
+        }
+        allTags[tag.clientId].push(tag);
+      });
+    }
+
     // Transform the data to include status logic based on alerts
     const clientsWithStatus = clients.rows.map((client: any) => {
       let status: 'online' | 'scheduled' | 'alert' = 'online';
@@ -145,10 +167,6 @@ export async function GET() {
         }
       }
 
-      // Get client tags (placeholder - will be implemented in Stage 2)
-      // For now, return empty array
-      const tags: any[] = [];
-
       return {
         id: client.id,
         name: client.name,
@@ -160,7 +178,7 @@ export async function GET() {
         lastEvent,
         deviceCount: parseInt(client.deviceCount) || 0,
         isActive: client.isActive,
-        tags
+        tags: allTags[client.id] || []
       };
     });
 

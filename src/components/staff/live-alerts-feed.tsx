@@ -12,8 +12,13 @@ import {
   Clock,
   CheckCircle,
   ArrowRight,
-  AlertCircle as AlertCircleIcon
+  AlertCircle as AlertCircleIcon,
+  FileText,
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface Alert {
   id: string;
@@ -32,16 +37,28 @@ interface Alert {
 
 interface LiveAlertsFeedProps {
   onAlertClick?: (alert: Alert) => void;
+  onAcknowledge?: (alertId: string, clientId: string) => Promise<void>;
+  onResolve?: (alertId: string, clientId: string) => Promise<void>;
+  onViewSOP?: (alertId: string, clientId: string) => void;
 }
 
-export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
+export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewSOP }: LiveAlertsFeedProps) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [actionLoading, setActionLoading] = useState<Record<string, string>>({}); // alertId -> action type
   const previousAlertsRef = useRef<Set<string>>(new Set());
 
   const fetchAlerts = async () => {
     try {
-      const response = await fetch('/api/staff/alerts?status=pending,scheduled&limit=20');
+      const params = new URLSearchParams();
+      params.append('status', 'pending,scheduled');
+      params.append('limit', '20');
+      if (severityFilter !== 'all') {
+        params.append('severity', severityFilter);
+      }
+      
+      const response = await fetch(`/api/staff/alerts?${params.toString()}`);
       if (response.ok) {
         const data: Alert[] = await response.json();
 
@@ -73,13 +90,32 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 10000); // Refresh every 10 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [severityFilter]);
 
   const getSeverityColor = (severity?: string, status?: string) => {
     if (status === 'scheduled') return 'bg-yellow-500';
     if (severity === 'high') return 'bg-red-500';
-    if (severity === 'medium') return 'bg-orange-500';
-    return 'bg-blue-500';
+    if (severity === 'medium') return 'bg-yellow-500';
+    if (severity === 'low') return 'bg-green-500';
+    return 'bg-gray-500';
+  };
+
+  const getSeverityBadgeColor = (severity?: string) => {
+    switch (severity) {
+      case 'high':
+        return 'bg-red-500/20 text-red-600 border-red-500/30';
+      case 'medium':
+        return 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30';
+      case 'low':
+        return 'bg-green-500/20 text-green-600 border-green-500/30';
+      default:
+        return 'bg-gray-500/20 text-gray-600 border-gray-500/30';
+    }
+  };
+
+  const getSeverityLabel = (severity?: string) => {
+    if (!severity) return 'Unknown';
+    return severity.charAt(0).toUpperCase() + severity.slice(1);
   };
 
   const formatTimestamp = (timestamp: string | undefined) => {
@@ -120,6 +156,81 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
     return typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
+  const handleQuickAcknowledge = async (e: React.MouseEvent, alert: Alert) => {
+    e.stopPropagation();
+    if (!onAcknowledge) {
+      // Navigate to client page if handler not provided
+      window.location.href = `/staff/client/${alert.clientId}`;
+      return;
+    }
+
+    setActionLoading({ ...actionLoading, [alert.id]: 'acknowledge' });
+    try {
+      await onAcknowledge(alert.id, alert.clientId);
+      toast.success("Alert acknowledged");
+      // Refresh alerts
+      fetchAlerts();
+    } catch (error) {
+      toast.error("Failed to acknowledge alert");
+      console.error("Failed to acknowledge:", error);
+    } finally {
+      setActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[alert.id];
+        return next;
+      });
+    }
+  };
+
+  const handleQuickResolve = async (e: React.MouseEvent, alert: Alert) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to resolve this alert?")) {
+      return;
+    }
+
+    if (!onResolve) {
+      // Navigate to client page if handler not provided
+      window.location.href = `/staff/client/${alert.clientId}`;
+      return;
+    }
+
+    setActionLoading({ ...actionLoading, [alert.id]: 'resolve' });
+    try {
+      await onResolve(alert.id, alert.clientId);
+      toast.success("Alert resolved");
+      // Refresh alerts
+      fetchAlerts();
+    } catch (error) {
+      toast.error("Failed to resolve alert");
+      console.error("Failed to resolve:", error);
+    } finally {
+      setActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[alert.id];
+        return next;
+      });
+    }
+  };
+
+  const handleViewSOP = (e: React.MouseEvent, alert: Alert) => {
+    e.stopPropagation();
+    if (onViewSOP) {
+      onViewSOP(alert.id, alert.clientId);
+    } else {
+      // Navigate to client page
+      window.location.href = `/staff/client/${alert.clientId}`;
+    }
+  };
+
+  const handleViewDetails = (e: React.MouseEvent, alert: Alert) => {
+    e.stopPropagation();
+    if (onAlertClick) {
+      onAlertClick(alert);
+    } else {
+      window.location.href = `/staff/client/${alert.clientId}`;
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -134,19 +245,40 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
     );
   }
 
-  if (alerts.length === 0) {
-    return (
-      <EmptyState
-        icon="check"
-        title="All clients stable"
-        description="No active alerts at this time"
-      />
-    );
-  }
-
   return (
     <div className="space-y-3">
-      {alerts.map((alert, index) => (
+      {/* Severity Filter - Always visible */}
+      <div className="flex items-center gap-2">
+        <span className="flex-1">
+        <Select value={severityFilter} onValueChange={setSeverityFilter}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Filter by severity" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Severities</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+        </span>
+        <span className="text-xs text-muted-foreground flex-1 text-right">
+          {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* Empty State or Alerts List */}
+      {alerts.length === 0 ? (
+        <EmptyState
+          icon="check"
+          title="No alerts found"
+          description={severityFilter !== 'all' 
+            ? `No ${severityFilter} severity alerts at this time`
+            : "No active alerts at this time"}
+        />
+      ) : (
+        <>
+          {alerts.map((alert, index) => (
         <Card
           key={alert.id}
           className={cn(
@@ -159,7 +291,7 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
         >
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center space-x-2 flex-1 min-w-0">
+              <div className="flex items-center space-x-2 flex-1 min-w-0 flex-wrap gap-1">
                 <div className={cn(
                   "w-2 h-2 rounded-full flex-shrink-0",
                   getSeverityColor(alert.severity, alert.status),
@@ -168,6 +300,14 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
                 <Badge variant={alert.status === 'scheduled' ? 'secondary' : 'destructive'} className="text-xs">
                   {alert.status === 'scheduled' ? 'Scheduled' : 'Pending'}
                 </Badge>
+                {alert.severity && (
+                  <Badge 
+                    variant="outline" 
+                    className={cn("text-xs border", getSeverityBadgeColor(alert.severity))}
+                  >
+                    {getSeverityLabel(alert.severity)}
+                  </Badge>
+                )}
                 <span className="text-xs text-muted-foreground truncate">
                   {formatTimestamp(alert.sentAt || alert.createdAt)}
                 </span>
@@ -190,21 +330,65 @@ export function LiveAlertsFeed({ onAlertClick }: LiveAlertsFeedProps) {
 
             <div className="flex items-center justify-between mt-3">
               <span className="text-xs text-muted-foreground">{formatEventType(alert.type || alert.detectionType || 'alert')}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAlertClick?.(alert);
-                }}
-              >
-                View <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {alert.status === 'pending' && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => handleQuickAcknowledge(e, alert)}
+                      disabled={!!actionLoading[alert.id]}
+                    >
+                      {actionLoading[alert.id] === 'acknowledge' ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                      )}
+                      Ack
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => handleViewSOP(e, alert)}
+                    >
+                      <FileText className="w-3 h-3 mr-1" />
+                      SOP
+                    </Button>
+                  </>
+                )}
+                {alert.status === 'scheduled' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={(e) => handleQuickResolve(e, alert)}
+                    disabled={!!actionLoading[alert.id]}
+                  >
+                    {actionLoading[alert.id] === 'resolve' ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                    )}
+                    Resolve
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={(e) => handleViewDetails(e, alert)}
+                >
+                  View <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
-      ))}
+          ))}
+        </>
+      )}
     </div>
   );
 }
