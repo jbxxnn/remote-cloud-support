@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTimelineItem } from "./alert-timeline-item";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Search, Download } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface Alert {
   id: string;
@@ -51,6 +53,7 @@ export function AlertTimeline({ clientId, onAlertClick }: AlertTimelineProps) {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [timeRange, setTimeRange] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     fetchTimelineData();
@@ -170,34 +173,46 @@ export function AlertTimeline({ clientId, onAlertClick }: AlertTimelineProps) {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="resolved">Resolved</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Filters and Search */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search alerts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="scheduled">Scheduled</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Time range" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="24h">Last 24 Hours</SelectItem>
-            <SelectItem value="7d">Last 7 Days</SelectItem>
-            <SelectItem value="30d">Last 30 Days</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <div className="text-sm text-muted-foreground ml-auto">
-          {alerts.length} alert{alerts.length !== 1 ? "s" : ""}
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Time range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="24h">Last 24 Hours</SelectItem>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {alerts.length} alert{alerts.length !== 1 ? "s" : ""}
+          </div>
         </div>
       </div>
 
@@ -211,15 +226,26 @@ export function AlertTimeline({ clientId, onAlertClick }: AlertTimelineProps) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {alerts.map((alert) => (
-            <AlertTimelineItem
-              key={alert.id}
-              alert={alert}
-              alertEvents={alertEvents[alert.id] || []}
-              sopResponses={sopResponses[alert.id] || []}
-              onViewDetails={onAlertClick}
-            />
-          ))}
+          {alerts
+            .filter((alert) => {
+              if (!searchQuery) return true;
+              const query = searchQuery.toLowerCase();
+              return (
+                alert.message.toLowerCase().includes(query) ||
+                alert.type.toLowerCase().includes(query) ||
+                alert.detectionType?.toLowerCase().includes(query) ||
+                alert.location?.toLowerCase().includes(query)
+              );
+            })
+            .map((alert) => (
+              <AlertTimelineItem
+                key={alert.id}
+                alert={alert}
+                alertEvents={alertEvents[alert.id] || []}
+                sopResponses={sopResponses[alert.id] || []}
+                onViewDetails={onAlertClick}
+              />
+            ))}
         </div>
       )}
     </div>

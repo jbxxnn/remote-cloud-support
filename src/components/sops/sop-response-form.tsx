@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { SOPStepItem } from "./sop-step-item";
-import { CheckCircle2, X, Loader2, Save } from "lucide-react";
+import { EvidenceUpload } from "./evidence-upload";
+import { SOPValidator } from "@/lib/validation/sop-validator";
+import { CheckCircle2, X, Loader2, Save, AlertCircle, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SOPStep {
@@ -63,6 +65,7 @@ export function SOPResponseForm({
   const [sopResponse, setSopResponse] = useState<SOPResponse | null>(null);
   const [sopSteps, setSopSteps] = useState<SOPStep[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState<any[]>([]);
 
   // Fetch existing response or create new one
   useEffect(() => {
@@ -80,6 +83,13 @@ export function SOPResponseForm({
           const data = await response.json();
           setSopResponse(data);
           setSopSteps(data.sopSteps || []);
+          
+          // Fetch evidence
+          const evidenceResponse = await fetch(`/api/evidence?sopResponseId=${data.id}`);
+          if (evidenceResponse.ok) {
+            const evidenceData = await evidenceResponse.json();
+            setEvidence(evidenceData);
+          }
         } else {
           // Fetch SOP details
           const sopResponse = await fetch(`/api/sops/${sopId}`);
@@ -107,6 +117,7 @@ export function SOPResponseForm({
 
           const newResponse = await createResponse.json();
           setSopResponse(newResponse);
+          setEvidence([]); // New response has no evidence yet
         }
       } catch (err) {
         console.error("Failed to initialize SOP response:", err);
@@ -234,8 +245,15 @@ export function SOPResponseForm({
   const completedCount = sopResponse.completedSteps.length;
   const totalSteps = sopSteps.length;
   const progress = totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
-  const allStepsCompleted = completedCount === totalSteps && totalSteps > 0;
   const isCompleted = sopResponse.status === "completed";
+
+  // Validate SOP response
+  const validationResult = SOPValidator.validateSOPResponse(
+    sopSteps,
+    sopResponse.completedSteps
+  );
+  const allStepsCompleted = completedCount === totalSteps && totalSteps > 0;
+  const canComplete = allStepsCompleted && validationResult.isValid && !isCompleted;
 
   return (
     <Card>
@@ -286,10 +304,67 @@ export function SOPResponseForm({
                 disabled={isCompleted || saving}
                 sopId={sopId}
                 clientId={clientId}
+                allSteps={sopSteps}
+                allCompletedSteps={sopResponse.completedSteps}
               />
             );
           })}
         </div>
+
+        {/* Evidence Upload */}
+        {sopResponse && (
+          <div className="pt-4 border-t">
+            <EvidenceUpload
+              sopResponseId={sopResponse.id}
+              alertId={alertId}
+              existingEvidence={evidence}
+              onEvidenceAdded={(newEvidence) => {
+                setEvidence([...evidence, newEvidence]);
+              }}
+              onEvidenceRemoved={(evidenceId) => {
+                setEvidence(evidence.filter(e => e.id !== evidenceId));
+              }}
+            />
+          </div>
+        )}
+
+        {/* Validation Errors */}
+        {!isCompleted && validationResult.errors.length > 0 && (
+          <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-1">
+                  Validation Errors
+                </p>
+                <ul className="text-xs text-red-600 dark:text-red-400 space-y-1">
+                  {validationResult.errors.map((err, idx) => (
+                    <li key={idx}>• {err.message}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Validation Warnings */}
+        {!isCompleted && validationResult.warnings.length > 0 && validationResult.errors.length === 0 && (
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400 mb-1">
+                  Validation Warnings
+                </p>
+                <ul className="text-xs text-yellow-600 dark:text-yellow-400 space-y-1">
+                  {validationResult.warnings.map((warn, idx) => (
+                    <li key={idx}>• {warn.message}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (
@@ -312,8 +387,9 @@ export function SOPResponseForm({
             </Button>
             <Button
               onClick={handleComplete}
-              disabled={!allStepsCompleted || saving}
+              disabled={!canComplete || saving}
               className="flex-1"
+              title={!validationResult.isValid ? "Please fix validation errors before completing" : undefined}
             >
               <CheckCircle2 className="w-4 h-4 mr-2" />
               {saving ? "Completing..." : "Complete SOP"}
@@ -322,16 +398,43 @@ export function SOPResponseForm({
         )}
 
         {isCompleted && (
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t space-y-3">
             <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
               <CheckCircle2 className="w-4 h-4" />
               <span>This SOP response has been completed</span>
             </div>
             {sopResponse.completedAt && (
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground">
                 Completed: {new Date(sopResponse.completedAt).toLocaleString()}
               </p>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/sop-responses/${sopResponse.id}/export`);
+                  if (!response.ok) {
+                    throw new Error('Failed to export PDF');
+                  }
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `sop-response-${sopResponse.id}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  window.URL.revokeObjectURL(url);
+                } catch (error) {
+                  console.error('Failed to export PDF:', error);
+                  setError('Failed to export PDF');
+                }
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
           </div>
         )}
       </CardContent>

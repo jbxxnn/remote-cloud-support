@@ -8,6 +8,8 @@ import { CheckCircle2, Circle, Clock, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAssistant } from "@/hooks/use-assistant";
 import { contextService } from "@/lib/assistant/context-service";
+import { SOPValidator } from "@/lib/validation/sop-validator";
+import { AlertCircle } from "lucide-react";
 
 interface CompletedStep {
   step: number;
@@ -25,6 +27,8 @@ interface SOPStepItemProps {
   disabled?: boolean;
   sopId?: string;
   clientId?: string;
+  allSteps?: any[]; // All SOP steps for validation
+  allCompletedSteps?: CompletedStep[]; // All completed steps for validation
 }
 
 export function SOPStepItem({
@@ -35,7 +39,9 @@ export function SOPStepItem({
   onComplete,
   disabled = false,
   sopId,
-  clientId
+  clientId,
+  allSteps = [],
+  allCompletedSteps = []
 }: SOPStepItemProps) {
   const [notes, setNotes] = useState(completedStep?.notes || "");
   const [isExpanded, setIsExpanded] = useState(!isCompleted);
@@ -84,6 +90,14 @@ export function SOPStepItem({
     const date = new Date(timestamp);
     return date.toLocaleString();
   };
+
+  // Get validation message for this step
+  const validationMessage = allSteps.length > 0 && allCompletedSteps.length > 0
+    ? SOPValidator.getStepValidationMessage(
+        stepNumber,
+        SOPValidator.validateSOPResponse(allSteps, allCompletedSteps)
+      )
+    : null;
 
   return (
     <div className={cn(
@@ -161,6 +175,12 @@ export function SOPStepItem({
                   className="min-h-[80px] text-sm"
                   disabled={isCompleted || disabled}
                 />
+                {validationMessage && (
+                  <div className="flex items-start gap-1 text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                    <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span>{validationMessage}</span>
+                  </div>
+                )}
               </div>
 
               {!isCompleted && !disabled && (
