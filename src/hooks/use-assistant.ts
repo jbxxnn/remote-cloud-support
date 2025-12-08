@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { contextService } from "@/lib/assistant/context-service";
-import { AssistantContext } from "@/lib/assistant/types";
+import { AssistantContext, AssistantContextPayload } from "@/lib/assistant/types";
 import { detectContext } from "@/lib/assistant/context-detector";
+import { generateNotesHelpResponse } from "@/lib/assistant/static-guidance";
 
 export interface AssistantMessage {
   id: string;
@@ -55,7 +56,7 @@ export function useAssistant() {
     setIsOpen(false);
   }, []);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, stepNumber?: number, stepAction?: string) => {
     if (!content.trim()) return;
 
     const userMessage: AssistantMessage = {
@@ -71,17 +72,38 @@ export function useAssistant() {
     // Simulate API call delay
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Training mode: return static response
+    // Check if this is a notes-related query
+    const lowerContent = content.toLowerCase();
+    const isNotesQuery = lowerContent.includes('note') || 
+                        lowerContent.includes('write') || 
+                        lowerContent.includes('what should i') ||
+                        lowerContent.includes('how to write') ||
+                        lowerContent.includes('guidance') ||
+                        lowerContent.includes('help');
+
+    let response = TRAINING_MODE_RESPONSE;
+
+    if (isNotesQuery && context) {
+      // Use static guidance for notes queries
+      const contextPayload: AssistantContextPayload = {
+        ...context,
+        userRole: context.userRole || context.role || 'staff',
+        timestamp: new Date().toISOString(),
+        pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+      };
+      response = generateNotesHelpResponse(content, contextPayload, stepNumber, stepAction);
+    }
+
     const assistantMessage: AssistantMessage = {
       id: `assistant-${Date.now()}`,
       role: "assistant",
-      content: TRAINING_MODE_RESPONSE,
+      content: response,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, assistantMessage]);
     setIsLoading(false);
-  }, []);
+  }, [context]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);

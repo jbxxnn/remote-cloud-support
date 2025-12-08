@@ -16,9 +16,10 @@ import { useEffect, useState } from "react";
 interface AssistantDrawerProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  initialMessage?: string;
 }
 
-export function AssistantDrawer({ open, onOpenChange }: AssistantDrawerProps) {
+export function AssistantDrawer({ open, onOpenChange, initialMessage }: AssistantDrawerProps) {
   const {
     isOpen: hookIsOpen,
     open: hookOpen,
@@ -30,6 +31,7 @@ export function AssistantDrawer({ open, onOpenChange }: AssistantDrawerProps) {
   } = useAssistant();
 
   const [currentContext, setCurrentContext] = useState(context);
+  const [hasSentInitial, setHasSentInitial] = useState(false);
 
   // Sync with external open/onOpenChange if provided
   const isOpen = open !== undefined ? open : hookIsOpen;
@@ -53,6 +55,20 @@ export function AssistantDrawer({ open, onOpenChange }: AssistantDrawerProps) {
     setCurrentContext(contextService.getContext());
     return unsubscribe;
   }, []);
+
+  // Send initial message if provided
+  useEffect(() => {
+    if (initialMessage && isOpen && !hasSentInitial && messages.length === 0) {
+      setTimeout(() => {
+        sendMessage(initialMessage);
+        setHasSentInitial(true);
+      }, 300);
+    }
+    // Reset when drawer closes
+    if (!isOpen) {
+      setHasSentInitial(false);
+    }
+  }, [initialMessage, isOpen, hasSentInitial, messages.length, sendMessage]);
 
   const moduleName = currentContext?.module || "Dashboard";
   const role = currentContext?.role || "staff";

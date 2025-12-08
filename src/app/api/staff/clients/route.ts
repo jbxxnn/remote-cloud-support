@@ -18,9 +18,16 @@ export async function GET() {
         c.id,
         c.name,
         c.company,
+        c.email,
+        c.phone,
+        c.address,
         c."isActive",
-        -- Since devices are global, we'll count all active devices
-        (SELECT COUNT(*) FROM "Device" WHERE "isActive" = true) as "deviceCount",
+        -- Count devices that have detections for this client (since devices are global)
+        (SELECT COUNT(DISTINCT d.id) 
+         FROM "Device" d 
+         INNER JOIN "Detection" det ON d.id = det."deviceId"
+         WHERE det."clientId" = c.id AND d."isActive" = true
+        ) as "deviceCount",
         -- Get the latest alert for status determination
         MAX(a."createdAt") as "lastAlertTime",
         MAX(a.type) as "lastAlertType",
@@ -96,7 +103,7 @@ export async function GET() {
       FROM "Client" c
       LEFT JOIN "Alert" a ON c.id = a."clientId"
       WHERE c."isActive" = true
-      GROUP BY c.id, c.name, c.company, c."isActive"
+      GROUP BY c.id, c.name, c.company, c.email, c.phone, c.address, c."isActive"
       ORDER BY c.name
     `);
 
@@ -138,14 +145,22 @@ export async function GET() {
         }
       }
 
+      // Get client tags (placeholder - will be implemented in Stage 2)
+      // For now, return empty array
+      const tags: any[] = [];
+
       return {
         id: client.id,
         name: client.name,
         company: client.company,
+        email: client.email,
+        phone: client.phone,
+        address: client.address,
         status,
         lastEvent,
-        deviceCount: parseInt(client.deviceCount),
-        isActive: client.isActive
+        deviceCount: parseInt(client.deviceCount) || 0,
+        isActive: client.isActive,
+        tags
       };
     });
 

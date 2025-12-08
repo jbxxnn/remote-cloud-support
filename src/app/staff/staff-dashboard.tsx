@@ -8,6 +8,7 @@ import { HeaderBar } from "@/components/layout/header-bar";
 import { LiveAlertsFeed } from "@/components/staff/live-alerts-feed";
 import { ActiveClientsGrid } from "@/components/staff/active-clients-grid";
 import { SystemSnapshot } from "@/components/staff/system-snapshot";
+import { SOPResponsesList } from "@/components/staff/sop-responses-list";
 import { AssistantIcon } from "@/components/assistant/assistant-icon";
 import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 import { AlertCircle, RefreshCw } from "lucide-react";
@@ -43,12 +44,28 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [currentSection, setCurrentSection] = useState<string>("dashboard");
 
   useEffect(() => {
     fetchDashboardData();
     // Set up real-time updates (polling for now, could be WebSocket later)
     const interval = setInterval(fetchDashboardData, 30000); // 30 seconds
     return () => clearInterval(interval);
+  }, []);
+
+  // Handle hash-based navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove the #
+      setCurrentSection(hash || "dashboard");
+    };
+
+    // Check initial hash
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   const fetchDashboardData = async () => {
@@ -97,6 +114,13 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     }
   };
 
+  const handleSOPResponseClick = (response: any) => {
+    // Navigate to client dashboard where the SOP response was created
+    if (response.clientId) {
+      window.location.href = `/staff/client/${response.clientId}`;
+    }
+  };
+
   // Calculate stats for sidebar based on real client data
   const stats = {
     pendingEvents: loading ? 0 : clients.filter(c => c.status === 'alert').length,
@@ -142,52 +166,69 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
           onAssistantClick={() => setAssistantOpen(true)}
         />
 
-        {/* Main Content - 3 Column Layout */}
+        {/* Main Content - Conditional Rendering Based on Hash */}
         <div className="flex-1 overflow-hidden min-h-0">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 h-full">
-            {/* Left Column: Live Alerts Feed */}
-            <div className="lg:col-span-3 flex flex-col h-full min-h-0">
-              <div className="mb-4 flex-shrink-0">
-                <h2 className="text-lg font-semibold mb-1">Live Alerts</h2>
-                <p className="text-xs text-muted-foreground">Real-time alert feed</p>
-              </div>
-              <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
-                <LiveAlertsFeed onAlertClick={handleAlertClick} />
+          {currentSection === "sops" ? (
+            // SOP Responses Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">SOP Responses</h1>
+                  <p className="text-muted-foreground">
+                    View and manage all SOP responses across clients
+                  </p>
+                </div>
+                <SOPResponsesList onResponseClick={handleSOPResponseClick} />
               </div>
             </div>
+          ) : (
+            // Default Dashboard - 3 Column Layout
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 h-full">
+              {/* Left Column: Live Alerts Feed */}
+              <div className="lg:col-span-3 flex flex-col h-full min-h-0">
+                <div className="mb-4 flex-shrink-0">
+                  <h2 className="text-lg font-semibold mb-1">Live Alerts</h2>
+                  <p className="text-xs text-muted-foreground">Real-time alert feed</p>
+                </div>
+                <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
+                  <LiveAlertsFeed onAlertClick={handleAlertClick} />
+                </div>
+              </div>
 
-            {/* Center Column: Active Clients Grid */}
-            <div className="lg:col-span-6 flex flex-col h-full min-h-0">
-              <div className="mb-4 flex-shrink-0">
-                <h2 className="text-lg font-semibold mb-1">Active Clients</h2>
-                <p className="text-xs text-muted-foreground">
-                  {clients.length} active client{clients.length !== 1 ? 's' : ''}
-                </p>
+              {/* Center Column: Active Clients Grid */}
+              <div className="lg:col-span-6 flex flex-col h-full min-h-0">
+                <div className="mb-4 flex-shrink-0">
+                  <h2 className="text-lg font-semibold mb-1">Active Clients</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {clients.length} active client{clients.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
+                  <ActiveClientsGrid 
+                    clients={clients} 
+                    loading={loading}
+                    onClientClick={handleClientClick}
+                  />
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
-                <ActiveClientsGrid 
-                  clients={clients} 
-                  loading={loading}
-                  onClientClick={handleClientClick}
-                />
-              </div>
-            </div>
 
-            {/* Right Column: System Snapshot */}
-            <div className="lg:col-span-3 flex flex-col">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold mb-1">System Snapshot</h2>
-                <p className="text-xs text-muted-foreground">System status overview</p>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <SystemSnapshot
-                  activeAlerts={activeAlertsCount}
-                  openSOPs={openSOPsCount}
-                  staffOnline={staffOnline}
-                />
+              {/* Right Column: System Snapshot */}
+              <div className="lg:col-span-3 flex flex-col h-full min-h-0">
+                <div className="mb-4 flex-shrink-0">
+                  <h2 className="text-lg font-semibold mb-1">System Snapshot</h2>
+                  <p className="text-xs text-muted-foreground">System status overview</p>
+                </div>
+                <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
+                  <SystemSnapshot
+                    activeAlerts={activeAlertsCount}
+                    openSOPs={openSOPsCount}
+                    staffOnline={staffOnline}
+                    onRefresh={fetchDashboardData}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* SupportSense Assistant Icon */}

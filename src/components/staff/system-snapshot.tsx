@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Wifi, 
   WifiOff, 
-  Database, 
   FileText, 
   Users,
   RefreshCw,
-  CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  Clock
 } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -19,17 +19,20 @@ interface SystemSnapshotProps {
   activeAlerts?: number;
   openSOPs?: number;
   staffOnline?: number;
+  onRefresh?: () => void;
 }
 
 export function SystemSnapshot({ 
   activeAlerts = 0, 
   openSOPs = 0, 
-  staffOnline = 1 
+  staffOnline = 1,
+  onRefresh
 }: SystemSnapshotProps) {
   const [connectionStatus, setConnectionStatus] = useState<"online" | "offline" | "warning">("online");
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
 
+  // Check connection status
   useEffect(() => {
     const checkConnection = () => {
       if (navigator.onLine) {
@@ -49,13 +52,35 @@ export function SystemSnapshot({
     };
   }, []);
 
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    // Set up auto-refresh interval
+    const refreshInterval = setInterval(() => {
+      setLastRefresh(new Date());
+      
+      // Trigger parent refresh if callback provided
+      if (onRefresh) {
+        onRefresh();
+      }
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [onRefresh]);
+
   const handleRefresh = () => {
     setRefreshing(true);
     setLastRefresh(new Date());
-    // Trigger a page refresh or data refetch
+    
+    // Trigger parent refresh if callback provided
+    if (onRefresh) {
+      onRefresh();
+    }
+    
+    // Small delay for visual feedback
     setTimeout(() => {
       setRefreshing(false);
-      window.location.reload();
     }, 500);
   };
 
@@ -71,6 +96,7 @@ export function SystemSnapshot({
         return "bg-gray-500";
     }
   };
+
 
   return (
     <div className="space-y-4">
@@ -149,6 +175,35 @@ export function SystemSnapshot({
         </CardContent>
       </Card>
 
+      {/* Validators (Placeholder) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium">Validators</CardTitle>
+            <Shield className="w-4 h-4 text-muted-foreground" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Compliance</span>
+              <Badge variant="outline" className="text-[10px]">
+                Coming Soon
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Record Validation</span>
+              <Badge variant="outline" className="text-[10px]">
+                Coming Soon
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 italic">
+              Validator framework will be available in Stage 4
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* System Status */}
       <Card>
         <CardHeader className="pb-3">
@@ -157,24 +212,19 @@ export function SystemSnapshot({
         <CardContent>
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Database</span>
-              <div className="flex items-center space-x-1">
-                <CheckCircle className="w-3 h-3 text-green-500" />
-                <span className="text-muted-foreground">Operational</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">API</span>
-              <div className="flex items-center space-x-1">
-                <CheckCircle className="w-3 h-3 text-green-500" />
-                <span className="text-muted-foreground">Operational</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Last Refresh</span>
-              <span className="text-muted-foreground">
+              <span className="text-muted-foreground flex items-center">
+                <Clock className="w-3 h-3 mr-1" />
+                Last Refresh
+              </span>
+              <span className="text-muted-foreground text-[10px]">
                 {lastRefresh.toLocaleTimeString()}
               </span>
+            </div>
+            <div className="flex items-center justify-between text-xs pt-1 border-t">
+              <span className="text-muted-foreground">Auto-refresh</span>
+              <Badge variant="outline" className="text-[10px]">
+                30s
+              </Badge>
             </div>
           </div>
           <Button
@@ -185,13 +235,15 @@ export function SystemSnapshot({
             disabled={refreshing}
           >
             <RefreshCw className={`w-3 h-3 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            {refreshing ? 'Refreshing...' : 'Refresh Now'}
           </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+
 
 
 

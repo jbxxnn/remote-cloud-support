@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,21 @@ import {
   AlertTriangle,
   Users,
   ArrowRight,
-  Activity
+  Activity,
+  Mail,
+  Phone,
+  MapPin,
+  Target,
+  TrendingUp
 } from "lucide-react";
 
 interface Client {
   id: string;
   name: string;
   company?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
   status: 'online' | 'scheduled' | 'alert';
   lastEvent?: {
     type: string;
@@ -29,6 +37,18 @@ interface Client {
   };
   deviceCount: number;
   isActive: boolean;
+  tags?: Array<{
+    id: string;
+    tag: string;
+    tagType: 'risk' | 'goal' | 'custom';
+    color?: string;
+  }>;
+  timeline?: Array<{
+    timestamp: string;
+    type: 'alert' | 'event' | 'status_change';
+    status: string;
+    description: string;
+  }>;
 }
 
 interface ActiveClientsGridProps {
@@ -39,6 +59,8 @@ interface ActiveClientsGridProps {
 
 export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveClientsGridProps) {
   const [hoveredClient, setHoveredClient] = useState<string | null>(null);
+  const [clientTimelines, setClientTimelines] = useState<Record<string, Client['timeline']>>({});
+  const [loadingTimelines, setLoadingTimelines] = useState<Set<string>>(new Set());
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -79,6 +101,61 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
     } else {
       return date.toLocaleDateString();
     }
+  };
+
+  // Fetch timeline data when client is hovered
+  useEffect(() => {
+    if (hoveredClient && !clientTimelines[hoveredClient] && !loadingTimelines.has(hoveredClient)) {
+      setLoadingTimelines(prev => new Set(prev).add(hoveredClient));
+      
+      fetch(`/api/staff/clients/${hoveredClient}/timeline`)
+        .then(res => res.json())
+        .then(data => {
+          setClientTimelines(prev => ({
+            ...prev,
+            [hoveredClient]: data.timeline || []
+          }));
+        })
+        .catch(err => {
+          console.error('Failed to fetch timeline:', err);
+          // Set empty timeline on error
+          setClientTimelines(prev => ({
+            ...prev,
+            [hoveredClient]: []
+          }));
+        })
+        .finally(() => {
+          setLoadingTimelines(prev => {
+            const next = new Set(prev);
+            next.delete(hoveredClient);
+            return next;
+          });
+        });
+    }
+  }, [hoveredClient, clientTimelines, loadingTimelines]);
+
+  const getTagColor = (tagType: string) => {
+    switch (tagType) {
+      case 'risk':
+        return 'bg-red-500/10 text-red-500 border-red-500/20';
+      case 'goal':
+        return 'bg-green-500/10 text-green-500 border-green-500/20';
+      default:
+        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+    }
+  };
+
+  const calculateUptime = (timeline: Client['timeline'] = []) => {
+    if (!timeline || timeline.length === 0) return 100;
+    
+    const last24Hours = Date.now() - (24 * 60 * 60 * 1000);
+    const relevantEvents = timeline.filter(e => new Date(e.timestamp).getTime() > last24Hours);
+    
+    if (relevantEvents.length === 0) return 100;
+    
+    // Count online vs offline events
+    const onlineEvents = relevantEvents.filter(e => e.status === 'online' || e.type === 'status_change' && e.status !== 'alert').length;
+    return Math.round((onlineEvents / relevantEvents.length) * 100);
   };
 
   if (loading) {
@@ -165,26 +242,130 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
 
               {/* Expanded content on hover */}
               {showExpanded && (
-                <div className="mt-4 pt-4 border-t animate-fade-in">
+                <div className="mt-4 pt-4 border-t animate-fade-in space-y-4">
+                  {/* Client Profile Details */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Client Profile</h4>
+                    <div className="space-y-1.5 text-sm">
+                      {client.email && (
+                        <div className="flex items-center space-x-2 text-muted-foreground">
+                          <Mail className="w-3 h-3" />
+                          <span className="truncate">{client.email}</span>
+                        </div>
+                      )}
+                      {client.phone && (
+                        <div className="flex items-center space-x-2 text-muted-foreground">
+                          <Phone className="w-3 h-3" />
+                          <span>{client.phone}</span>
+                        </div>
+                      )}
+                      {client.address && (
+                        <div className="flex items-start space-x-2 text-muted-foreground">
+                          <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                          <span className="line-clamp-2">{client.address}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ISP Goal Tags */}
+                  {client.tags && client.tags.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
+                        <Target className="w-3 h-3 mr-1" />
+                        Goals & Tags
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {client.tags.map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant="outline"
+                            className={cn(
+                              "text-xs px-2 py-0.5 border",
+                              getTagColor(tag.tagType)
+                            )}
+                          >
+                            {tag.tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Status Timeline */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Status Timeline</span>
+                      <span className="font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        Status Timeline
+                      </span>
                       <span className="text-muted-foreground">Last 24h</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${getStatusColor(client.status)}`}
-                          style={{ width: '75%' }}
-                        />
+                    {loadingTimelines.has(client.id) ? (
+                      <div className="flex items-center justify-center py-2">
+                        <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
                       </div>
-                      <span className="text-xs text-muted-foreground">75% uptime</span>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center space-x-2">
+                          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={cn(
+                                "h-full transition-all duration-500",
+                                getStatusColor(client.status)
+                              )}
+                              style={{ 
+                                width: `${calculateUptime(clientTimelines[client.id])}%` 
+                              }}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground font-medium">
+                            {calculateUptime(clientTimelines[client.id])}% uptime
+                          </span>
+                        </div>
+                        {clientTimelines[client.id] && clientTimelines[client.id]!.length > 0 && (
+                          <div className="space-y-1 max-h-24 overflow-y-auto">
+                            {clientTimelines[client.id]!.slice(0, 3).map((event, idx) => (
+                              <div key={idx} className="flex items-start space-x-2 text-xs">
+                                <div className={cn(
+                                  "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
+                                  event.type === 'alert' ? 'bg-red-500' : 
+                                  event.type === 'event' ? 'bg-blue-500' : 
+                                  'bg-green-500'
+                                )} />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-1.5">
+                                    <span className="text-muted-foreground">
+                                      {formatTimestamp(event.timestamp)}
+                                    </span>
+                                    <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                      {event.type}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-foreground line-clamp-1 mt-0.5">
+                                    {event.description}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                            {clientTimelines[client.id]!.length > 3 && (
+                              <p className="text-xs text-muted-foreground italic">
+                                +{clientTimelines[client.id]!.length - 3} more events
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="pt-2">
                     {client.status === 'alert' && (
                       <Button
                         size="sm"
                         variant="destructive"
-                        className="w-full mt-2"
+                        className="w-full"
                         onClick={(e) => {
                           e.stopPropagation();
                           onClientClick?.(client);
@@ -197,7 +378,7 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full mt-2"
+                        className="w-full"
                         onClick={(e) => {
                           e.stopPropagation();
                           onClientClick?.(client);
