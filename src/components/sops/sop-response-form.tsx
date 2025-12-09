@@ -7,8 +7,9 @@ import { Progress } from "@/components/ui/progress";
 import { SOPStepItem } from "./sop-step-item";
 import { EvidenceUpload } from "./evidence-upload";
 import { SOPValidator } from "@/lib/validation/sop-validator";
-import { CheckCircle2, X, Loader2, Save, AlertCircle, Download } from "lucide-react";
+import { CheckCircle2, X, Loader2, Save, AlertCircle, Download, Lightbulb, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface SOPStep {
   step?: number;
@@ -66,6 +67,8 @@ export function SOPResponseForm({
   const [sopSteps, setSopSteps] = useState<SOPStep[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<any>(null);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
   // Fetch existing response or create new one
   useEffect(() => {
@@ -90,6 +93,9 @@ export function SOPResponseForm({
             const evidenceData = await evidenceResponse.json();
             setEvidence(evidenceData);
           }
+
+          // Fetch recommendations
+          fetchRecommendations(data.id);
         } else {
           // Fetch SOP details
           const sopResponse = await fetch(`/api/sops/${sopId}`);
@@ -118,6 +124,9 @@ export function SOPResponseForm({
           const newResponse = await createResponse.json();
           setSopResponse(newResponse);
           setEvidence([]); // New response has no evidence yet
+          
+          // Fetch recommendations for new response
+          fetchRecommendations(newResponse.id);
         }
       } catch (err) {
         console.error("Failed to initialize SOP response:", err);
@@ -129,6 +138,29 @@ export function SOPResponseForm({
 
     initialize();
   }, [sopResponseId, sopId, clientId, alertId]);
+
+  // Fetch recommendations
+  const fetchRecommendations = async (responseId: string) => {
+    try {
+      setLoadingRecommendations(true);
+      const response = await fetch(`/api/sop-responses/${responseId}/recommendations`);
+      if (response.ok) {
+        const data = await response.json();
+        setRecommendations(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch recommendations:', error);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  };
+
+  // Refresh recommendations when steps are completed
+  useEffect(() => {
+    if (sopResponse?.id && sopResponse.completedSteps) {
+      fetchRecommendations(sopResponse.id);
+    }
+  }, [sopResponse?.completedSteps?.length]);
 
   const handleStepComplete = async (stepNumber: number, notes: string) => {
     if (!sopResponse) return;
@@ -283,6 +315,71 @@ export function SOPResponseForm({
           </div>
           <Progress value={progress} className="h-2" />
         </div>
+
+        {/* AI Recommendations */}
+        {recommendations && recommendations.recommendations.length > 0 && (
+          <div className="border rounded-lg p-4 bg-primary/5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-primary" />
+              <h3 className="font-medium text-sm">AI Recommendations</h3>
+            </div>
+            
+            {recommendations.urgentActions.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-orange-600 dark:text-orange-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Urgent Actions</span>
+                </div>
+                {recommendations.urgentActions.map((action: any, index: number) => (
+                  <div key={index} className="text-sm pl-6">
+                    <div className="font-medium">{action.action}</div>
+                    <div className="text-muted-foreground text-xs mt-1">{action.reason}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {recommendations.nextStep && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Next Step</div>
+                <div className="pl-4 border-l-2 border-primary">
+                  <div className="font-medium text-sm">
+                    Step {recommendations.nextStep.stepNumber}: {recommendations.nextStep.action}
+                  </div>
+                  <div className="text-muted-foreground text-xs mt-1">
+                    {recommendations.nextStep.reason}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {recommendations.recommendations.filter((r: any) => r.priority !== 'high').length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Other Recommendations</div>
+                <div className="space-y-1">
+                  {recommendations.recommendations
+                    .filter((r: any) => r.priority !== 'high')
+                    .slice(0, 3)
+                    .map((rec: any, index: number) => (
+                      <div key={index} className="text-sm pl-4">
+                        <Badge variant="outline" className="mr-2">
+                          {rec.priority}
+                        </Badge>
+                        <span>{rec.action}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {loadingRecommendations && (
+          <div className="border rounded-lg p-4 bg-primary/5 flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Loading recommendations...</span>
+          </div>
+        )}
 
         {/* Steps */}
         <div className="space-y-3">

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/database";
+import { getTagsForRecording, getTagsByType } from "@/lib/gemini/tag-generator";
+import { getTranscript } from "@/lib/gemini/transcription-service";
+import { analyzeTags } from "@/lib/assistant/tag-interpreter";
+import { detectEscalation } from "@/lib/assistant/escalation-detector";
 
 // GET /api/alerts/[id]/summary - Generate comprehensive alert summary
 export async function GET(
@@ -90,6 +94,35 @@ export async function GET(
       [alertId]
     );
 
+    // Fetch recordings linked to this alert
+    const recordingsResult = await query(
+      'SELECT id, "recordingType", "fileName", "createdAt" FROM "Recording" WHERE "alertId" = $1 ORDER BY "createdAt" DESC',
+      [alertId]
+    );
+
+    // Get tags and transcripts for recordings
+    const recordingsWithData = await Promise.all(
+      recordingsResult.rows.map(async (recording: any) => {
+        const tags = await getTagsForRecording(recording.id);
+        const transcript = await getTranscript(recording.id);
+        const tagAnalysis = tags.length > 0 ? await analyzeTags(recording.id) : null;
+        const escalationResult = await detectEscalation(alertId, recording.id);
+
+        return {
+          ...recording,
+          tags,
+          transcript: transcript ? {
+            id: transcript.id,
+            text: transcript.transcriptText,
+            language: transcript.language,
+            confidence: transcript.confidence,
+          } : null,
+          tagAnalysis,
+          escalationResult,
+        };
+      })
+    );
+
     // Build summary text
     const summaryParts: string[] = [];
 
@@ -159,12 +192,79 @@ export async function GET(
       });
     }
 
+    // Recordings with AI annotations
+    if (recordingsWithData.length > 0) {
+      summaryParts.push(`\nRECORDINGS & AI ANALYSIS:`);
+      recordingsWithData.forEach((recording: any) => {
+        summaryParts.push(`\nRecording: ${recording.fileName || recording.recordingType} (${new Date(recording.createdAt).toLocaleString()})`);
+        
+        // Tag analysis
+        if (recording.tagAnalysis) {
+          summaryParts.push(`  Risk Level: ${recording.tagAnalysis.riskLevel.toUpperCase()}`);
+          summaryParts.push(`  Summary: ${recording.tagAnalysis.summary}`);
+          
+          // Highlight important tags
+          const criticalTags = recording.tags.filter((t: any) => 
+            t.tagType === 'risk_word' || 
+            (t.tagType === 'tone' && ['agitated', 'distressed'].includes(t.tagValue)) ||
+            (t.tagType === 'motion' && t.tagValue === 'fall')
+          );
+          
+          if (criticalTags.length > 0) {
+            summaryParts.push(`  ⚠️ Important Tags: ${criticalTags.map((t: any) => t.tagValue).join(', ')}`);
+          }
+
+          // Key insights
+          if (recording.tagAnalysis.insights.length > 0) {
+            const highSeverityInsights = recording.tagAnalysis.insights.filter((i: any) => 
+              i.severity === 'high' || i.severity === 'critical'
+            );
+            if (highSeverityInsights.length > 0) {
+              summaryParts.push(`  Key Insights:`);
+              highSeverityInsights.forEach((insight: any) => {
+                summaryParts.push(`    - ${insight.title}: ${insight.message}`);
+              });
+            }
+          }
+        }
+
+        // Transcript excerpt
+        if (recording.transcript) {
+          const transcriptText = recording.transcript.text;
+          // Get first 200 characters as excerpt
+          const excerpt = transcriptText.length > 200 
+            ? transcriptText.substring(0, 200) + '...'
+            : transcriptText;
+          summaryParts.push(`  Transcript Excerpt: "${excerpt}"`);
+          summaryParts.push(`  (Confidence: ${(recording.transcript.confidence * 100).toFixed(0)}%)`);
+        }
+
+        // Escalation Detection
+        if (recording.escalationResult && recording.escalationResult.shouldEscalate) {
+          summaryParts.push(`  ⚠️ ESCALATION ALERT:`);
+          summaryParts.push(`    Escalation Level: ${recording.escalationResult.escalationLevel.toUpperCase()}`);
+          summaryParts.push(`    Escalation Score: ${recording.escalationResult.escalationScore}/100`);
+          summaryParts.push(`    Recommended Action: ${recording.escalationResult.recommendedAction}`);
+          if (recording.escalationResult.indicators.length > 0) {
+            summaryParts.push(`    Key Indicators:`);
+            recording.escalationResult.indicators
+              .filter((i: any) => i.severity === 'critical' || i.severity === 'high')
+              .slice(0, 3)
+              .forEach((indicator: any) => {
+                summaryParts.push(`      - ${indicator.type.toUpperCase()}: ${indicator.value}`);
+              });
+          }
+        }
+      });
+    }
+
     const summary = summaryParts.join("\n");
 
     return NextResponse.json({
       alert,
       events: eventsResult.rows,
       sopResponses: sopResponsesResult.rows,
+      recordings: recordingsWithData,
       summary,
     });
   } catch (error) {

@@ -76,7 +76,10 @@ export async function POST(request: NextRequest) {
       fileName,
       mimeType,
       fileSize,
-      duration
+      duration,
+      source = 'manual', // New: recording source
+      meetingId, // New: Google Meet meeting ID
+      meetingUrl, // New: Google Meet meeting URL
     } = body;
 
     if (!clientId || !recordingType) {
@@ -88,14 +91,16 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = (session.user as any).id;
+    const processingStatus = fileUrl ? 'pending' : 'pending'; // Will be processed if fileUrl exists
 
     const result = await query(`
       INSERT INTO "Recording" (
         "alertId", "sopResponseId", "clientId", "recordingType",
         "fileUrl", "filePath", "fileName", "mimeType", "fileSize", "duration",
+        "source", "meetingId", "meetingUrl", "processingStatus",
         "recordedBy"
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [
       alertId || null,
@@ -108,10 +113,24 @@ export async function POST(request: NextRequest) {
       mimeType || null,
       fileSize || null,
       duration || null,
+      source,
+      meetingId || null,
+      meetingUrl || null,
+      processingStatus,
       userId
     ]);
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    const recording = result.rows[0];
+
+    // Auto-trigger Gemini processing if fileUrl exists and source is not manual upload
+    // (Manual uploads will trigger processing via the process-recording endpoint)
+    if (fileUrl && source === 'google_meet') {
+      // For Google Meet recordings, we'll process asynchronously
+      // The actual processing will happen when the file is downloaded
+      console.log(`[Recordings API] Recording ${recording.id} created from Google Meet. Processing will be triggered when file is available.`);
+    }
+
+    return NextResponse.json(recording, { status: 201 });
   } catch (error) {
     console.error('Failed to create recording:', error);
     return NextResponse.json({ error: "Failed to create recording" }, { status: 500 });

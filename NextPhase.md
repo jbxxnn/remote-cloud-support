@@ -833,9 +833,21 @@ CREATE INDEX IF NOT EXISTS idx_recording_client_id ON "Recording"("clientId");
 **Files to create:**
 - `src/lib/gemini/recording-processor.ts` - Recording processor
 - `src/app/api/gemini/process-recording/route.ts` - Processing endpoint
+- `src/lib/google-meet/meet-service.ts` - Google Meet API integration
+- `src/components/communication/google-meet-button.tsx` - Meet button component
+- `src/app/api/google-meet/webhook/route.ts` - Google Meet recording webhook handler
 
 **Files to modify:**
 - `src/app/api/recordings/route.ts` - Trigger processing on upload
+- `src/app/staff/client/[id]/page.tsx` - Implement Google Meet button handler
+- `database/migration-010-add-recordings-table.sql` - Add Google Meet metadata fields
+
+**Recording Sources:**
+1. **Manual Upload**: Staff uploads video/audio files directly
+2. **Google Meet**: Automatic recording from Google Meet calls during alert resolution
+   - Triggered when staff clicks "Start Call" button in Alert Modal
+   - Recording automatically linked to `alertId` and optionally `sopResponseId`
+   - Auto-triggers Gemini processing when recording is available
 
 **Action Items:**
 - [ ] Create recording processor service
@@ -846,6 +858,15 @@ CREATE INDEX IF NOT EXISTS idx_recording_client_id ON "Recording"("clientId");
 - [ ] Upload to temporary storage
 - [ ] Trigger Gemini processing
 - [ ] Handle processing errors
+- [ ] **Google Meet Integration:**
+  - [ ] Set up Google Meet API credentials
+  - [ ] Implement Google Meet button in Alert Modal
+  - [ ] Create Google Meet recording webhook handler
+  - [ ] Auto-link Google Meet recordings to alerts
+  - [ ] Handle Google Meet recording format (MP4 from Google Drive)
+  - [ ] Store Google Meet metadata (meeting ID, participants, duration)
+  - [ ] Auto-trigger Gemini processing on Google Meet recording completion
+  - [ ] Add Google Meet recording status tracking (pending, processing, completed)
 
 ### Task 3.1.3: Generate Transcripts
 **Files to create:**

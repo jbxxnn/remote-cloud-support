@@ -97,7 +97,7 @@ export function useAssistant() {
       // Check for summary requests
       if (lowerContent.includes('summarize') || lowerContent.includes('summary')) {
         if (lowerContent.includes('alert') || contextPayload.context?.alert) {
-          response = generateAlertSummary(contextPayload);
+          response = await generateAlertSummary(contextPayload);
         } else if (lowerContent.includes('sop') || contextPayload.context?.sopResponse) {
           response = generateSOPSummary(contextPayload);
         } else {
@@ -110,7 +110,7 @@ export function useAssistant() {
       }
       // Check for contextual guidance requests
       else if (lowerContent.includes('help') || lowerContent.includes('what should i do') || lowerContent.includes('next step') || lowerContent.includes('guidance')) {
-        response = getContextualGuidance(contextPayload, content);
+        response = await getContextualGuidance(contextPayload, content);
         if (response === `I'm here to help! Based on your current context, I can:\n\n`) {
           // Fallback to notes help if no specific context guidance
           const isNotesQuery = lowerContent.includes('note') || 
@@ -136,7 +136,7 @@ export function useAssistant() {
       }
       // Try contextual guidance as fallback
       else {
-        const contextualResponse = getContextualGuidance(contextPayload, content);
+        const contextualResponse = await getContextualGuidance(contextPayload, content);
         if (contextualResponse && contextualResponse !== `I'm here to help! Based on your current context, I can:\n\n`) {
           response = contextualResponse;
         }

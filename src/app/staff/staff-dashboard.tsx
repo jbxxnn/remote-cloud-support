@@ -220,13 +220,13 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             </div>
           ) : (
             // Default Dashboard - 3 Column Layout
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 h-full">
-              {/* Left Column: Live Alerts Feed */}
-              <div className="lg:col-span-3 flex flex-col h-full min-h-0">
-                <div className="mb-4 flex-shrink-0">
-                  <h2 className="text-lg font-semibold mb-1">Live Alerts</h2>
-                  <p className="text-xs text-muted-foreground">Real-time alert feed</p>
-                </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 h-full">
+            {/* Left Column: Live Alerts Feed */}
+            <div className="lg:col-span-3 flex flex-col h-full min-h-0">
+              <div className="mb-4 flex-shrink-0">
+                <h2 className="text-lg font-semibold mb-1">Live Alerts</h2>
+                <p className="text-xs text-muted-foreground">Real-time alert feed</p>
+              </div>
               <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
                 <LiveAlertsFeed 
                   onAlertClick={handleAlertClick}
@@ -235,38 +235,38 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                   onViewSOP={handleViewSOP}
                 />
               </div>
-              </div>
+            </div>
 
-              {/* Center Column: Active Clients Grid */}
-              <div className="lg:col-span-6 flex flex-col h-full min-h-0">
-                <div className="mb-4 flex-shrink-0">
-                  <h2 className="text-lg font-semibold mb-1">Active Clients</h2>
-                  <p className="text-xs text-muted-foreground">
-                    {clients.length} active client{clients.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
-                  <ActiveClientsGrid 
-                    clients={clients} 
-                    loading={loading}
-                    onClientClick={handleClientClick}
-                  />
-                </div>
+            {/* Center Column: Active Clients Grid */}
+            <div className="lg:col-span-6 flex flex-col h-full min-h-0">
+              <div className="mb-4 flex-shrink-0">
+                <h2 className="text-lg font-semibold mb-1">Active Clients</h2>
+                <p className="text-xs text-muted-foreground">
+                  {clients.length} active client{clients.length !== 1 ? 's' : ''}
+                </p>
               </div>
+              <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
+                <ActiveClientsGrid 
+                  clients={clients} 
+                  loading={loading}
+                  onClientClick={handleClientClick}
+                />
+              </div>
+            </div>
 
-              {/* Right Column: System Snapshot */}
+            {/* Right Column: System Snapshot */}
               <div className="lg:col-span-3 flex flex-col h-full min-h-0">
                 <div className="mb-4 flex-shrink-0">
-                  <h2 className="text-lg font-semibold mb-1">System Snapshot</h2>
-                  <p className="text-xs text-muted-foreground">System status overview</p>
-                </div>
+                <h2 className="text-lg font-semibold mb-1">System Snapshot</h2>
+                <p className="text-xs text-muted-foreground">System status overview</p>
+              </div>
                 <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ height: 0 }}>
-                  <SystemSnapshot
-                    activeAlerts={activeAlertsCount}
-                    openSOPs={openSOPsCount}
-                    staffOnline={staffOnline}
+                <SystemSnapshot
+                  activeAlerts={activeAlertsCount}
+                  openSOPs={openSOPsCount}
+                  staffOnline={staffOnline}
                     onRefresh={fetchDashboardData}
-                  />
+                />
                 </div>
               </div>
             </div>

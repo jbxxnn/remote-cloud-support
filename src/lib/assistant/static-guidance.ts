@@ -288,9 +288,9 @@ export function generateNotesHelpResponse(
 }
 
 /**
- * Generate alert summary
+ * Generate alert summary with AI annotations
  */
-export function generateAlertSummary(context: AssistantContextPayload): string {
+export async function generateAlertSummary(context: AssistantContextPayload): Promise<string> {
   const alert = context.context?.alert;
   const client = context.context?.client;
 
@@ -328,6 +328,81 @@ export function generateAlertSummary(context: AssistantContextPayload): string {
 
   if (alert.updatedAt) {
     summary += `**Last Updated:** ${new Date(alert.updatedAt).toLocaleString()}\n`;
+  }
+
+  // Try to fetch recordings, tags, and transcripts for this alert
+  // Only fetch if we're on the server side (check for process.env or typeof window)
+  try {
+    // Only run on server side
+    if (typeof window !== 'undefined') {
+      // Client-side: skip AI analysis
+      summary += `\n*AI Analysis available on server-side only*\n\n`;
+    } else {
+      const { query } = await import('@/lib/database');
+      const { getTagsForRecording } = await import('@/lib/gemini/tag-generator');
+      const { getTranscript } = await import('@/lib/gemini/transcription-service');
+      const { analyzeTags } = await import('./tag-interpreter');
+
+      const recordingsResult = await query(
+        'SELECT id, "recordingType", "fileName", "createdAt" FROM "Recording" WHERE "alertId" = $1 ORDER BY "createdAt" DESC LIMIT 1',
+        [alert.id]
+      );
+
+      if (recordingsResult.rows.length > 0) {
+        const recording = recordingsResult.rows[0];
+        const tags = await getTagsForRecording(recording.id);
+        const transcript = await getTranscript(recording.id);
+        const tagAnalysis = tags.length > 0 ? await analyzeTags(recording.id) : null;
+
+        // Add AI Analysis section
+        if (tagAnalysis || transcript) {
+          summary += `\n### AI Analysis\n\n`;
+
+          if (tagAnalysis) {
+            summary += `**Risk Level:** ${tagAnalysis.riskLevel.toUpperCase()}\n`;
+            summary += `${tagAnalysis.summary}\n\n`;
+
+            // Highlight important tags
+            const criticalTags = tags.filter((t: any) => 
+              t.tagType === 'risk_word' || 
+              (t.tagType === 'tone' && ['agitated', 'distressed'].includes(t.tagValue)) ||
+              (t.tagType === 'motion' && t.tagValue === 'fall')
+            );
+
+            if (criticalTags.length > 0) {
+              summary += `**⚠️ Important Tags:** ${criticalTags.map((t: any) => t.tagValue).join(', ')}\n\n`;
+            }
+
+            // Key insights
+            if (tagAnalysis.insights.length > 0) {
+              const highSeverityInsights = tagAnalysis.insights.filter((i: any) => 
+                i.severity === 'high' || i.severity === 'critical'
+              );
+              if (highSeverityInsights.length > 0) {
+                summary += `**Key Insights:**\n`;
+                highSeverityInsights.forEach((insight: any) => {
+                  summary += `• ${insight.title}: ${insight.message}\n`;
+                });
+                summary += `\n`;
+              }
+            }
+          }
+
+          // Transcript excerpt
+          if (transcript) {
+            const transcriptText = transcript.transcriptText;
+            const excerpt = transcriptText.length > 200 
+              ? transcriptText.substring(0, 200) + '...'
+              : transcriptText;
+            summary += `**Transcript Excerpt:** "${excerpt}"\n`;
+            summary += `(Confidence: ${transcript.confidence ? (transcript.confidence * 100).toFixed(0) : 'N/A'}%)\n\n`;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch AI annotations for alert summary:', error);
+    // Continue without AI annotations if there's an error
   }
 
   // Add recommendations based on status
@@ -480,20 +555,113 @@ export function detectMissingInformation(context: AssistantContextPayload): stri
 /**
  * Get contextual guidance based on full context
  */
-export function getContextualGuidance(context: AssistantContextPayload, query: string): string {
+export async function getContextualGuidance(context: AssistantContextPayload, query: string): Promise<string> {
   const lowerQuery = query.toLowerCase();
   const alert = context.context?.alert;
   const client = context.context?.client;
   const sop = context.context?.sop;
   const sopResponse = context.context?.sopResponse;
 
-  // Summary requests
-  if (lowerQuery.includes('summarize') || lowerQuery.includes('summary')) {
-    if (lowerQuery.includes('alert') || alert) {
-      return generateAlertSummary(context);
+      // Summary requests
+      if (lowerQuery.includes('summarize') || lowerQuery.includes('summary')) {
+        if (lowerQuery.includes('alert') || alert) {
+          return await generateAlertSummary(context);
+        }
+        if (lowerQuery.includes('sop') || sopResponse) {
+          return generateSOPSummary(context);
+        }
+      }
+
+  // "What should I do next?" or recommendation queries
+  if (lowerQuery.includes('what should i do next') || 
+      lowerQuery.includes('what do i do next') ||
+      lowerQuery.includes('next action') ||
+      lowerQuery.includes('recommendation') ||
+      lowerQuery.includes('suggest')) {
+    try {
+      const { generateSOPRecommendations } = await import('./sop-recommender');
+      const recommendations = await generateSOPRecommendations(context);
+      
+      if (recommendations.recommendations.length === 0) {
+        return "No specific recommendations at this time. Continue with the SOP steps as outlined.";
+      }
+
+      let response = `## Recommended Next Actions\n\n`;
+      response += recommendations.summary;
+      
+      if (recommendations.urgentActions.length > 0) {
+        response += `\n\n### ⚠️ Urgent Actions\n\n`;
+        recommendations.urgentActions.forEach((action, index) => {
+          response += `${index + 1}. **${action.action}**\n`;
+          response += `   ${action.reason}\n\n`;
+        });
+      }
+
+      if (recommendations.nextStep) {
+        response += `\n### Next Step to Complete\n\n`;
+        response += `**Step ${recommendations.nextStep.stepNumber}:** ${recommendations.nextStep.action}\n`;
+        response += `${recommendations.nextStep.reason}\n`;
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Recommendation error:', error);
+      return "I encountered an error generating recommendations. Please try again.";
     }
-    if (lowerQuery.includes('sop') || sopResponse) {
-      return generateSOPSummary(context);
+  }
+
+  // Escalation detection queries
+  if (lowerQuery.includes('escalat') || lowerQuery.includes('should i escalate') || 
+      lowerQuery.includes('need to escalate') || lowerQuery.includes('escalation')) {
+    try {
+      if (typeof window !== 'undefined') {
+        return "Escalation detection is a server-side operation. Please check the alert details or ask from the server context.";
+      }
+
+      const alertId = context.alert_id || context.context?.alert?.id;
+      if (!alertId) {
+        return "I need an alert ID to check for escalation. Please navigate to an alert detail page.";
+      }
+
+      const { detectEscalation, getEscalationSummary } = await import('./escalation-detector');
+      const { query } = await import('@/lib/database');
+      
+      // Find recording for this alert
+      const recordingResult = await query(
+        'SELECT id FROM "Recording" WHERE "alertId" = $1 ORDER BY "createdAt" DESC LIMIT 1',
+        [alertId]
+      );
+      const recordingId = recordingResult.rows.length > 0 ? recordingResult.rows[0].id : undefined;
+
+      const escalationResult = await detectEscalation(alertId, recordingId);
+      return getEscalationSummary(escalationResult);
+    } catch (error) {
+      console.error('Escalation detection error:', error);
+      return "I encountered an error checking for escalation. Please try again.";
+    }
+  }
+
+  // JSON-related queries
+  if (lowerQuery.includes('json') || lowerQuery.includes('export') || 
+      lowerQuery.includes('schema') || lowerQuery.includes('structured data')) {
+    try {
+      const { handleJSONQuery } = await import('./skills/json-skills');
+      return await handleJSONQuery(query, context);
+    } catch (error) {
+      console.error('JSON query error:', error);
+      return "I encountered an error generating JSON. Please try again.";
+    }
+  }
+
+  // Tag-related queries
+  if (lowerQuery.includes('tag') || lowerQuery.includes('analyze') || lowerQuery.includes('insight') || 
+      lowerQuery.includes('tone') || lowerQuery.includes('motion') || lowerQuery.includes('risk word')) {
+    try {
+      const { handleTagQuery } = await import('./skills/tag-skills');
+      return await handleTagQuery(query, context);
+    } catch (error) {
+      console.error('Tag query error:', error);
+      return "I encountered an error analyzing tags. Please try again or check if the recording has been processed.";
     }
   }
 
@@ -530,6 +698,22 @@ export function getContextualGuidance(context: AssistantContextPayload, query: s
       response += `\n### Current SOP Response\n\n`;
       response += `SOP: **${sop.name}**\n`;
       response += `Status: **${sopResponse.status}**\n\n`;
+
+      // Get AI-powered recommendations
+      if (typeof window === 'undefined') {
+        try {
+          const { generateSOPRecommendations } = await import('./sop-recommender');
+          const recommendations = await generateSOPRecommendations(context);
+          
+          if (recommendations.recommendations.length > 0) {
+            response += `### AI Recommendations\n\n`;
+            response += recommendations.summary;
+            response += `\n\n`;
+          }
+        } catch (error) {
+          console.error('Failed to generate recommendations:', error);
+        }
+      }
 
       const totalSteps = sop.steps?.length || 0;
       const completedSteps = sopResponse.completedSteps?.length || 0;

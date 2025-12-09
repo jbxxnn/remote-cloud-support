@@ -323,9 +323,9 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2">
                           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div 
+                        <div 
                               className={cn(
                                 "h-full transition-all duration-500",
                                 getStatusColor(client.status)
@@ -333,8 +333,8 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                               style={{ 
                                 width: `${calculateUptime(clientTimelines[client.id])}%` 
                               }}
-                            />
-                          </div>
+                        />
+                      </div>
                           <span className="text-xs text-muted-foreground font-medium">
                             {calculateUptime(clientTimelines[client.id])}% uptime
                           </span>
@@ -373,7 +373,7 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                         )}
                       </>
                     )}
-                  </div>
+                    </div>
 
                   {/* Action Buttons */}
                   <div className="pt-2">

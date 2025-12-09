@@ -18,6 +18,7 @@ import { AlertTimeline } from "@/components/alerts/alert-timeline";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { contextService } from "@/lib/assistant/context-service";
 import { useAssistant } from "@/hooks/use-assistant";
+import { toast } from "sonner";
 
 
 interface Alert {
@@ -283,7 +284,7 @@ export default function ClientDashboardPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [selectedSOPForResponse, setSelectedSOPForResponse] = useState<{ sopId: string; alertId?: string } | null>(null);
+  const [selectedSOPForResponse, setSelectedSOPForResponse] = useState<{ sopId: string; alertId?: string; sopResponseId?: string } | null>(null);
   const [sopResponseDialogOpen, setSopResponseDialogOpen] = useState(false);
   const [sopResponses, setSopResponses] = useState<any[]>([]);
   const [allClientSOPs, setAllClientSOPs] = useState<SOP[]>([]); // All SOPs for this client (not filtered by detection type)
@@ -513,9 +514,44 @@ export default function ClientDashboardPage() {
     }
   };
 
-  const handleStartCall = () => {
-    // TODO: Implement call functionality
-    console.log('Starting call...');
+  const handleStartCall = async () => {
+    if (!selectedAlert || !clientId) {
+      console.error('Cannot start call: missing alert or client');
+      return;
+    }
+
+    try {
+      // Create Google Meet recording record
+      const response = await fetch('/api/google-meet/create-recording', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alertId: selectedAlert.id,
+          clientId: clientId,
+          sopResponseId: selectedSOPForResponse?.sopResponseId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create Google Meet recording');
+      }
+
+      const data = await response.json();
+      const meetUrl = data.meetLink || data.recording?.meetingUrl;
+
+      if (meetUrl) {
+        // Open Google Meet in new tab
+        window.open(meetUrl, '_blank', 'noopener,noreferrer');
+        
+        // Show notification
+        toast.success('Google Meet opened. Remember to start recording!');
+      } else {
+        throw new Error('No meeting URL received');
+      }
+    } catch (error) {
+      console.error('Failed to start Google Meet:', error);
+      toast.error('Failed to start Google Meet call');
+    }
   };
 
   if (loading) {
