@@ -1,7 +1,7 @@
 /**
  * Gemini API Configuration
  * 
- * Configuration for Google Gemini API integration
+ * Configuration for Google Gemini API integrations
  */
 
 export interface GeminiConfig {
