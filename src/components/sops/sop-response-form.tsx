@@ -279,7 +279,7 @@ export function SOPResponseForm({
   const progress = totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
   const isCompleted = sopResponse.status === "completed";
 
-  // Validate SOP response
+  // Validate SOP response (using legacy static method for backward compatibility)
   const validationResult = SOPValidator.validateSOPResponse(
     sopSteps,
     sopResponse.completedSteps

@@ -13,6 +13,7 @@ const Card = React.forwardRef<
       className
     )}
     {...props}
+    style={{borderRadius: "10px"}}
   />
 ))
 Card.displayName = "Card"

@@ -11,7 +11,13 @@ export async function GET(
   const { id } = await params;
   const session = await getServerSession(authOptions);
   
-  if (!session || !session.user || (session.user as any).role !== "admin") {
+  // Allow both admin and staff to read SOPs
+  if (!session || !session.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userRole = (session.user as any).role;
+  if (userRole !== "admin" && userRole !== "staff") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

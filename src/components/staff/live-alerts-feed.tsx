@@ -251,7 +251,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
       <div className="flex items-center gap-2">
         <span className="flex-1">
         <Select value={severityFilter} onValueChange={setSeverityFilter}>
-          <SelectTrigger className="h-8 text-xs">
+          <SelectTrigger className="h-8 text-xs" style={{borderRadius: '10px'}}>
             <SelectValue placeholder="Filter by severity" />
           </SelectTrigger>
           <SelectContent>
@@ -316,20 +316,20 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
 
             <div className="mb-2">
               <h4 className="font-medium text-sm mb-1 truncate">{alert.clientName}</h4>
-              {alert.clientCompany && (
+              {/* {alert.clientCompany && (
                 <p className="text-xs text-muted-foreground truncate">{alert.clientCompany}</p>
-              )}
+              )} */}
             </div>
 
             <div className="mb-2">
-              <p className="text-sm text-foreground line-clamp-2">{alert.message || formatEventType(alert.type || alert.detectionType || 'alert')}</p>
-              {alert.location && (
+              <p className="text-xs text-foreground line-clamp-2">{alert.message || formatEventType(alert.type || alert.detectionType || 'alert')}</p>
+              {/* {alert.location && (
                 <p className="text-xs text-muted-foreground mt-1">📍 {alert.location}</p>
-              )}
+              )} */}
             </div>
 
             <div className="flex items-center justify-between mt-3">
-              <span className="text-xs text-muted-foreground">{formatEventType(alert.type || alert.detectionType || 'alert')}</span>
+              {/* <span className="text-xs text-muted-foreground">{formatEventType(alert.type || alert.detectionType || 'alert')}</span> */}
               <div className="flex items-center gap-1">
                 {alert.status === 'pending' && (
                   <>
@@ -339,15 +339,16 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
                       className="h-7 px-2 text-xs"
                       onClick={(e) => handleQuickAcknowledge(e, alert)}
                       disabled={!!actionLoading[alert.id]}
+                      style={{borderRadius: '10px'}}
                     >
                       {actionLoading[alert.id] === 'acknowledge' ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        <CheckCircle2 className="w-3 h-3" />
                       )}
-                      Ack
+                      Acknowlege
                     </Button>
-                    <Button
+                    {/* <Button
                       size="sm"
                       variant="outline"
                       className="h-7 px-2 text-xs"
@@ -355,7 +356,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
                     >
                       <FileText className="w-3 h-3 mr-1" />
                       SOP
-                    </Button>
+                    </Button> */}
                   </>
                 )}
                 {alert.status === 'scheduled' && (
@@ -369,7 +370,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
                     {actionLoading[alert.id] === 'resolve' ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
-                      <CheckCircle className="w-3 h-3 mr-1" />
+                      <CheckCircle className="w-3 h-3" />
                     )}
                     Resolve
                   </Button>
@@ -379,6 +380,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
                   variant="ghost"
                   className="h-7 px-2 text-xs"
                   onClick={(e) => handleViewDetails(e, alert)}
+                  style={{borderRadius: '10px'}}
                 >
                   View <ArrowRight className="w-3 h-3 ml-1" />
                 </Button>

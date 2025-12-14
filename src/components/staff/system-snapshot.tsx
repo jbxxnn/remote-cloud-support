@@ -101,8 +101,8 @@ export function SystemSnapshot({
   return (
     <div className="space-y-4">
       {/* Connectivity Status */}
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="">
+        <CardHeader className="p-2 bg-secondary px-4 mb-4" style={{borderTopRightRadius: '10px', borderTopLeftRadius: '10px'}}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium">Connectivity</CardTitle>
             <div className={`w-2 h-2 rounded-full ${getConnectionColor()}`} />
@@ -127,8 +127,8 @@ export function SystemSnapshot({
 
       {/* Documentation Status */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Documentation</CardTitle>
+      <CardHeader className="p-2 bg-secondary px-4 mb-4" style={{borderTopRightRadius: '10px', borderTopLeftRadius: '10px'}}>
+      <CardTitle className="text-sm font-medium">Documentation</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between mb-2">
@@ -136,7 +136,7 @@ export function SystemSnapshot({
               <FileText className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm">Open SOPs</span>
             </div>
-            <Badge variant={openSOPs > 0 ? "secondary" : "default"}>
+            <Badge variant={openSOPs > 0 ? "secondary" : "default"} className="ml-auto text-xs w-2 h-auto flex items-center justify-center">
               {openSOPs}
             </Badge>
           </div>
@@ -150,8 +150,8 @@ export function SystemSnapshot({
 
       {/* Active Tasks */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
+      <CardHeader className="p-2 bg-secondary px-4 mb-4" style={{borderTopRightRadius: '10px', borderTopLeftRadius: '10px'}}>
+      <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -160,7 +160,7 @@ export function SystemSnapshot({
                 <AlertCircle className="w-4 h-4 text-red-500" />
                 <span className="text-sm">Active Alerts</span>
               </div>
-              <Badge variant={activeAlerts > 0 ? "destructive" : "default"}>
+              <Badge variant={activeAlerts > 0 ? "destructive" : "default"} className="ml-auto text-xs w-2 h-auto flex items-center justify-center">
                 {activeAlerts}
               </Badge>
             </div>
@@ -169,7 +169,7 @@ export function SystemSnapshot({
                 <Users className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm">Staff Online</span>
               </div>
-              <Badge variant="secondary">{staffOnline}</Badge>
+              <Badge variant="default" className="ml-auto text-xs w-2 h-auto flex items-center justify-center">{staffOnline}</Badge>
             </div>
           </div>
         </CardContent>
@@ -177,8 +177,8 @@ export function SystemSnapshot({
 
       {/* Validators (Placeholder) */}
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+      <CardHeader className="p-2 bg-secondary px-4 mb-4" style={{borderTopRightRadius: '10px', borderTopLeftRadius: '10px'}}>
+      <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium">Validators</CardTitle>
             <Shield className="w-4 h-4 text-muted-foreground" />
           </div>
@@ -206,8 +206,8 @@ export function SystemSnapshot({
 
       {/* System Status */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">System Status</CardTitle>
+      <CardHeader className="p-2 bg-secondary px-4 mb-4" style={{borderTopRightRadius: '10px', borderTopLeftRadius: '10px'}}>
+      <CardTitle className="text-sm font-medium">System Status</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">

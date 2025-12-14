@@ -194,29 +194,32 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
             className={cn(
               "cursor-pointer",
               componentAnimations.clientTile,
-              isHovered && "shadow-lg border-primary/50 scale-[1.02]",
+              isHovered && "shadow-lg border-primary/50 scale-[1]",
               !isHovered && "hover:shadow-md"
             )}
             onMouseEnter={() => setHoveredClient(client.id)}
             onMouseLeave={() => setHoveredClient(null)}
             onClick={() => onClientClick?.(client)}
           >
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
+            <CardContent className="p-0">
+              <div className="flex items-start justify-between mb-2 p-4">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg mb-1 truncate">{client.name}</h3>
-                  {client.company && (
+                  <h3 className="font-semibold text-md mb-1 truncate">{client.name}</h3>
+                  {/* {client.company && (
                     <p className="text-sm text-muted-foreground truncate">{client.company}</p>
-                  )}
+                  )} */}
                 </div>
-                <div className={`w-3 h-3 rounded-full ${getStatusColor(client.status)} flex-shrink-0 ml-2`} />
+                <span className="relative flex size-3">
+                  <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${getStatusColor(client.status)} opacity-75`}></span>
+                  <span className={`relative inline-flex size-3 rounded-full ${getStatusColor(client.status)}`}></span>
+                </span>
               </div>
 
-              <div className="flex items-center space-x-2 mb-4">
+              <div className="flex items-center space-x-2 mb-4 px-4">
                 {getStatusIcon(client.status)}
                 <Badge 
                   variant={client.status === 'alert' ? 'destructive' : client.status === 'scheduled' ? 'secondary' : 'default'}
-                  className="text-xs"
+                  className={`text-xs ${getStatusColor(client.status)}`}
                 >
                   {client.status === 'alert' ? 'Alert' : client.status === 'scheduled' ? 'Scheduled' : 'Online'}
                 </Badge>
@@ -243,7 +246,8 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
               )}
 
               {client.lastEvent && (
-                <div className="mb-4">
+                <div className="mb-4 px-4">
+                  <div className="bg-secondary p-2" style={{borderRadius: '10px'}}>
                   <div className="flex items-center space-x-2 mb-1">
                     <Activity className="w-3 h-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
@@ -251,8 +255,9 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                     </span>
                   </div>
                   {client.lastEvent.message && (
-                    <p className="text-sm text-foreground line-clamp-2">{client.lastEvent.message}</p>
+                    <p className="text-xs text-foreground line-clamp-2">{client.lastEvent.message}</p>
                   )}
+                </div>
                 </div>
               )}
 
@@ -260,17 +265,17 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
               {showExpanded && (
                 <div className="mt-4 pt-4 border-t animate-fade-in space-y-4">
                   {/* Client Profile Details */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Client Profile</h4>
+                  <div className="space-y-2 py-2 px-4">
+                    <h4 className="text-xs font-semibold text-secondary-foreground uppercase tracking-wide">Client Profile</h4>
                     <div className="space-y-1.5 text-sm">
                       {client.email && (
-                        <div className="flex items-center space-x-2 text-muted-foreground">
+                        <div className="flex text-xs items-center space-x-2 text-muted-foreground">
                           <Mail className="w-3 h-3" />
                           <span className="truncate">{client.email}</span>
                         </div>
                       )}
                       {client.phone && (
-                        <div className="flex items-center space-x-2 text-muted-foreground">
+                        <div className="flex text-xs items-center space-x-2 text-muted-foreground">
                           <Phone className="w-3 h-3" />
                           <span>{client.phone}</span>
                         </div>
@@ -286,7 +291,7 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
 
                   {/* ISP Goal Tags */}
                   {client.tags && client.tags.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 px-4 py-2">
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
                         <Target className="w-3 h-3 mr-1" />
                         Goals & Tags
@@ -309,9 +314,9 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                   )}
 
                   {/* Status Timeline */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 px-4 py-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
+                      <span className="font-semibold text-secondary-foreground uppercase tracking-wide flex items-center">
                         <TrendingUp className="w-3 h-3 mr-1" />
                         Status Timeline
                       </span>
@@ -378,6 +383,7 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                   {/* Action Buttons */}
                   <div className="pt-2">
                     {client.status === 'alert' && (
+                      <div className="flex items-center justify-end bg-secondary" style={{borderBottomRightRadius: "10px", borderBottomLeftRadius: "10px"}}>
                       <Button
                         size="sm"
                         variant="destructive"
@@ -386,29 +392,34 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                           e.stopPropagation();
                           onClientClick?.(client);
                         }}
+                        style={{borderBottomRightRadius: "10px", borderBottomLeftRadius: "10px"}}
                       >
                         Acknowledge Alert
                       </Button>
+                      </div>
                     )}
                     {client.status !== 'alert' && (
+                      <div className="flex items-center justify-end bg-secondary" style={{borderBottomRightRadius: "10px", borderBottomLeftRadius: "10px"}}>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="w-full"
+                        variant="ghost"
+                        className="text-xs"
                         onClick={(e) => {
                           e.stopPropagation();
                           onClientClick?.(client);
                         }}
+                        style={{borderBottomRightRadius: "10px", borderBottomLeftRadius: "10px"}}
                       >
-                        View Details <ArrowRight className="w-3 h-3 ml-2" />
+                        View Full Profile <ArrowRight className="w-3 h-3 ml-2" />
                       </Button>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
 
               {!showExpanded && (
-                <div className="flex items-center justify-end">
+                <div className="flex items-center justify-end bg-secondary" style={{borderBottomRightRadius: "10px", borderBottomLeftRadius: "10px"}}>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -418,7 +429,7 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                       onClientClick?.(client);
                     }}
                   >
-                    View <ArrowRight className="w-3 h-3 ml-1" />
+                    View More Details <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
                 </div>
               )}

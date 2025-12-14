@@ -54,6 +54,7 @@ interface StaffSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
   ({ className, user, stats, ...props }, ref) => {
     const pathname = usePathname();
+    const [currentHash, setCurrentHash] = useState<string>("");
     const [liveStats, setLiveStats] = useState(stats || {
       activeAlerts: 0,
       scheduledAlerts: 0,
@@ -62,6 +63,18 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
       openSOPs: 0,
       resolvedToday: 0
     });
+
+
+    // Track hash changes
+    useEffect(() => {
+      const updateHash = () => {
+        setCurrentHash(window.location.hash.slice(1));
+      };
+      updateHash();
+      window.addEventListener('hashchange', updateHash);
+      return () => window.removeEventListener("hashchange", updateHash);
+    }, []);
+
 
     // Fetch live stats
     useEffect(() => {
@@ -82,11 +95,25 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
       return () => clearInterval(interval);
     }, []);
 
-    const isActive = (path: string) => {
-      if (path === "/staff") {
-        return pathname === "/staff";
+    const isActive = (href: string) => {
+      const hashMatch = href.match(/#(.+)$/);
+      const expectedHash = hashMatch ? hashMatch[1] : null;
+
+      if(expectedHash !== null) {
+        const pathWithoutHash = href.split('#') [0];
+        if (pathname === pathWithoutHash || pathname.startsWith(pathWithoutHash)) {
+          if (expectedHash === "" && currentHash === "") {
+            return pathname === "/staff"
+          }
+          return currentHash === expectedHash;
+        }
+        return false;
       }
-      return pathname.startsWith(path);
+
+      if (href === "/staff") {
+        return pathname === "/staff" && currentHash === "";
+      }
+      return pathname.startsWith(href);
     };
 
     const NavButton = ({ 
@@ -112,10 +139,11 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
           variant={active ? "secondary" : "ghost"}
           className={cn(
             "w-full justify-start group relative transition-all duration-200",
-            "hover:bg-accent/50 hover:text-accent-foreground",
-            active && "bg-secondary/80 text-secondary-foreground shadow-sm",
+            "hover:bg-accent hover:text-accent-foreground",
+            active && "bg-background text-secondary-foreground shadow-sm",
             "rounded-lg"
           )}
+          style={{borderRadius: '10px'}}
           asChild
           {...props}
         >
@@ -134,9 +162,9 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
               <Badge 
                 variant={badgeVariant} 
                 className={cn(
-                  "ml-auto text-xs min-w-[20px] h-5 flex items-center justify-center px-1.5",
-                  badgeVariant === "destructive" && "bg-destructive/90 text-destructive-foreground shadow-sm",
-                  badgeVariant === "secondary" && "bg-secondary/80",
+                  "ml-auto text-xs w-2 h-auto flex items-center justify-center",
+                  badgeVariant === "destructive" && "bg-destructive text-destructive-foreground shadow-sm",
+                  badgeVariant === "secondary" && "bg-secondary",
                   !active && badgeVariant === "destructive" && "animate-pulse"
                 )}
               >
@@ -168,7 +196,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
         <div
           ref={ref}
           className={cn(
-            "flex h-screen w-64 flex-col bg-background/95 backdrop-blur-sm border-r border-border/50",
+            "flex h-screen w-64 flex-col bg-sidebar backdrop-blur-sm border-r border-border/50",
             "shadow-sm",
             className
           )}
@@ -316,7 +344,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
               icon={() => <HugeiconsIcon icon={Clock05Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="My Queue"
               badge={liveStats.myQueue}
-              badgeVariant={liveStats.myQueue ? liveStats.myQueue > 0 ? "destructive" : "secondary" : "default"}
+              // badgeVariant={liveStats.myQueue ? liveStats.myQueue > 0 ? "destructive" : "secondary" : "default"}
               tooltip="Ask SupportSense: What's in my queue?"
             />
           </nav>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
@@ -37,6 +38,7 @@ interface StaffDashboardProps {
 }
 
 export function StaffDashboard({ user }: StaffDashboardProps) {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [activeAlertsCount, setActiveAlertsCount] = useState(0);
   const [openSOPsCount, setOpenSOPsCount] = useState(0);
@@ -103,14 +105,14 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
 
 
   const handleClientClick = (client: Client) => {
-    // Navigate to client dashboard
-    window.location.href = `/staff/client/${client.id}`;
+    // Navigate to client dashboard using Next.js router
+    router.push(`/staff/client/${client.id}`);
   };
 
   const handleAlertClick = (alert: any) => {
     // Navigate to client dashboard with alert context
     if (alert.clientId) {
-      window.location.href = `/staff/client/${alert.clientId}`;
+      router.push(`/staff/client/${alert.clientId}`);
     }
   };
 
@@ -148,13 +150,13 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
 
   const handleViewSOP = (alertId: string, clientId: string) => {
     // Navigate to client page where they can start SOP
-    window.location.href = `/staff/client/${clientId}`;
+    router.push(`/staff/client/${clientId}`);
   };
 
   const handleSOPResponseClick = (response: any) => {
     // Navigate to client dashboard where the SOP response was created
     if (response.clientId) {
-      window.location.href = `/staff/client/${response.clientId}`;
+      router.push(`/staff/client/${response.clientId}`);
     }
   };
 
@@ -216,6 +218,125 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                   </p>
                 </div>
                 <SOPResponsesList onResponseClick={handleSOPResponseClick} />
+              </div>
+            </div>
+          ) : currentSection === "clients" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">Active Clients</h1>
+                  <p className="text-muted-foreground">
+                    View and manage all active clients
+                  </p>
+                </div>
+                <ActiveClientsGrid 
+                clients={clients} 
+                loading={loading}
+                onClientClick={handleClientClick}
+                />
+              </div>
+            </div>
+          ) : currentSection === "alerts" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">Active Clients</h1>
+                  <p className="text-muted-foreground">
+                    View and manage all active clients
+                  </p>
+                </div>
+                <LiveAlertsFeed 
+                  onAlertClick={handleAlertClick}
+                  onAcknowledge={handleAcknowledgeAlert}
+                  onResolve={handleResolveAlert}
+                  onViewSOP={handleViewSOP}
+                />
+              </div>
+            </div>
+          ) : currentSection === "documentation" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">Documentation</h1>
+                  <p className="text-muted-foreground">
+                    Documentation Dashboard coming soon!!!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : currentSection === "communication" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">Communication</h1>
+                  <p className="text-muted-foreground">
+                    Communication Dashboard coming soon!!!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : currentSection === "calls" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">Call</h1>
+                  <p className="text-muted-foreground">
+                    Call History Dashboard coming soon!!!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : currentSection === "video" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">Video</h1>
+                  <p className="text-muted-foreground">
+                    Video History Dashboard coming soon!!!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : currentSection === "history" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">History</h1>
+                  <p className="text-muted-foreground">
+                    History Dashboard coming soon!!!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : currentSection === "help" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">Help & Training</h1>
+                  <p className="text-muted-foreground">
+                    Help and Training Dashboard coming soon!!!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : currentSection === "my-queue" ? (
+            // Active clients Section
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2">My Queue</h1>
+                  <p className="text-muted-foreground">
+                    My Queue Dashboard coming soon!!!
+                  </p>
+                </div>
               </div>
             </div>
           ) : (

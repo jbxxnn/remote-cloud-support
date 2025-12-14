@@ -57,6 +57,8 @@ export interface AssistantContext {
     alert?: AlertData;
     sop?: SOPData;
     sopResponse?: SOPResponseData;
+    validation?: any; // ValidationResult from validation framework
+    record?: any; // Record data for validation
   };
 }
 

@@ -1,3 +1,19 @@
+/**
+ * SOP Validator
+ * 
+ * Validates SOP responses according to business rules and OAC 5123 compliance
+ */
+
+import {
+  Validator,
+  ValidatorType,
+  ValidationResult,
+  ValidationIssue,
+  ValidationContext,
+  createValidationIssue,
+  createValidationResult,
+} from './types';
+
 interface SOPStep {
   step?: number;
   action?: string;
@@ -16,189 +32,289 @@ interface CompletedStep {
   notes?: string | null;
 }
 
-interface ValidationError {
-  step: number;
-  field: string;
-  message: string;
+interface SOPValidationData {
+  steps: SOPStep[];
+  completedSteps: CompletedStep[];
 }
 
-interface ValidationResult {
-  isValid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationError[];
-}
+/**
+ * SOP Validator
+ * 
+ * Validates SOP responses for completeness, timestamps, and compliance
+ */
+export class SOPValidator implements Validator {
+  getValidatorType(): ValidatorType {
+    return 'sop';
+  }
 
-export class SOPValidator {
+  getValidatorName(): string {
+    return 'SOP Response Validator';
+  }
+
+  validate(data: any, context?: ValidationContext): ValidationResult {
+    const errors: ValidationIssue[] = [];
+    const warnings: ValidationIssue[] = [];
+
+    // Validate input structure
+    if (!data || typeof data !== 'object') {
+      return createValidationResult(
+        'sop',
+        [
+          createValidationIssue(
+            'data',
+            'Invalid data structure: expected object with steps and completedSteps',
+            { blocking: true }
+          ),
+        ],
+        [],
+        'Invalid input data'
+      );
+    }
+
+    const validationData = data as SOPValidationData;
+    const { steps, completedSteps } = validationData;
+
+    if (!Array.isArray(steps)) {
+      return createValidationResult(
+        'sop',
+        [
+          createValidationIssue(
+            'steps',
+            'Steps must be an array',
+            { blocking: true, ruleRef: 'OAC 5123.0412' }
+          ),
+        ],
+        [],
+        'Invalid steps structure'
+      );
+    }
+
+    if (!Array.isArray(completedSteps)) {
+      return createValidationResult(
+        'sop',
+        [
+          createValidationIssue(
+            'completedSteps',
+            'Completed steps must be an array',
+            { blocking: true, ruleRef: 'OAC 5123.0412' }
+          ),
+        ],
+        [],
+        'Invalid completed steps structure'
+      );
+    }
+
+    // Run all validation checks
+    this.validateStepCompleteness(steps, completedSteps, errors, warnings);
+    this.validateTimestamps(completedSteps, errors, warnings);
+    this.validateRequiredFields(steps, completedSteps, errors, warnings);
+    this.validateNotes(steps, completedSteps, warnings);
+
+    // Determine if submission is allowed
+    const blockingErrors = errors.filter(e => e.blocking);
+    const canSubmit = blockingErrors.length === 0;
+    const isValid = errors.length === 0 && warnings.length === 0;
+
+    const summary = isValid
+      ? 'SOP response validation passed'
+      : canSubmit
+      ? `SOP response has ${warnings.length} warning(s) but can be submitted`
+      : `SOP response has ${blockingErrors.length} blocking error(s) and cannot be submitted`;
+
+    return createValidationResult('sop', errors, warnings, summary);
+  }
+
   /**
    * Validate that all required steps are completed
    */
-  static validateStepCompleteness(
+  private validateStepCompleteness(
     steps: SOPStep[],
-    completedSteps: CompletedStep[]
-  ): ValidationResult {
-    const errors: ValidationError[] = [];
-    const warnings: ValidationError[] = [];
-
+    completedSteps: CompletedStep[],
+    errors: ValidationIssue[],
+    warnings: ValidationIssue[]
+  ): void {
     steps.forEach((step, index) => {
       const stepNumber = index + 1;
       const isRequired = step.required !== false; // Default to required if not specified
       const completedStep = completedSteps.find(cs => cs.step === stepNumber);
 
       if (isRequired && !completedStep) {
-        errors.push({
-          step: stepNumber,
-          field: 'completion',
-          message: `Step ${stepNumber} is required but not completed`
-        });
-      }
-
-      // Check notes length if step is completed
-      if (completedStep && step.minNotesLength) {
-        const notesLength = (completedStep.notes || '').trim().length;
-        if (notesLength < step.minNotesLength) {
-          warnings.push({
-            step: stepNumber,
-            field: 'notes',
-            message: `Step ${stepNumber} notes should be at least ${step.minNotesLength} characters`
-          });
-        }
-      }
-
-      // Check if notes are required but empty
-      if (completedStep && step.required && !completedStep.notes?.trim()) {
-        warnings.push({
-          step: stepNumber,
-          field: 'notes',
-          message: `Step ${stepNumber} notes are recommended but empty`
-        });
+        errors.push(
+          createValidationIssue(
+            'completion',
+            `Step ${stepNumber} is required but not completed`,
+            {
+              blocking: true,
+              ruleRef: 'OAC 5123.0412',
+              step: stepNumber,
+              suggestion: `Complete step ${stepNumber}: ${step.action || 'N/A'}`,
+            }
+          )
+        );
       }
     });
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
   }
 
   /**
    * Validate timestamps are valid
    */
-  static validateTimestamps(completedSteps: CompletedStep[]): ValidationResult {
-    const errors: ValidationError[] = [];
-    const warnings: ValidationError[] = [];
-
+  private validateTimestamps(
+    completedSteps: CompletedStep[],
+    errors: ValidationIssue[],
+    warnings: ValidationIssue[]
+  ): void {
     completedSteps.forEach(step => {
       const timestamp = new Date(step.completedAt);
-      
+
       if (isNaN(timestamp.getTime())) {
-        errors.push({
-          step: step.step,
-          field: 'timestamp',
-          message: `Step ${step.step} has an invalid timestamp`
-        });
+        errors.push(
+          createValidationIssue(
+            'timestamp',
+            `Step ${step.step} has an invalid timestamp`,
+            {
+              blocking: true,
+              ruleRef: 'OAC 5123.0412',
+              step: step.step,
+              suggestion: 'Ensure the completion timestamp is a valid date',
+            }
+          )
+        );
       } else {
         // Check if timestamp is in the future
         if (timestamp.getTime() > Date.now()) {
-          warnings.push({
-            step: step.step,
-            field: 'timestamp',
-            message: `Step ${step.step} timestamp is in the future`
-          });
+          warnings.push(
+            createValidationIssue(
+              'timestamp',
+              `Step ${step.step} timestamp is in the future`,
+              {
+                blocking: false,
+                ruleRef: 'OAC 5123.0412',
+                step: step.step,
+                suggestion: 'Verify the completion time is correct',
+              }
+            )
+          );
         }
 
         // Check if timestamp is too old (more than 1 year)
-        const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
+        const oneYearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
         if (timestamp.getTime() < oneYearAgo) {
-          warnings.push({
-            step: step.step,
-            field: 'timestamp',
-            message: `Step ${step.step} timestamp is more than 1 year old`
-          });
+          warnings.push(
+            createValidationIssue(
+              'timestamp',
+              `Step ${step.step} timestamp is more than 1 year old`,
+              {
+                blocking: false,
+                ruleRef: 'OAC 5123.0412',
+                step: step.step,
+                suggestion: 'Verify the completion time is correct',
+              }
+            )
+          );
         }
       }
     });
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
   }
 
   /**
    * Validate that required fields are filled
    */
-  static validateRequiredFields(
+  private validateRequiredFields(
     steps: SOPStep[],
-    completedSteps: CompletedStep[]
-  ): ValidationResult {
-    const errors: ValidationError[] = [];
-    const warnings: ValidationError[] = [];
-
+    completedSteps: CompletedStep[],
+    errors: ValidationIssue[],
+    warnings: ValidationIssue[]
+  ): void {
     completedSteps.forEach(completedStep => {
       const step = steps[completedStep.step - 1];
       if (!step) return;
 
       // Check if action is present
       if (!completedStep.action || !completedStep.action.trim()) {
-        errors.push({
-          step: completedStep.step,
-          field: 'action',
-          message: `Step ${completedStep.step} action is required`
-        });
+        errors.push(
+          createValidationIssue(
+            'action',
+            `Step ${completedStep.step} action is required`,
+            {
+              blocking: true,
+              ruleRef: 'OAC 5123.0412',
+              step: completedStep.step,
+              suggestion: 'Provide the action taken for this step',
+            }
+          )
+        );
       }
 
       // Check if completedAt is present
       if (!completedStep.completedAt) {
-        errors.push({
-          step: completedStep.step,
-          field: 'completedAt',
-          message: `Step ${completedStep.step} completion timestamp is required`
-        });
+        errors.push(
+          createValidationIssue(
+            'completedAt',
+            `Step ${completedStep.step} completion timestamp is required`,
+            {
+              blocking: true,
+              ruleRef: 'OAC 5123.0412',
+              step: completedStep.step,
+              suggestion: 'Record when this step was completed',
+            }
+          )
+        );
       }
     });
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
   }
 
   /**
-   * Comprehensive validation of SOP response
+   * Validate notes meet requirements
    */
-  static validateSOPResponse(
+  private validateNotes(
     steps: SOPStep[],
-    completedSteps: CompletedStep[]
-  ): ValidationResult {
-    const allErrors: ValidationError[] = [];
-    const allWarnings: ValidationError[] = [];
+    completedSteps: CompletedStep[],
+    warnings: ValidationIssue[]
+  ): void {
+    completedSteps.forEach(completedStep => {
+      const step = steps[completedStep.step - 1];
+      if (!step) return;
 
-    // Run all validations
-    const completenessResult = this.validateStepCompleteness(steps, completedSteps);
-    const timestampResult = this.validateTimestamps(completedSteps);
-    const fieldsResult = this.validateRequiredFields(steps, completedSteps);
+      // Check notes length if step is completed
+      if (completedStep && step.minNotesLength) {
+        const notesLength = (completedStep.notes || '').trim().length;
+        if (notesLength < step.minNotesLength) {
+          warnings.push(
+            createValidationIssue(
+              'notes',
+              `Step ${completedStep.step} notes should be at least ${step.minNotesLength} characters`,
+              {
+                blocking: false,
+                ruleRef: 'OAC 5123.0412',
+                step: completedStep.step,
+                suggestion: `Add more detail to meet the minimum ${step.minNotesLength} character requirement`,
+              }
+            )
+          );
+        }
+      }
 
-    // Combine results
-    allErrors.push(...completenessResult.errors);
-    allErrors.push(...timestampResult.errors);
-    allErrors.push(...fieldsResult.errors);
-
-    allWarnings.push(...completenessResult.warnings);
-    allWarnings.push(...timestampResult.warnings);
-    allWarnings.push(...fieldsResult.warnings);
-
-    return {
-      isValid: allErrors.length === 0,
-      errors: allErrors,
-      warnings: allWarnings
-    };
+      // Check if notes are required but empty
+      if (completedStep && step.required && !completedStep.notes?.trim()) {
+        warnings.push(
+          createValidationIssue(
+            'notes',
+            `Step ${completedStep.step} notes are recommended but empty`,
+            {
+              blocking: false,
+              ruleRef: 'OAC 5123.0412',
+              step: completedStep.step,
+              suggestion: 'Add notes to document what was done',
+            }
+          )
+        );
+      }
+    });
   }
 
   /**
    * Get validation message for a specific step
+   * (Legacy method for backward compatibility)
    */
   static getStepValidationMessage(
     stepNumber: number,
@@ -217,5 +333,16 @@ export class SOPValidator {
 
     return null;
   }
-}
 
+  /**
+   * Comprehensive validation of SOP response
+   * (Legacy static method for backward compatibility)
+   */
+  static validateSOPResponse(
+    steps: SOPStep[],
+    completedSteps: CompletedStep[]
+  ): ValidationResult {
+    const validator = new SOPValidator();
+    return validator.validate({ steps, completedSteps });
+  }
+}

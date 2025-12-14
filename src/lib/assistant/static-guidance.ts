@@ -641,6 +641,20 @@ export async function getContextualGuidance(context: AssistantContextPayload, qu
     }
   }
 
+  // Compliance and validation queries
+  if (lowerQuery.includes('compliance') || lowerQuery.includes('validation') ||
+      lowerQuery.includes('why is this invalid') || lowerQuery.includes('explain this error') ||
+      lowerQuery.includes('how do i fix') || lowerQuery.includes('oac rule') ||
+      lowerQuery.includes('validate this') || lowerQuery.includes('check compliance')) {
+    try {
+      const { handleComplianceQuery } = await import('./skills/compliance-skills');
+      return await handleComplianceQuery(query, context);
+    } catch (error) {
+      console.error('Compliance query error:', error);
+      return "I encountered an error with compliance validation. Please try again.";
+    }
+  }
+
   // JSON-related queries
   if (lowerQuery.includes('json') || lowerQuery.includes('export') || 
       lowerQuery.includes('schema') || lowerQuery.includes('structured data')) {

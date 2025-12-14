@@ -1,0 +1,62 @@
+{
+  "name": "Fall Detection Response Protocol",
+  "eventType": "fall",
+  "description": "Standard operating procedure for responding to fall detection alerts. This SOP guides staff through immediate assessment, client contact, medical evaluation, and appropriate escalation procedures.",
+  "isGlobal": true,
+  "isActive": true,
+  "steps": [
+    {
+      "step": 1,
+      "action": "Immediate Alert Assessment",
+      "details": "Review the fall detection alert details including timestamp, location, confidence level, and any available video footage. Check client's medical history and current status in the system. Note the time of detection and any environmental factors visible in the recording."
+    },
+    {
+      "step": 2,
+      "action": "Attempt Primary Contact",
+      "details": "Immediately call the client's primary phone number. If no answer, try alternate contact numbers on file. Document all contact attempts with timestamps. If client answers, assess their condition: Are they conscious? Can they move? Do they need immediate medical assistance?"
+    },
+    {
+      "step": 3,
+      "action": "Contact Emergency Contact",
+      "details": "If primary contact fails or client requires assistance, immediately contact the client's designated emergency contact person. Provide clear details about the fall detection alert, location, and current status. Request they check on the client if they are nearby."
+    },
+    {
+      "step": 4,
+      "action": "Assess Medical Urgency",
+      "details": "Based on available information (video footage, client response, medical history), determine if this is a medical emergency requiring immediate 911 dispatch. Factors to consider: client unresponsive, signs of injury, inability to get up, history of serious medical conditions, or client explicitly requesting emergency services."
+    },
+    {
+      "step": 5,
+      "action": "Dispatch Emergency Services (if required)",
+      "details": "If medical emergency is confirmed, call 911 immediately. Provide dispatcher with: client name, exact address/location, nature of emergency (fall detected), client's age and known medical conditions, current status (responsive/unresponsive), and any visible injuries. Stay on the line until emergency services arrive."
+    },
+    {
+      "step": 6,
+      "action": "Document Incident Details",
+      "details": "Record comprehensive incident details including: exact time of fall detection, all contact attempts and outcomes, client's reported condition, actions taken, emergency services dispatched (if applicable), and any relevant observations from video footage or client communication."
+    },
+    {
+      "step": 7,
+      "action": "Upload Evidence",
+      "details": "Attach relevant evidence to this SOP response: video clips showing the fall incident, screenshots of key moments, audio recordings of phone calls (if available and permitted), and any other supporting documentation. Ensure all evidence is properly labeled with timestamps."
+    },
+    {
+      "step": 8,
+      "action": "Notify Client's Family/Guardian",
+      "details": "Contact the client's family members or legal guardian to inform them of the incident. Provide a clear summary of what happened, actions taken, current status, and next steps. Document all family notifications with timestamps and responses."
+    },
+    {
+      "step": 9,
+      "action": "Follow-up Assessment",
+      "details": "Schedule and conduct a follow-up assessment within 24 hours. Verify client's current condition, check if medical attention was received, assess for any ongoing concerns, and determine if additional support or monitoring is needed. Update client's care plan if necessary."
+    },
+    {
+      "step": 10,
+      "action": "Complete Incident Report",
+      "details": "Finalize the incident report with all collected information, actions taken, outcomes, and recommendations. Ensure all required fields are completed, evidence is attached, and the report is ready for review by supervisors and client's healthcare providers if applicable."
+    }
+  ]
+}
+
+
+
