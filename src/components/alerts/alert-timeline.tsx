@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTimelineItem } from "./alert-timeline-item";
-import { Loader2, AlertCircle, Search, Download } from "lucide-react";
+import { Loader, AlertCircle, Search, Download } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -156,8 +156,7 @@ export function AlertTimeline({ clientId, onAlertClick }: AlertTimelineProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        <span className="ml-3 text-muted-foreground">Loading timeline...</span>
+        <Loader className="w-6 h-6 animate-spin text-primary" />
       </div>
     );
   }

@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { SOPStepItem } from "./sop-step-item";
 import { EvidenceUpload } from "./evidence-upload";
 import { SOPValidator } from "@/lib/validation/sop-validator";
-import { CheckCircle2, X, Loader2, Save, AlertCircle, Download, Lightbulb, AlertTriangle } from "lucide-react";
+import { CheckCircle2, X, Loader, Save, AlertCircle, Download, Lightbulb, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -254,7 +254,7 @@ export function SOPResponseForm({
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <Loader className="w-6 h-6 animate-spin text-primary" />
           </div>
         </CardContent>
       </Card>
@@ -376,7 +376,7 @@ export function SOPResponseForm({
 
         {loadingRecommendations && (
           <div className="border rounded-lg p-4 bg-primary/5 flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader className="w-4 h-4 animate-spin" />
             <span>Loading recommendations...</span>
           </div>
         )}

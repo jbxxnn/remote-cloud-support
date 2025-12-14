@@ -80,15 +80,15 @@ function getSeverityColor(severity: string) {
 function getAlertCardClasses(status: string) {
   switch (status) {
     case "pending":
-      return "border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20";
+      return "border-l-4 border-l-red-500 border-red-500/50 bg-red-50/50 dark:bg-red-950/20";
     case "scheduled":
-      return "border-l-4 border-l-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20";
+      return "border-l-4 border-l-yellow-500 border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20";
     case "resolved":
-      return "border-l-4 border-l-green-500 bg-green-50/50 dark:bg-green-950/20";
+      return "border-l-4 border-l-green-500 border-green-500/50 bg-green-50/50 dark:bg-green-950/20";
     case "acknowledged":
-      return "border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20";
+      return "border-l-4 border-l-blue-500 border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20";
     default:
-      return "border-l-4 border-l-gray-500 bg-gray-50/50 dark:bg-gray-950/20";
+      return "border-l-4 border-l-gray-500 border-gray-500/50 bg-gray-50/50 dark:bg-gray-950/20";
   }
 }
 
@@ -97,7 +97,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
   if (!alert) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-0 relative animate-fade-in border border-border">
+      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-0 relative animate-fade-in border border-border max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button
           className="absolute top-4 right-4 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
@@ -132,15 +132,17 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
           )}
           <div className="flex gap-3 mb-2">
             {alert.clipUrl && (
-              <Button size="sm" variant="default" className="flex items-center gap-1">
+              <Button size="sm" variant="default" className="flex items-center gap-1 rounded-full">
                 <Play className="w-4 h-4" /> View Clip
               </Button>
             )}
-            <Button size="sm" variant="outline" className="flex items-center gap-1" onClick={handleStartCall}>
+            {alert.status !== 'pending' && (
+            <Button size="sm" variant="outline" className="flex items-center gap-1 rounded-full" onClick={handleStartCall}>
               <Phone className="w-4 h-4" /> Start Call
             </Button>
+            )}
             {alert.status === 'pending' && (
-              <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => onAcknowledge(alert.id)}>
+              <Button size="sm" variant="outline" className="text-green-600 rounded-full border-green-600 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => onAcknowledge(alert.id)}>
                 <CheckCircle className="w-4 h-4 mr-1" /> Acknowledge
               </Button>
             )}
@@ -149,7 +151,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
         {/* Event Notes - Only show if not pending */}
         {alert.status !== 'pending' && (
           <>
-            <div className="px-6 pt-2">
+            <div className="px-6 pt-2 mb-4">
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-medium block text-foreground">Event Notes</label>
                 {onGetNotesHelp && (
@@ -168,12 +170,13 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
                 placeholder="What did you do? (e.g., 'Attempted contact via Google Meet - no answer')"
                 value={actionNotes}
                 onChange={e => setActionNotes(e.target.value)}
-                rows={3}
+                rows={5}
                 className="mb-3"
+                style={{borderRadius: '10px'}}
               />
               <label className="text-xs font-medium mb-1 block text-foreground">Outcome</label>
               <Select value={outcome} onValueChange={setOutcome}>
-                <SelectTrigger>
+                <SelectTrigger style={{borderRadius: '10px'}}>
                   <SelectValue placeholder="Select an outcome" />
                 </SelectTrigger>
                 <SelectContent>
@@ -186,20 +189,21 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
             </div>
             {/* Modal Actions - Only show if not pending */}
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onResolve} disabled={!actionNotes.trim()}>Resolve</Button>
+              <Button variant="outline" className="rounded-full" onClick={onClose}>Cancel</Button>
+              <Button onClick={onResolve} className="rounded-full" disabled={!actionNotes.trim()}>Resolve</Button>
             </div>
           </>
         )}
         {/* Modal Actions for pending alerts - Only Cancel button */}
         {alert.status === 'pending' && (
           <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" className="rounded-full" onClick={onClose}>Cancel</Button>
           </div>
         )}
         {/* SOP Box */}
+        {alert.status !== 'pending' && (
         <div className="px-6 pb-6">
-          <div className="mt-4 bg-primary/10 border border-primary/20 rounded-lg p-4">
+          <div className="mt-4 bg-primary/10 border border-primary/20 rounded-lg p-4" style={{borderRadius: '10px'}}>
             <div className="font-semibold text-primary text-sm mb-2">
               Standard Operating Procedures
               {alert.detectionType && (
@@ -247,9 +251,10 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
                     <div className="mt-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="default"
                         className="w-full"
                         onClick={() => onStartSOP?.(sop.id, alert.id)}
+                        style={{borderRadius: '10px'}}
                       >
                         <PlayCircle className="w-4 h-4 mr-2" />
                         Start SOP Response
@@ -261,6 +266,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
@@ -569,7 +575,7 @@ export default function ClientDashboardPage() {
             onAssistantClick={() => setAssistantOpen(true)}
           />
           <main className="flex-1 overflow-y-auto bg-background flex items-center justify-center">
-            <div className="text-muted-foreground text-lg">
+            <div className="text-primary text-lg">
               <Loader className="w-8 h-8 animate-spin" />
             </div>
           </main>
@@ -641,13 +647,14 @@ export default function ClientDashboardPage() {
           <div className="max-w-7xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Alerts Card */}
             <Card className="col-span-1 lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardHeader className="flex flex-row items-center justify-between p-4 py-2 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
                 <CardTitle className="text-base font-semibold">Alerts</CardTitle>
                 <div className="flex space-x-2">
                   <Button 
                     variant={selectedTab === 'active' ? 'default' : 'outline'} 
                     size="sm" 
                     onClick={() => setSelectedTab('active')}
+                    className="rounded-full"
                   >
                     Active
                   </Button>
@@ -655,6 +662,7 @@ export default function ClientDashboardPage() {
                     variant={selectedTab === 'history' ? 'default' : 'outline'} 
                     size="sm" 
                     onClick={() => setSelectedTab('history')}
+                    className="rounded-full"
                   >
                     History
                   </Button>
@@ -673,7 +681,7 @@ export default function ClientDashboardPage() {
                     <>
                       <div className="space-y-3">
                         {getCurrentAlerts().map((alert) => (
-                          <div key={alert.id} className={`p-4 border border-border rounded-sm flex items-center justify-between cursor-pointer hover:opacity-80 transition-all ${getAlertCardClasses(alert.status)}`} onClick={() => {
+                          <div key={alert.id} className={`p-4 py-2 border rounded-sm flex items-center justify-between cursor-pointer hover:opacity-80 transition-all ${getAlertCardClasses(alert.status)}`} style={{borderRadius: '10px'}} onClick={() => {
                             setSelectedAlert(alert);
                             // Fetch relevant SOPs based on detection type
                             if (alert.detectionType) {
@@ -688,13 +696,13 @@ export default function ClientDashboardPage() {
                             </div>
                             <div className="flex items-center space-x-2">
                               {alert.status === 'scheduled' && (
-                                <div className="bg-yellow-500 rounded-full w-3 h-3"></div>
+                                <div className="bg-yellow-500 rounded-full w-3 h-3 animate-pulse"></div>
                               )}
                               {alert.status === 'resolved' && (
                                 <div className="bg-green-500 rounded-full w-3 h-3"></div>
                               )}
                               {alert.status !== 'scheduled' && alert.status !== 'resolved' && (
-                                <div className="bg-red-500 rounded-full w-3 h-3"></div>
+                                <div className="bg-red-500 rounded-full w-3 h-3 animate-ping"></div>
                               )}
                             </div>
                           </div>
@@ -807,7 +815,7 @@ export default function ClientDashboardPage() {
 
 
             <Card className="col-span-1 lg:col-span-1">
-              <CardHeader className="pb-3">
+              <CardHeader className="p-2 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
                 <CardTitle className="text-base font-semibold">Client Information</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
@@ -914,27 +922,11 @@ export default function ClientDashboardPage() {
             </Card>
 
             
-            {/* Alert Timeline Card */}
-            <Card className="col-span-1 lg:col-span-3">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold">Alert Timeline</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  View all alerts and their activity for this client
-                </p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <AlertTimeline
-                  clientId={clientId}
-                  onAlertClick={(alertId) => {
-                    window.location.href = `/staff/alerts/${alertId}`;
-                  }}
-                />
-              </CardContent>
-            </Card>
+            
 
             {/* SOP Responses Card */}
             <Card className="col-span-1 lg:col-span-2">
-              <CardHeader className="pb-3">
+              <CardHeader className="p-2 px-4 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
                 <CardTitle className="text-base font-semibold">SOP Responses</CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
                   View and continue existing SOP responses
@@ -1002,7 +994,7 @@ export default function ClientDashboardPage() {
             {/* SOPs Card */}
             {/* Available SOPs Card - Start SOPs independently */}
             <Card className="col-span-1 lg:col-span-1">
-              <CardHeader className="pb-3">
+              <CardHeader className="p-2 px-4 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
                 <CardTitle className="text-base font-semibold">Available SOPs</CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
                   Start an SOP response for this client (not linked to an alert)
@@ -1019,8 +1011,9 @@ export default function ClientDashboardPage() {
                       <div
                         key={sop.id}
                         className="p-4 border border-border rounded-sm hover:bg-muted/50 transition-colors"
+                        style={{borderRadius: '10px'}}
                       >
-                        <div className="flex items-start justify-between mb-2">
+                        <div className="flex flex-col items-start justify-between mb-2 gap-2">
                           <div className="flex-1">
                             <h4 className="font-semibold text-sm mb-1">{sop.name}</h4>
                             {sop.description && (
@@ -1032,11 +1025,12 @@ export default function ClientDashboardPage() {
                           </div>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="default"
                             onClick={() => {
                               setSelectedSOPForResponse({ sopId: sop.id }); // No alertId - independent SOP
                               setSopResponseDialogOpen(true);
                             }}
+                            className="rounded-full"
                           >
                             <PlayCircle className="w-4 h-4 mr-2" />
                             Start SOP
@@ -1046,6 +1040,25 @@ export default function ClientDashboardPage() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+
+            {/* Alert Timeline Card */}
+            <Card className="col-span-1 lg:col-span-3">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold">Alert Timeline</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  View all alerts and their activity for this client
+                </p>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <AlertTimeline
+                  clientId={clientId}
+                  onAlertClick={(alertId) => {
+                    window.location.href = `/staff/alerts/${alertId}`;
+                  }}
+                />
               </CardContent>
             </Card>
 
