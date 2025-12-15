@@ -92,6 +92,8 @@ function getAlertCardClasses(status: string) {
   }
 }
 
+
+
 // Modal component for alert details
 function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, setActionNotes, outcome, setOutcome, handleStartCall, relevantSOPs, clientName, onStartSOP, staffId, onGetNotesHelp }: any) {
   if (!alert) return null;
@@ -204,7 +206,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
         {alert.status !== 'pending' && (
         <div className="px-6 pb-6">
           <div className="mt-4 bg-primary/10 border border-primary/20 rounded-lg p-4" style={{borderRadius: '10px'}}>
-            <div className="font-semibold text-primary text-sm mb-2">
+            <div className="font-semibold text-primary text-lg mb-2">
               Standard Operating Procedures
               {alert.detectionType && (
                 <span className="text-xs font-normal text-primary/80 ml-2">
@@ -460,6 +462,20 @@ export default function ClientDashboardPage() {
     // Link SOP response to the alert if provided
     setSelectedSOPForResponse({ sopId, alertId });
     setSopResponseDialogOpen(true);
+  };
+
+  const getSOPButtonLabel = (sopId: string, alertId?: string) => {
+    if (!clientId) return "Start SOP";
+    const responsesForSop = sopResponses.filter(
+      (r) =>
+        r.sopId === sopId &&
+        r.clientId === clientId &&
+        (alertId ? r.alertId === alertId : !r.alertId)
+    );
+    if (responsesForSop.length === 0) return "Start SOP";
+    const latest = responsesForSop[0];
+    if (latest.status === "completed") return "View Completed SOP";
+    return "Continue SOP";
   };
 
   const handleSOPResponseComplete = () => {
@@ -1033,7 +1049,7 @@ export default function ClientDashboardPage() {
                             className="rounded-full"
                           >
                             <PlayCircle className="w-4 h-4 mr-2" />
-                            Start SOP
+                            {getSOPButtonLabel(sop.id)}
                           </Button>
                         </div>
                       </div>
@@ -1089,7 +1105,7 @@ export default function ClientDashboardPage() {
 
         {/* SOP Response Dialog */}
         <Dialog open={sopResponseDialogOpen} onOpenChange={setSopResponseDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" style={{borderRadius: '10px'}}>
             <DialogHeader>
               <DialogTitle>SOP Response</DialogTitle>
             </DialogHeader>

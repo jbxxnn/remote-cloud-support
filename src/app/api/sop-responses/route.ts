@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const clientId = searchParams.get("clientId");
     const alertId = searchParams.get("alertId");
     const status = searchParams.get("status");
+    const sopId = searchParams.get("sopId");
     const staffId = searchParams.get("staffId");
 
     let whereClause = "WHERE 1=1";
@@ -37,6 +38,12 @@ export async function GET(request: NextRequest) {
     if (status) {
       whereClause += ` AND status = $${paramIndex}`;
       queryParams.push(status);
+      paramIndex++;
+    }
+
+    if (sopId) {
+      whereClause += ` AND sr."sopId" = $${paramIndex}`;
+      queryParams.push(sopId);
       paramIndex++;
     }
 
@@ -110,6 +117,68 @@ export async function POST(request: NextRequest) {
       const alertCheck = await query('SELECT id FROM "Alert" WHERE id = $1', [alertId]);
       if (alertCheck.rows.length === 0) {
         return NextResponse.json({ error: "Alert not found" }, { status: 404 });
+      }
+    }
+
+    // Reuse existing SOPResponse when possible (always prefer existing over insert)
+    if (alertId) {
+      const existing = await query(`
+        SELECT sr.*
+        FROM "SOPResponse" sr
+        WHERE sr."sopId" = $1 AND sr."alertId" = $2
+        ORDER BY sr."createdAt" DESC
+        LIMIT 1
+      `, [sopId, alertId]);
+
+      if (existing.rows.length > 0) {
+        const existingId = existing.rows[0].id;
+        const existingFull = await query(`
+          SELECT 
+            sr.*,
+            s.name as "sopName",
+            s."eventType" as "sopEventType",
+            s.steps as "sopSteps",
+            c.name as "clientName",
+            u.name as "staffName"
+          FROM "SOPResponse" sr
+          LEFT JOIN "SOP" s ON sr."sopId" = s.id
+          LEFT JOIN "Client" c ON sr."clientId" = c.id
+          LEFT JOIN "User" u ON sr."staffId" = u.id
+          WHERE sr.id = $1
+        `, [existingId]);
+
+        return NextResponse.json(existingFull.rows[0], { status: 200 });
+      }
+    } else {
+      // No alert context: reuse most recent response (any status) for this SOP/client/staff
+      const existing = await query(`
+        SELECT sr.*
+        FROM "SOPResponse" sr
+        WHERE sr."sopId" = $1
+          AND sr."clientId" = $2
+          AND sr."staffId" = $3
+        ORDER BY sr."createdAt" DESC
+        LIMIT 1
+      `, [sopId, clientId, staffId]);
+
+      if (existing.rows.length > 0) {
+        const existingId = existing.rows[0].id;
+        const existingFull = await query(`
+          SELECT 
+            sr.*,
+            s.name as "sopName",
+            s."eventType" as "sopEventType",
+            s.steps as "sopSteps",
+            c.name as "clientName",
+            u.name as "staffName"
+          FROM "SOPResponse" sr
+          LEFT JOIN "SOP" s ON sr."sopId" = s.id
+          LEFT JOIN "Client" c ON sr."clientId" = c.id
+          LEFT JOIN "User" u ON sr."staffId" = u.id
+          WHERE sr.id = $1
+        `, [existingId]);
+
+        return NextResponse.json(existingFull.rows[0], { status: 200 });
       }
     }
 

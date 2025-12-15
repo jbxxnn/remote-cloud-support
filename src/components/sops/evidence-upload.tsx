@@ -192,6 +192,7 @@ export function EvidenceUpload({
             variant="outline"
             size="sm"
             onClick={() => setShowTextInput(!showTextInput)}
+            className="rounded-full"
           >
             <FileText className="w-4 h-4 mr-1" />
             Add Text
@@ -200,6 +201,7 @@ export function EvidenceUpload({
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
+            className="rounded-full"
           >
             <Upload className="w-4 h-4 mr-1" />
             Upload File
@@ -217,12 +219,14 @@ export function EvidenceUpload({
               onChange={(e) => setTextEvidence(e.target.value)}
               rows={3}
               className="mb-2"
+              style={{borderRadius: '5px'}}
             />
             <div className="flex gap-2">
               <Button
                 size="sm"
                 onClick={handleTextEvidenceSubmit}
                 disabled={!textEvidence.trim() || uploading}
+                className="rounded-full"
               >
                 {uploading ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-1" />
@@ -232,6 +236,7 @@ export function EvidenceUpload({
               <Button
                 size="sm"
                 variant="outline"
+                className="rounded-full"
                 onClick={() => {
                   setShowTextInput(false);
                   setTextEvidence("");
@@ -267,6 +272,7 @@ export function EvidenceUpload({
                   size="sm"
                   onClick={handleFileUpload}
                   disabled={uploading}
+                  className="rounded-full"
                 >
                   {uploading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -277,6 +283,7 @@ export function EvidenceUpload({
                 <Button
                   size="sm"
                   variant="outline"
+                  className="rounded-full"
                   onClick={() => {
                     setSelectedFile(null);
                     setPreviewUrl(null);

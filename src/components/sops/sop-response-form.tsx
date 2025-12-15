@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -61,7 +61,7 @@ export function SOPResponseForm({
   onClose,
   onComplete
 }: SOPResponseFormProps) {
-  const [loading, setLoading] = useState(!!sopResponseId);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sopResponse, setSopResponse] = useState<SOPResponse | null>(null);
   const [sopSteps, setSopSteps] = useState<SOPStep[]>([]);
@@ -69,16 +69,18 @@ export function SOPResponseForm({
   const [evidence, setEvidence] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any>(null);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const initRef = useRef(false);
 
   // Fetch existing response or create new one
   useEffect(() => {
     const initialize = async () => {
       try {
+        if (initRef.current) return;
+        initRef.current = true;
         setLoading(true);
         setError(null);
-
         if (sopResponseId) {
-          // Fetch existing response
+          // Fetch by explicit response id
           const response = await fetch(`/api/sop-responses/${sopResponseId}`);
           if (!response.ok) {
             throw new Error("Failed to fetch SOP response");
@@ -86,7 +88,7 @@ export function SOPResponseForm({
           const data = await response.json();
           setSopResponse(data);
           setSopSteps(data.sopSteps || []);
-          
+
           // Fetch evidence
           const evidenceResponse = await fetch(`/api/evidence?sopResponseId=${data.id}`);
           if (evidenceResponse.ok) {
@@ -96,38 +98,66 @@ export function SOPResponseForm({
 
           // Fetch recommendations
           fetchRecommendations(data.id);
-        } else {
-          // Fetch SOP details
-          const sopResponse = await fetch(`/api/sops/${sopId}`);
-          if (!sopResponse.ok) {
-            throw new Error("Failed to fetch SOP");
-          }
-          const sopData = await sopResponse.json();
-          setSopSteps(sopData.steps || []);
-
-          // Create new SOP response
-          const createResponse = await fetch("/api/sop-responses", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sopId,
-              alertId,
-              clientId,
-              staffId
-            })
-          });
-
-          if (!createResponse.ok) {
-            throw new Error("Failed to create SOP response");
-          }
-
-          const newResponse = await createResponse.json();
-          setSopResponse(newResponse);
-          setEvidence([]); // New response has no evidence yet
-          
-          // Fetch recommendations for new response
-          fetchRecommendations(newResponse.id);
+          return;
         }
+
+        // No response id passed in: try to reuse existing SOPResponse for this alert+sop
+        let existingResponse: any | null = null;
+        if (alertId) {
+          const existing = await fetch(`/api/sop-responses?alertId=${alertId}&sopId=${sopId}&staffId=${staffId}`);
+          if (existing.ok) {
+            const list = await existing.json();
+            if (Array.isArray(list) && list.length > 0) {
+              existingResponse = list[0];
+            }
+          }
+        }
+
+        // Always fetch SOP details to populate steps as fallback
+        const sopResponse = await fetch(`/api/sops/${sopId}`);
+        if (!sopResponse.ok) {
+          throw new Error("Failed to fetch SOP");
+        }
+        const sopData = await sopResponse.json();
+        setSopSteps(sopData.steps || []);
+
+        if (existingResponse) {
+          setSopResponse(existingResponse);
+          setSopSteps(existingResponse.sopSteps || sopData.steps || []);
+
+          const evidenceResponse = await fetch(`/api/evidence?sopResponseId=${existingResponse.id}`);
+          if (evidenceResponse.ok) {
+            const evidenceData = await evidenceResponse.json();
+            setEvidence(evidenceData);
+          }
+
+          fetchRecommendations(existingResponse.id);
+          return;
+        }
+
+        // Create new SOP response (API will also reuse if one already exists for alert+sop)
+        const createResponse = await fetch("/api/sop-responses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sopId,
+            alertId,
+            clientId,
+            staffId
+          })
+        });
+
+        if (!createResponse.ok) {
+          throw new Error("Failed to create SOP response");
+        }
+
+        const newResponse = await createResponse.json();
+        setSopResponse(newResponse);
+        setSopSteps(newResponse.sopSteps || sopData.steps || []);
+        setEvidence([]); // New response has no evidence yet
+        
+        // Fetch recommendations for new response
+        fetchRecommendations(newResponse.id);
       } catch (err) {
         console.error("Failed to initialize SOP response:", err);
         setError(err instanceof Error ? err.message : "Failed to initialize");
@@ -137,7 +167,7 @@ export function SOPResponseForm({
     };
 
     initialize();
-  }, [sopResponseId, sopId, clientId, alertId]);
+  }, [sopResponseId, sopId, clientId, alertId, staffId]);
 
   // Fetch recommendations
   const fetchRecommendations = async (responseId: string) => {
@@ -160,7 +190,7 @@ export function SOPResponseForm({
     if (sopResponse?.id && sopResponse.completedSteps) {
       fetchRecommendations(sopResponse.id);
     }
-  }, [sopResponse?.completedSteps?.length]);
+  }, [sopResponse?.id, sopResponse?.completedSteps]);
 
   const handleStepComplete = async (stepNumber: number, notes: string) => {
     if (!sopResponse) return;
@@ -249,7 +279,8 @@ export function SOPResponseForm({
     }
   };
 
-  if (loading) {
+  // Initial/loading state – show spinner while we don't have a response yet
+  if (loading || (!sopResponse && !error)) {
     return (
       <Card>
         <CardContent className="p-6">
@@ -261,7 +292,8 @@ export function SOPResponseForm({
     );
   }
 
-  if (error || !sopResponse) {
+  // Error state – only show if an actual error message exists
+  if (!loading && error) {
     return (
       <Card>
         <CardContent className="p-6">
@@ -274,25 +306,25 @@ export function SOPResponseForm({
     );
   }
 
-  const completedCount = sopResponse.completedSteps.length;
+  const completedCount = sopResponse!.completedSteps.length;
   const totalSteps = sopSteps.length;
   const progress = totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
-  const isCompleted = sopResponse.status === "completed";
+  const isCompleted = sopResponse!.status === "completed";
 
   // Validate SOP response (using legacy static method for backward compatibility)
   const validationResult = SOPValidator.validateSOPResponse(
     sopSteps,
-    sopResponse.completedSteps
+    sopResponse!.completedSteps
   );
   const allStepsCompleted = completedCount === totalSteps && totalSteps > 0;
   const canComplete = allStepsCompleted && validationResult.isValid && !isCompleted;
 
   return (
-    <Card>
+    <Card className="">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg">{sopResponse.sopName || "SOP Response"}</CardTitle>
+            <CardTitle className="text-lg">{sopResponse!.sopName || "SOP Response"}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               {isCompleted ? "Completed" : "In Progress"}
             </p>
@@ -385,7 +417,7 @@ export function SOPResponseForm({
         <div className="space-y-3">
           {sopSteps.map((step, index) => {
             const stepNumber = index + 1;
-            const completedStep = sopResponse.completedSteps.find(
+            const completedStep = sopResponse!.completedSteps.find(
               (cs) => cs.step === stepNumber
             );
             const isStepCompleted = !!completedStep;
@@ -402,7 +434,7 @@ export function SOPResponseForm({
                 sopId={sopId}
                 clientId={clientId}
                 allSteps={sopSteps}
-                allCompletedSteps={sopResponse.completedSteps}
+                allCompletedSteps={sopResponse!.completedSteps}
               />
             );
           })}
@@ -425,8 +457,8 @@ export function SOPResponseForm({
           </div>
         )}
 
-        {/* Validation Errors */}
-        {!isCompleted && validationResult.errors.length > 0 && (
+        {/* Validation Errors (only after user has completed at least one step) */}
+        {!isCompleted && completedCount > 0 && validationResult.errors.length > 0 && (
           <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded">
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
@@ -444,8 +476,8 @@ export function SOPResponseForm({
           </div>
         )}
 
-        {/* Validation Warnings */}
-        {!isCompleted && validationResult.warnings.length > 0 && validationResult.errors.length === 0 && (
+        {/* Validation Warnings (only after user has completed at least one step) */}
+        {!isCompleted && completedCount > 0 && validationResult.warnings.length > 0 && validationResult.errors.length === 0 && (
           <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded">
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
@@ -477,7 +509,7 @@ export function SOPResponseForm({
               variant="outline"
               onClick={handleSaveProgress}
               disabled={saving}
-              className="flex-1"
+              className="flex-1 rounded-full"
             >
               <Save className="w-4 h-4 mr-2" />
               {saving ? "Saving..." : "Save Progress"}
@@ -485,7 +517,7 @@ export function SOPResponseForm({
             <Button
               onClick={handleComplete}
               disabled={!canComplete || saving}
-              className="flex-1"
+              className="flex-1 rounded-full"
               title={!validationResult.isValid ? "Please fix validation errors before completing" : undefined}
             >
               <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -494,13 +526,13 @@ export function SOPResponseForm({
           </div>
         )}
 
-        {isCompleted && (
+        {isCompleted && sopResponse && (
           <div className="pt-4 border-t space-y-3">
             <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
               <CheckCircle2 className="w-4 h-4" />
               <span>This SOP response has been completed</span>
             </div>
-            {sopResponse.completedAt && (
+            {sopResponse!.completedAt && (
               <p className="text-xs text-muted-foreground">
                 Completed: {new Date(sopResponse.completedAt).toLocaleString()}
               </p>
@@ -508,9 +540,10 @@ export function SOPResponseForm({
             <Button
               variant="outline"
               size="sm"
+              className="rounded-full"
               onClick={async () => {
                 try {
-                  const response = await fetch(`/api/sop-responses/${sopResponse.id}/export`);
+                  const response = await fetch(`/api/sop-responses/${sopResponse!.id}/export`);
                   if (!response.ok) {
                     throw new Error('Failed to export PDF');
                   }
@@ -518,7 +551,7 @@ export function SOPResponseForm({
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `sop-response-${sopResponse.id}.pdf`;
+                  a.download = `sop-response-${sopResponse!.id}.pdf`;
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);

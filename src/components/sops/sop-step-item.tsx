@@ -104,7 +104,8 @@ export function SOPStepItem({
       "border rounded-lg p-4 transition-all",
       isCompleted ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-800" : "bg-card border-border",
       disabled && "opacity-50"
-    )}>
+    )}
+    style={{borderRadius: '10px'}}>
       <div className="flex items-start gap-3">
         {/* Step Number & Checkbox */}
         <div className="flex-shrink-0 mt-1">
@@ -160,7 +161,7 @@ export function SOPStepItem({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-2 text-xs"
+                      className="h-6 px-2 text-xs rounded-full"
                       onClick={handleGetNotesHelp}
                     >
                       <HelpCircle className="w-3 h-3 mr-1" />
@@ -174,6 +175,7 @@ export function SOPStepItem({
                   placeholder="Add notes for this step..."
                   className="min-h-[80px] text-sm"
                   disabled={isCompleted || disabled}
+                  style={{borderRadius: '5px'}}
                 />
                 {validationMessage && (
                   <div className="flex items-start gap-1 text-xs text-yellow-600 dark:text-yellow-400 mt-1">
