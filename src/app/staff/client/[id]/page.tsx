@@ -95,7 +95,7 @@ function getAlertCardClasses(status: string) {
 
 
 // Modal component for alert details
-function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, setActionNotes, outcome, setOutcome, handleStartCall, relevantSOPs, clientName, onStartSOP, staffId, onGetNotesHelp }: any) {
+function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, setActionNotes, outcome, setOutcome, handleStartCall, relevantSOPs, clientName, onStartSOP, staffId, onGetNotesHelp, getSOPButtonLabel, pendingRecording, onCancelRecording, startingCall }: any) {
   if (!alert) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -132,16 +132,48 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
               Detection Type: <span className="font-medium capitalize">{alert.detectionType.replace(/_/g, ' ')}</span>
             </div>
           )}
-          <div className="flex gap-3 mb-2">
+          <div className="flex gap-3 mb-2 flex-wrap">
             {alert.clipUrl && (
               <Button size="sm" variant="default" className="flex items-center gap-1 rounded-full">
                 <Play className="w-4 h-4" /> View Clip
               </Button>
             )}
             {alert.status !== 'pending' && (
-            <Button size="sm" variant="outline" className="flex items-center gap-1 rounded-full" onClick={handleStartCall}>
-              <Phone className="w-4 h-4" /> Start Call
-            </Button>
+              <>
+                {pendingRecording && pendingRecording.processingStatus === 'pending' ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                      Recording Pending
+                    </Badge>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="flex items-center gap-1 rounded-full text-red-600 border-red-600 hover:bg-red-50 dark:hover:bg-red-950" 
+                      onClick={() => onCancelRecording(pendingRecording.id, alert.id)}
+                    >
+                      <X className="w-4 h-4" /> Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex items-center gap-1 rounded-full" 
+                    onClick={handleStartCall}
+                    disabled={startingCall}
+                  >
+                    {startingCall ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" /> Starting...
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="w-4 h-4" /> Start Call
+                      </>
+                    )}
+                  </Button>
+                )}
+              </>
             )}
             {alert.status === 'pending' && (
               <Button size="sm" variant="outline" className="text-green-600 rounded-full border-green-600 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => onAcknowledge(alert.id)}>
@@ -259,7 +291,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
                         style={{borderRadius: '10px'}}
                       >
                         <PlayCircle className="w-4 h-4 mr-2" />
-                        Start SOP Response
+                        {getSOPButtonLabel(sop.id, alert.id)}
                       </Button>
                     </div>
                   </div>
@@ -296,11 +328,20 @@ export default function ClientDashboardPage() {
   const [sopResponseDialogOpen, setSopResponseDialogOpen] = useState(false);
   const [sopResponses, setSopResponses] = useState<any[]>([]);
   const [allClientSOPs, setAllClientSOPs] = useState<SOP[]>([]); // All SOPs for this client (not filtered by detection type)
+  const [pendingRecordings, setPendingRecordings] = useState<Map<string, any>>(new Map()); // Map of alertId -> recording
+  const [startingCall, setStartingCall] = useState(false); // Loading state for start call button
 
   // Reset to first page when tab changes
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedTab]);
+
+  // Fetch recordings when alert is selected
+  useEffect(() => {
+    if (selectedAlert?.id) {
+      fetchRecordingsForAlert(selectedAlert.id);
+    }
+  }, [selectedAlert?.id]);
 
   // Debug alerts
   useEffect(() => {
@@ -393,6 +434,17 @@ export default function ClientDashboardPage() {
     if (clientId) {
       fetchAllSOPs();
     }
+  }, [clientId]);
+
+  useEffect(() => {
+    if (!clientId) return;
+  
+    fetch(`/api/sop-responses?clientId=${clientId}`)
+      .then(res => res.json())
+      .then(data => setSopResponses(Array.isArray(data) ? data : []))
+      .catch(err =>
+        console.error('Failed to fetch SOP responses:', err)
+      );
   }, [clientId]);
 
   // Fetch relevant SOPs when an alert is selected
@@ -542,6 +594,11 @@ export default function ClientDashboardPage() {
       return;
     }
 
+    if (startingCall) {
+      return; // Prevent multiple clicks
+    }
+
+    setStartingCall(true);
     try {
       // Create Google Meet recording record
       const response = await fetch('/api/google-meet/create-recording', {
@@ -555,24 +612,115 @@ export default function ClientDashboardPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create Google Meet recording');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create Google Meet recording');
       }
 
       const data = await response.json();
       const meetUrl = data.meetLink || data.recording?.meetingUrl;
+      const recording = data.recording;
 
-      if (meetUrl) {
-        // Open Google Meet in new tab
-        window.open(meetUrl, '_blank', 'noopener,noreferrer');
-        
-        // Show notification
-        toast.success('Google Meet opened. Remember to start recording!');
-      } else {
+      if (!meetUrl) {
         throw new Error('No meeting URL received');
       }
+
+      // Store the recording for this alert
+      if (recording && selectedAlert.id) {
+        setPendingRecordings(prev => {
+          const newMap = new Map(prev);
+          newMap.set(selectedAlert.id, recording);
+          return newMap;
+        });
+      }
+
+      // Try to open Google Meet in new tab
+      const meetWindow = window.open(meetUrl, '_blank', 'noopener,noreferrer');
+      
+      // Check if popup was blocked or failed to open
+      if (!meetWindow || meetWindow.closed || typeof meetWindow.closed === 'undefined') {
+        // Popup was blocked or failed
+        toast.error('Failed to open Google Meet. Please check your popup blocker settings.');
+        // Optionally cancel the recording if it failed to open
+        if (recording?.id) {
+          setTimeout(() => {
+            handleCancelRecording(recording.id, selectedAlert.id);
+          }, 2000); // Give user a chance to manually open the link
+        }
+        return;
+      }
+
+      // Show notification
+      toast.success('Google Meet opened. Remember to start recording!');
+      
+      // Refresh recordings after a delay
+      setTimeout(() => {
+        fetchRecordingsForAlert(selectedAlert.id);
+      }, 1000);
     } catch (error) {
       console.error('Failed to start Google Meet:', error);
-      toast.error('Failed to start Google Meet call');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start Google Meet call';
+      toast.error(errorMessage);
+    } finally {
+      setStartingCall(false);
+    }
+  };
+
+  const handleCancelRecording = async (recordingId: string, alertId: string) => {
+    try {
+      const response = await fetch(`/api/recordings/${recordingId}/cancel`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to cancel recording');
+      }
+
+      // Remove from pending recordings
+      setPendingRecordings(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(alertId);
+        return newMap;
+      });
+
+      toast.success('Recording cancelled successfully');
+    } catch (error) {
+      console.error('Failed to cancel recording:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to cancel recording';
+      toast.error(errorMessage);
+    }
+  };
+
+  const fetchRecordingsForAlert = async (alertId: string) => {
+    try {
+      const response = await fetch(`/api/recordings?alertId=${alertId}`);
+      if (response.ok) {
+        const recordings = await response.json(); // API returns array directly
+        
+        // Find pending recordings for this alert
+        const pending = recordings.find((r: any) => 
+          r.alertId === alertId && 
+          r.processingStatus === 'pending' &&
+          r.source === 'google_meet'
+        );
+        
+        if (pending) {
+          setPendingRecordings(prev => {
+            const newMap = new Map(prev);
+            newMap.set(alertId, pending);
+            return newMap;
+          });
+        } else {
+          // Remove from map if no longer pending
+          setPendingRecordings(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(alertId);
+            return newMap;
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch recordings:', error);
     }
   };
 
@@ -825,6 +973,10 @@ export default function ClientDashboardPage() {
                   onStartSOP={handleStartSOP}
                   staffId={currentUser?.id}
                   onGetNotesHelp={handleGetAlertNotesHelp}
+                  getSOPButtonLabel={getSOPButtonLabel}
+                  pendingRecording={selectedAlert ? pendingRecordings.get(selectedAlert.id) : null}
+                  onCancelRecording={handleCancelRecording}
+                  startingCall={startingCall}
                 />
               </CardContent>
             </Card>
@@ -919,9 +1071,19 @@ export default function ClientDashboardPage() {
                         size="sm" 
                         className="w-full justify-start border-gray-300 text-gray-700 hover:bg-gray-50"
                         onClick={handleStartCall}
+                        disabled={startingCall}
                       >
-                        <Phone className="w-3 h-3 mr-2" />
-                        Call Client
+                        {startingCall ? (
+                          <>
+                            <Loader className="w-3 h-3 mr-2 animate-spin" />
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <Phone className="w-3 h-3 mr-2" />
+                            Call Client
+                          </>
+                        )}
                       </Button>
                       <Button 
                         variant="outline" 
@@ -963,6 +1125,7 @@ export default function ClientDashboardPage() {
                           setSelectedSOPForResponse({ sopId: response.sopId, alertId: response.alertId });
                           setSopResponseDialogOpen(true);
                         }}
+                        style={{borderRadius: '5px'}}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-semibold text-sm">{response.sopName || 'SOP Response'}</h4>
@@ -1035,9 +1198,9 @@ export default function ClientDashboardPage() {
                             {sop.description && (
                               <p className="text-xs text-muted-foreground mb-2">{sop.description}</p>
                             )}
-                            <div className="text-xs text-muted-foreground">
+                            {/* <div className="text-xs text-muted-foreground">
                               Event Type: <span className="font-medium capitalize">{sop.eventType.replace(/_/g, ' ')}</span>
-                            </div>
+                            </div> */}
                           </div>
                           <Button
                             size="sm"

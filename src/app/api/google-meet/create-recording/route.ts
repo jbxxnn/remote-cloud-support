@@ -26,33 +26,49 @@ export async function POST(request: NextRequest) {
 
     const userId = (session.user as any).id;
 
-    // Generate Google Meet link
-    const meetLink = generateGoogleMeetLink({
-      alertId,
-      clientId,
-      staffId: userId,
-      sopResponseId,
-    });
-
-    // Create pending recording record
-    const result = await query(`
+    // Create pending recording record FIRST to get the recordingId
+    // We need the recordingId to include it in the meeting title
+    const recordingResult = await query(`
       INSERT INTO "Recording" (
         "alertId", "sopResponseId", "clientId", "recordingType",
-        "source", "meetingId", "meetingUrl", "processingStatus",
-        "recordedBy"
+        "source", "processingStatus", "recordedBy"
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
     `, [
       alertId || null,
       sopResponseId || null,
       clientId,
       'video', // Google Meet recordings are video
       'google_meet',
-      meetLink.meetingId,
-      meetLink.meetingUrl,
       'pending',
       userId
+    ]);
+
+    const recordingId = recordingResult.rows[0].id;
+
+    // Generate Google Meet link with recordingId in the title
+    // Format: "Support Call - Alert [alertId] - [recordingId]"
+    const meetLink = await generateGoogleMeetLink({
+      alertId,
+      clientId,
+      staffId: userId,
+      sopResponseId,
+      title: `Support Call - Alert ${alertId || 'N/A'} - ${recordingId}`,
+      description: `Support call for client ${clientId}`,
+    });
+
+    // Update recording with meeting details
+    const result = await query(`
+      UPDATE "Recording"
+      SET "meetingId" = $1, "meetingUrl" = $2, "calendarEventId" = $3
+      WHERE id = $4
+      RETURNING *
+    `, [
+      meetLink.meetingId,
+      meetLink.meetingUrl,
+      meetLink.calendarEventId || null,
+      recordingId
     ]);
 
     return NextResponse.json({

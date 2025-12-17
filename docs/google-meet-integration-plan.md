@@ -8,21 +8,32 @@ Integrate Google Meet recordings with the Gemini processing pipeline to automati
 ```
 Staff clicks "Start Call" in Alert Modal
     ↓
-Google Meet opens (via Google Meet API or direct link)
+Create Google Calendar event with Meet link (or generate Meet link)
     ↓
-Meeting is recorded (Google Meet Cloud Recording)
+Google Meet opens in new tab
     ↓
-Google Meet webhook notifies system when recording is ready
+Staff starts recording in Google Meet
     ↓
-System downloads recording from Google Drive
+Meeting ends → Google Meet saves to Drive:
+    - Video file (MP4)
+    - Transcript (Google Doc) ← AUTOMATIC!
     ↓
-Create Recording record (linked to alertId, sopResponseId)
+Google Drive webhook notifies system (or polling detects new files)
     ↓
-Auto-trigger Gemini Processing Pipeline
+System fetches from Google Drive:
+    1. Download video recording
+    2. Export transcript from Google Doc → text
     ↓
-Gemini generates transcript
+Create Recording record with:
+    - Video file URL/path
+    - Transcript text (from Google Doc)
+    - transcriptSource: 'google_meet'
     ↓
-Gemini extracts tags (tone, risk words, keywords)
+Skip transcription step (already have transcript!)
+    ↓
+Direct to Gemini tag extraction:
+    - Analyze transcript for tags
+    - Extract tone, risk words, keywords
     ↓
 Annotations created and linked to alert/SOP
     ↓
@@ -124,6 +135,14 @@ ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "meetingId" TEXT;
 ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "meetingUrl" TEXT;
 ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "processingStatus" TEXT DEFAULT 'pending';
 -- Values: 'pending', 'processing', 'completed', 'failed'
+ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "videoDriveFileId" TEXT;
+ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "transcriptDriveFileId" TEXT;
+ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "calendarEventId" TEXT;
+
+-- Add to Transcript table
+ALTER TABLE "Transcript" ADD COLUMN IF NOT EXISTS "transcriptSource" TEXT DEFAULT 'speech_to_text';
+-- Values: 'google_meet', 'manual', 'speech_to_text'
+ALTER TABLE "Transcript" ADD COLUMN IF NOT EXISTS "driveFileId" TEXT;
 ```
 
 ### 3. Google Meet Service
@@ -132,46 +151,86 @@ ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "processingStatus" TEXT DEFAULT
 
 **Functions:**
 - `generateMeetLink()` - Generate Google Meet link
-- `createMeetingWithRecording()` - Create meeting with recording enabled (API)
-- `getRecordingFromDrive()` - Fetch recording from Google Drive
+- `createMeetingWithRecording()` - Create meeting with recording enabled (Google Calendar API)
+- `getRecordingFromDrive()` - Fetch video recording from Google Drive
+- `getTranscriptFromDrive()` - Fetch and export transcript from Google Doc
 - `handleRecordingWebhook()` - Process webhook notifications
+
+### 3.1. Google Drive Service
+
+**File:** `src/lib/google-drive/drive-service.ts` (new)
+
+**Functions:**
+- `initializeDriveClient()` - Set up Google Drive API client
+- `listMeetRecordings()` - List Google Meet recordings in Drive
+- `downloadFile()` - Download file from Google Drive
+- `exportGoogleDoc()` - Export Google Doc to plain text
+- `findRecordingFiles()` - Find video and transcript files for a meeting
 
 ### 4. Auto-Processing Pipeline
 
-**File:** `src/app/api/recordings/route.ts`
+**File:** `src/app/api/recordings/route.ts` and `src/lib/gemini/recording-processor.ts`
 
 **Enhancement:**
 ```typescript
-// After creating recording record
-if (recording.source === 'google_meet' && recording.fileUrl) {
-  // Auto-trigger Gemini processing
-  await triggerGeminiProcessing(recording.id);
+// Processing logic for Google Meet recordings
+if (recording.source === 'google_meet') {
+  // Fetch from Google Drive
+  const videoFile = await downloadFromDrive(videoDriveFileId);
+  const transcriptDoc = await getGoogleDoc(transcriptDriveFileId);
+  const transcriptText = await exportGoogleDocToText(transcriptDoc);
+  
+  // Store transcript directly (no transcription needed!)
+  await createTranscript(recordingId, transcriptText, {
+    source: 'google_meet',
+    driveFileId: transcriptDriveFileId
+  });
+  
+  // Skip to Gemini analysis (no transcription step)
+  await generateTagsFromTranscript(transcriptId, transcriptText);
+  
+} else if (recording.source === 'manual') {
+  // Manual uploads still need transcription
+  const transcript = await transcribeRecording(file);
+  await generateTagsFromTranscript(transcriptId, transcript.text);
 }
 ```
 
 ### 5. Webhook Handler
 
-**File:** `src/app/api/google-meet/webhook/route.ts`
+**File:** `src/app/api/google-meet/webhook/route.ts` or `src/app/api/google-drive/webhook/route.ts`
 
 **Purpose:**
-- Receive notifications when Google Meet recording is ready
-- Download recording from Google Drive
-- Update Recording record
-- Trigger Gemini processing
+- Receive notifications when Google Drive files are created/updated
+- Filter for Google Meet recordings (video + transcript)
+- Match files to pending Recording records
+- Download video and transcript from Google Drive
+- Update Recording record with file URLs
+- Trigger Gemini processing (skipping transcription step)
 
 ## Environment Variables
 
 ```env
-# Google Meet API (if using full API)
+# Google Calendar API (for creating meetings with recording)
 GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret
 GOOGLE_REDIRECT_URI=https://your-domain.com/api/google-meet/callback
 
-# Google Drive API (for fetching recordings)
+# Google Drive API (for fetching recordings and transcripts)
 GOOGLE_DRIVE_API_KEY=your-api-key
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+# OR use OAuth2:
+GOOGLE_DRIVE_CLIENT_ID=your-drive-client-id
+GOOGLE_DRIVE_CLIENT_SECRET=your-drive-client-secret
+
+# Google Meet API (optional, for advanced features)
+GOOGLE_MEET_API_KEY=your-meet-api-key
 
 # Gemini API (already needed)
-GEMINI_API_KEY=your-gemini-key
+GEMINI_API_KEY=your-gemini-key 
+
+# Google Speech-to-Text (only needed for manual uploads)
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 ```
 
 ## MVP Implementation Steps
@@ -185,17 +244,26 @@ GEMINI_API_KEY=your-gemini-key
 6. Manual upload flow for recordings
 
 ### Phase 2: Auto-Processing (Week 2)
-1. Set up Gemini API integration
-2. Implement recording processor
+1. ✅ Set up Gemini API integration
+2. ✅ Implement recording processor
 3. Auto-trigger Gemini on recording upload
-4. Generate transcripts
-5. Extract basic tags
+4. **For Google Meet**: Use transcripts directly (no transcription needed)
+5. **For Manual Uploads**: Generate transcripts via Speech-to-Text
+6. Extract basic tags with Gemini
 
-### Phase 3: Google Drive Integration (Week 3)
-1. Set up Google Drive API
-2. Auto-fetch recordings from Google Drive
-3. Webhook handler for recording notifications
-4. Automatic processing pipeline
+### Phase 3: Google Drive Integration (Week 3) - **CURRENT FOCUS**
+1. Set up Google Drive API credentials and authentication
+2. Create Google Drive service to:
+   - List and search for Google Meet recordings
+   - Download video files from Drive
+   - Export Google Doc transcripts to text
+   - Match Drive files to Recording records
+3. Implement webhook handler for Drive file changes
+4. Update processing pipeline to:
+   - Skip transcription for Google Meet recordings
+   - Use Google Meet transcripts directly
+   - Only use Speech-to-Text for manual uploads
+5. Add database fields for Drive file IDs and transcript source
 
 ### Phase 4: Full API Integration (Future)
 1. Google Meet API setup
@@ -217,12 +285,22 @@ GEMINI_API_KEY=your-gemini-key
 9. Staff can use insights to resolve alert
 
 ### System Workflow:
+
+**For Google Meet Recordings:**
 1. Recording created → Status: "pending"
-2. Recording uploaded/fetched → Status: "processing"
-3. Gemini processes → Generates transcript
-4. Gemini analyzes → Extracts tags
-5. Annotations created → Status: "completed"
-6. Assistant can query → Provides insights
+2. Google Drive webhook/polling detects new files → Status: "processing"
+3. System fetches video and transcript from Drive
+4. Transcript stored directly (source: 'google_meet') → Skip transcription
+5. Gemini analyzes transcript → Extracts tags
+6. Annotations created → Status: "completed"
+7. Assistant can query → Provides insights
+
+**For Manual Uploads:**
+1. Recording uploaded → Status: "processing"
+2. Transcription via Speech-to-Text → Transcript created (source: 'speech_to_text')
+3. Gemini analyzes transcript → Extracts tags
+4. Annotations created → Status: "completed"
+5. Assistant can query → Provides insights
 
 ## Error Handling
 
@@ -264,9 +342,20 @@ GEMINI_API_KEY=your-gemini-key
 
 1. **Recording Creation**: 100% of Google Meet calls create recording records
 2. **Processing Success**: 95%+ of recordings successfully processed
-3. **Processing Time**: < 5 minutes from upload to transcript ready
-4. **Tag Accuracy**: Manual review of tag quality
-5. **User Adoption**: % of staff using Google Meet for alerts
+3. **Processing Time**: 
+   - Google Meet: < 2 minutes from Drive detection to transcript ready (no transcription needed)
+   - Manual Upload: < 5 minutes from upload to transcript ready
+4. **Cost Savings**: 100% reduction in Speech-to-Text API costs for Google Meet recordings
+5. **Tag Accuracy**: Manual review of tag quality
+6. **User Adoption**: % of staff using Google Meet for alerts
+
+## Key Benefits of This Approach
+
+1. **No Transcription Needed**: Google Meet automatically provides transcripts, saving time and API costs
+2. **Faster Processing**: Skip transcription step for Google Meet recordings (2-3 minutes faster)
+3. **Better Accuracy**: Google Meet transcripts are often more accurate than Speech-to-Text
+4. **Automatic**: No manual upload required - system automatically fetches from Drive
+5. **Cost Effective**: Only use Speech-to-Text API for manual uploads
 
 ## Next Steps
 

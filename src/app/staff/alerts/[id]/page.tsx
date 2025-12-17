@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import {
   ArrowLeft,
-  Loader2,
+  Loader,
   AlertTriangle,
   Clock,
   User,
@@ -77,13 +77,7 @@ export default function AlertDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
 
-  useEffect(() => {
-    if (alertId) {
-      fetchAlertDetails();
-    }
-  }, [alertId]);
-
-  const fetchAlertDetails = async () => {
+  const fetchAlertDetails = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -104,7 +98,13 @@ export default function AlertDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [alertId]);
+
+  useEffect(() => {
+    if (alertId) {
+      fetchAlertDetails();
+    }
+  }, [alertId, fetchAlertDetails]);
 
   const handleCopySummary = () => {
     navigator.clipboard.writeText(summary);
@@ -153,8 +153,17 @@ export default function AlertDetailPage() {
     return (
       <div className="flex h-screen">
         <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <HeaderBar
+            module="Loading Alert..."
+            activeAlerts={0}
+            staffOnline={0}
+            openSOPs={0}
+            onAssistantClick={() => setAssistantOpen(true)}
+          />
+          <div className="flex-1 flex items-center justify-center">
+            <Loader className="w-8 h-8 animate-spin text-primary" />
+          </div>
         </div>
       </div>
     );
@@ -164,15 +173,24 @@ export default function AlertDetailPage() {
     return (
       <div className="flex h-screen">
         <StaffSidebar user={undefined} stats={{ pendingEvents: 0, myQueue: 0, resolvedToday: 0 }} />
-        <div className="flex-1 flex items-center justify-center">
-          <Card className="w-96">
-            <CardContent className="p-6 text-center">
-              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">Error</h3>
-              <p className="text-muted-foreground mb-4">{error || "Alert not found"}</p>
-              <Button onClick={() => router.back()}>Go Back</Button>
-            </CardContent>
-          </Card>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <HeaderBar
+            module="Alert Error"
+            activeAlerts={0}
+            staffOnline={0}
+            openSOPs={0}
+            onAssistantClick={() => setAssistantOpen(true)}
+          />
+          <div className="flex-1 flex items-center justify-center">
+            <Card className="w-96">
+              <CardContent className="p-6 text-center">
+                <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Error</h3>
+                <p className="text-muted-foreground mb-4">{error || "Alert not found"}</p>
+                <Button onClick={() => router.back()}>Go Back</Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     );
@@ -196,7 +214,7 @@ export default function AlertDetailPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Link href={`/staff/client/${alert.clientId || ""}`}>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="default" size="sm" className="rounded-full">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Client
                   </Button>
@@ -223,7 +241,7 @@ export default function AlertDetailPage() {
               <div className="lg:col-span-2 space-y-6">
                 {/* Alert Information */}
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="p-2 px-4 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
                     <CardTitle>Alert Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -263,7 +281,7 @@ export default function AlertDetailPage() {
                     </div>
                     {alert.clipUrl && (
                       <div>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="default" size="sm" asChild className="rounded-full">
                           <a href={alert.clipUrl} target="_blank" rel="noopener noreferrer">
                             View Clip
                           </a>
@@ -275,7 +293,7 @@ export default function AlertDetailPage() {
 
                 {/* Activity Timeline */}
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="p-2 px-4 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
                     <CardTitle>Activity Timeline</CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -314,13 +332,13 @@ export default function AlertDetailPage() {
                 {/* SOP Responses */}
                 {sopResponses.length > 0 && (
                   <Card>
-                    <CardHeader>
+                    <CardHeader className="p-2 px-4 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
                       <CardTitle>SOP Responses</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
                         {sopResponses.map((sop) => (
-                          <div key={sop.id} className="p-3 border rounded-lg">
+                          <div key={sop.id} className="p-3 border rounded-sm" style={{borderRadius: '10px'}}>
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="font-medium">{sop.sopName}</h4>
                               <Badge
@@ -358,7 +376,7 @@ export default function AlertDetailPage() {
               {/* Summary Sidebar */}
               <div className="space-y-6">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="p-2 px-4 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
                     <div className="flex items-center justify-between">
                       <CardTitle>Summary</CardTitle>
                       <div className="flex gap-2">

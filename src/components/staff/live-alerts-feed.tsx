@@ -363,7 +363,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 text-xs"
+                    className="h-7 px-2 text-xs rounded-full"
                     onClick={(e) => handleQuickResolve(e, alert)}
                     disabled={!!actionLoading[alert.id]}
                   >

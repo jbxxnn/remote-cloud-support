@@ -11,7 +11,7 @@ ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "meetingUrl" TEXT;
 
 -- Add processing status for Gemini processing
 ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "processingStatus" TEXT DEFAULT 'pending';
--- Values: 'pending', 'processing', 'completed', 'failed'
+-- Values: 'pending', 'processing', 'completed', 'failed', 'cancelled'
 
 -- Add index for processing status
 CREATE INDEX IF NOT EXISTS idx_recording_processing_status ON "Recording"("processingStatus");
@@ -21,5 +21,5 @@ CREATE INDEX IF NOT EXISTS idx_recording_source ON "Recording"("source");
 COMMENT ON COLUMN "Recording"."source" IS 'Source of recording: manual, google_meet, phone, screen';
 COMMENT ON COLUMN "Recording"."meetingId" IS 'Google Meet meeting ID (if source is google_meet)';
 COMMENT ON COLUMN "Recording"."meetingUrl" IS 'Google Meet meeting URL (if source is google_meet)';
-COMMENT ON COLUMN "Recording"."processingStatus" IS 'Status of Gemini processing: pending, processing, completed, failed';
+COMMENT ON COLUMN "Recording"."processingStatus" IS 'Status of Gemini processing: pending, processing, completed, failed, cancelled';
 

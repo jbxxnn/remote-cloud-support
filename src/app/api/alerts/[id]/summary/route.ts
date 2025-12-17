@@ -127,7 +127,8 @@ export async function GET(
     const summaryParts: string[] = [];
 
     // Alert header
-    summaryParts.push(`ALERT SUMMARY: ${alert.message}`);
+    summaryParts.push("ALERT SUMMARY:");
+    summaryParts.push(`${alert.message}`);
     summaryParts.push(`Status: ${alert.status.toUpperCase()}`);
     summaryParts.push(`Created: ${new Date(alert.createdAt).toLocaleString()}`);
 
@@ -137,7 +138,7 @@ export async function GET(
 
     // Detection details
     if (alert.detectionType) {
-      summaryParts.push(`\nDETECTION DETAILS:`);
+      summaryParts.push(`\n\nDETECTION DETAILS:`);
       summaryParts.push(`Type: ${alert.detectionType.replace(/_/g, " ")}`);
       if (alert.severity) {
         summaryParts.push(`Severity: ${alert.severity.toUpperCase()}`);
@@ -152,7 +153,7 @@ export async function GET(
 
     // Activity timeline
     if (eventsResult.rows.length > 0) {
-      summaryParts.push(`\nACTIVITY TIMELINE:`);
+      summaryParts.push(`\n\nACTIVITY TIMELINE:`);
       eventsResult.rows.forEach((event: any) => {
         const timestamp = new Date(event.createdAt).toLocaleString();
         const eventType = event.eventType.replace(/_/g, " ").toUpperCase();
@@ -176,7 +177,7 @@ export async function GET(
 
     // SOP responses
     if (sopResponsesResult.rows.length > 0) {
-      summaryParts.push(`\nSOP RESPONSES:`);
+      summaryParts.push(`\n\nSOP RESPONSES:`);
       sopResponsesResult.rows.forEach((sop: any) => {
         summaryParts.push(`- ${sop.sopName} (${sop.status})`);
         summaryParts.push(`  Started: ${new Date(sop.startedAt).toLocaleString()}`);
@@ -194,9 +195,9 @@ export async function GET(
 
     // Recordings with AI annotations
     if (recordingsWithData.length > 0) {
-      summaryParts.push(`\nRECORDINGS & AI ANALYSIS:`);
+      summaryParts.push(`\n\nRECORDINGS & AI ANALYSIS:`);
       recordingsWithData.forEach((recording: any) => {
-        summaryParts.push(`\nRecording: ${recording.fileName || recording.recordingType} (${new Date(recording.createdAt).toLocaleString()})`);
+        summaryParts.push(`Rec: ${recording.fileName || recording.recordingType} (${new Date(recording.createdAt).toLocaleString()})`);
         
         // Tag analysis
         if (recording.tagAnalysis) {
@@ -232,11 +233,12 @@ export async function GET(
         if (recording.transcript) {
           const transcriptText = recording.transcript.text;
           // Get first 200 characters as excerpt
-          const excerpt = transcriptText.length > 200 
-            ? transcriptText.substring(0, 200) + '...'
+          const excerpt = transcriptText.length > 800 
+            ? transcriptText.substring(0, 800) + '...'
             : transcriptText;
-          summaryParts.push(`  Transcript Excerpt: "${excerpt}"`);
-          summaryParts.push(`  (Confidence: ${(recording.transcript.confidence * 100).toFixed(0)}%)`);
+          summaryParts.push(`\n\nTRANSCRIPT EXCERPT:`);
+          summaryParts.push(`\n"${excerpt}"\n`);
+          // summaryParts.push(`  (Confidence: ${(recording.transcript.confidence * 100).toFixed(0)}%)`);
         }
 
         // Escalation Detection

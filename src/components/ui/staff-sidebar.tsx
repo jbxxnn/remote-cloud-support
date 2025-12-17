@@ -147,7 +147,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
           asChild
           {...props}
         >
-          <a href={href} className="flex items-center w-full">
+          <Link href={href} className="flex items-center w-full">
             <div className={cn(
               "absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full transition-all duration-200",
               active ? "bg-primary opacity-100" : "bg-transparent opacity-0 group-hover:opacity-30"
@@ -171,7 +171,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
                 {badge > 99 ? "99+" : badge}
               </Badge>
             )}
-          </a>
+          </Link>
         </Button>
       );
 
