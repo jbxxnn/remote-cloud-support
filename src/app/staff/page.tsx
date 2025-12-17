@@ -12,7 +12,7 @@ export default async function StaffPage() {
 
   // Check if user has staff role
   if ((session.user as any).role !== "staff") {
-    redirect("/admin"); // Redirect to admin if not staff
+    redirect("/admin"); // Redirect to admin if not staff.
   }
 
   return <StaffDashboard user={session.user} />;
