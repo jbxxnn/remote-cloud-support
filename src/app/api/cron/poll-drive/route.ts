@@ -10,7 +10,7 @@ import { pollForNewRecordings } from "@/lib/google-drive/polling-service";
  * {
  *   "crons": [{
  *     "path": "/api/cron/poll-drive",
- *     "schedule": "*/5 * * * *"
+ *     "schedule": "*\/5 * * * *"
  *   }]
  * }
  * 
