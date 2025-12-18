@@ -55,9 +55,12 @@ async function poll() {
       console.log(`   ℹ️  No pending recordings found`);
     }
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error polling:`, error.message);
-    if (error.stack) {
-      console.error(error.stack);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error(`[${new Date().toISOString()}] ❌ Error polling:`, errorMessage);
+    if (errorStack) {
+      console.error(errorStack);
     }
   }
 }
