@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Keep Prisma client generated files
 !node_modules/.prisma/client
+
+# logs
+/logs/

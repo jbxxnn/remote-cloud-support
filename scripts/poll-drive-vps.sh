@@ -15,16 +15,8 @@ PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 # Change to project directory
 cd "$PROJECT_DIR" || exit 1
 
-# Load environment variables from .env.local
-if [ -f .env.local ]; then
-    export $(cat .env.local | grep -v '^#' | xargs)
-fi
-
-# Check if DATABASE_URL is set
-if [ -z "$DATABASE_URL" ]; then
-    echo "ERROR: DATABASE_URL is not set"
-    exit 1
-fi
+# Note: Environment variables are loaded by the TypeScript script using dotenv
+# No need to export them here since tsx will handle it
 
 # Check if Node.js is available
 if ! command -v node &> /dev/null; then

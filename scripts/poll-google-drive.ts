@@ -14,13 +14,24 @@
 import dotenv from 'dotenv';
 import { resolve } from 'path';
 
-// Load .env.local file explicitly
-dotenv.config({ path: resolve(process.cwd(), '.env.local') });
+// Load environment variables (try .env.local first, then .env.production, then .env)
+const envFiles = ['.env.local', '.env.production', '.env'];
+let envLoaded = false;
+
+for (const envFile of envFiles) {
+  const envPath = resolve(process.cwd(), envFile);
+  const result = dotenv.config({ path: envPath });
+  if (!result.error) {
+    envLoaded = true;
+    console.log(`Loaded environment from ${envFile}`);
+    break;
+  }
+}
 
 // Verify DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
-  console.error('❌ ERROR: DATABASE_URL is not set in .env.local');
-  console.error('Please add DATABASE_URL to your .env.local file:');
+  console.error('❌ ERROR: DATABASE_URL is not set');
+  console.error('Please add DATABASE_URL to your .env.local, .env.production, or .env file:');
   console.error('DATABASE_URL=postgresql://user:password@host:port/database');
   process.exit(1);
 }
