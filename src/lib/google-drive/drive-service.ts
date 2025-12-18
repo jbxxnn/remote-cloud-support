@@ -180,9 +180,9 @@ export async function findRecordingFiles(
         mimeType: videoFile.mimeType!,
         createdTime: videoFile.createdTime || videoFile.modifiedTime || '',
         modifiedTime: videoFile.modifiedTime || '',
-        size: videoFile.size,
-        webViewLink: videoFile.webViewLink,
-        webContentLink: videoFile.webContentLink,
+        size: videoFile.size ?? undefined,
+        webViewLink: videoFile.webViewLink ?? undefined,
+        webContentLink: videoFile.webContentLink ?? undefined,
       };
       console.log(`[Drive] Found video file: ${videoFile.name}`);
     }
@@ -328,8 +328,9 @@ export async function findRecordingFiles(
           mimeType: transcriptFile.mimeType!,
           createdTime: transcriptFile.createdTime || transcriptFile.modifiedTime || '',
           modifiedTime: transcriptFile.modifiedTime || '',
-          size: transcriptFile.size,
-          webViewLink: transcriptFile.webViewLink,
+          size: transcriptFile.size ?? undefined,
+          webViewLink: transcriptFile.webViewLink ?? undefined,
+          webContentLink: transcriptFile.webContentLink ?? undefined,
         };
         console.log(`[Drive] ✅ Selected transcript file: ${transcriptFile.name}`);
       }
