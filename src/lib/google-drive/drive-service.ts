@@ -249,75 +249,69 @@ export async function findRecordingFiles(
       
       let transcriptFile: typeof transcriptResponse.data.files[0] | undefined;
       
-      // Priority 1: Files with "Notes by Gemini" AND recordingId in name (most precise)
+      // STRICT MATCHING: If recordingId is provided, ONLY match files that contain it
+      // No fallbacks, no time filters - exact match only
       if (recordingId) {
         transcriptFile = transcriptResponse.data.files.find(
           file => file.name?.includes('Notes by Gemini') && 
                   file.name?.includes(recordingId)
         );
         if (transcriptFile) {
-          console.log(`[Drive] Found transcript (Priority 1 - Notes by Gemini + recordingId): ${transcriptFile.name}`);
+          console.log(`[Drive] Found transcript (exact match - Notes by Gemini + recordingId): ${transcriptFile.name}`);
+        } else {
+          console.log(`[Drive] No transcript found with recordingId: ${recordingId}. File may not be created yet.`);
         }
-      }
-      
-      // Priority 2: Files with "Notes by Gemini" AND alertId in name (fallback for old files)
-      if (!transcriptFile && alertId) {
-        transcriptFile = transcriptResponse.data.files.find(
-          file => file.name?.includes('Notes by Gemini') && 
-                  file.name?.toLowerCase().includes(alertId.toLowerCase())
-        );
-        if (transcriptFile) {
-          console.log(`[Drive] Found transcript (Priority 2 - Notes by Gemini + alertId): ${transcriptFile.name}`);
+      } else {
+        // Fallback matching only when NO recordingId is provided (for legacy/old recordings)
+        // Priority 1: Files with "Notes by Gemini" AND alertId in name
+        if (alertId) {
+          transcriptFile = transcriptResponse.data.files.find(
+            file => file.name?.includes('Notes by Gemini') && 
+                    file.name?.toLowerCase().includes(alertId.toLowerCase())
+          );
+          if (transcriptFile) {
+            console.log(`[Drive] Found transcript (Priority 1 - Notes by Gemini + alertId): ${transcriptFile.name}`);
+          }
         }
-      }
-      
-      // Priority 3: Files with "Notes by Gemini" in name
-      if (!transcriptFile) {
-        transcriptFile = transcriptResponse.data.files.find(
-          file => file.name?.includes('Notes by Gemini')
-        );
-        if (transcriptFile) {
-          console.log(`[Drive] Found transcript (Priority 3 - Notes by Gemini): ${transcriptFile.name}`);
+        
+        // Priority 2: Files with "Notes by Gemini" in name (only if no recordingId)
+        if (!transcriptFile) {
+          transcriptFile = transcriptResponse.data.files.find(
+            file => file.name?.includes('Notes by Gemini')
+          );
+          if (transcriptFile) {
+            console.log(`[Drive] Found transcript (Priority 2 - Notes by Gemini): ${transcriptFile.name}`);
+          }
         }
-      }
 
-      // Priority 4: Files with recordingId in name (case-sensitive, exact match)
-      if (!transcriptFile && recordingId) {
-        transcriptFile = transcriptResponse.data.files.find(
-          file => file.name?.includes(recordingId)
-        );
-        if (transcriptFile) {
-          console.log(`[Drive] Found transcript (Priority 4 - recordingId match): ${transcriptFile.name}`);
+        // Priority 3: Files with alertId in name (case-insensitive)
+        if (!transcriptFile && alertId) {
+          transcriptFile = transcriptResponse.data.files.find(
+            file => file.name?.toLowerCase().includes(alertId.toLowerCase())
+          );
+          if (transcriptFile) {
+            console.log(`[Drive] Found transcript (Priority 3 - alertId match): ${transcriptFile.name}`);
+          }
         }
-      }
 
-      // Priority 5: Files with alertId in name (case-insensitive)
-      if (!transcriptFile && alertId) {
-        transcriptFile = transcriptResponse.data.files.find(
-          file => file.name?.toLowerCase().includes(alertId.toLowerCase())
-        );
-        if (transcriptFile) {
-          console.log(`[Drive] Found transcript (Priority 5 - alertId match): ${transcriptFile.name}`);
+        // Priority 4: Files with "transcript", "meeting", or "notes" in name
+        if (!transcriptFile) {
+          transcriptFile = transcriptResponse.data.files.find(
+            file => file.name?.toLowerCase().includes('transcript') ||
+                    file.name?.toLowerCase().includes('meeting') ||
+                    file.name?.toLowerCase().includes('notes')
+          );
+          if (transcriptFile) {
+            console.log(`[Drive] Found transcript (Priority 4 - keyword match): ${transcriptFile.name}`);
+          }
         }
-      }
 
-      // Priority 6: Files with "transcript", "meeting", or "notes" in name
-      if (!transcriptFile) {
-        transcriptFile = transcriptResponse.data.files.find(
-          file => file.name?.toLowerCase().includes('transcript') ||
-                  file.name?.toLowerCase().includes('meeting') ||
-                  file.name?.toLowerCase().includes('notes')
-        );
-        if (transcriptFile) {
-          console.log(`[Drive] Found transcript (Priority 6 - keyword match): ${transcriptFile.name}`);
-        }
-      }
-
-      // Priority 7: Most recent file in time window
-      if (!transcriptFile) {
-        transcriptFile = transcriptResponse.data.files[0];
-        if (transcriptFile) {
-          console.log(`[Drive] Using most recent file (Priority 7 - fallback): ${transcriptFile.name}`);
+        // Priority 5: Most recent file in time window
+        if (!transcriptFile) {
+          transcriptFile = transcriptResponse.data.files[0];
+          if (transcriptFile) {
+            console.log(`[Drive] Using most recent file (Priority 5 - fallback): ${transcriptFile.name}`);
+          }
         }
       }
 
