@@ -76,19 +76,30 @@ async function poll() {
   }
 }
 
+// Check if running in non-interactive mode (e.g., from cron)
+const isNonInteractive = !process.stdin.isTTY || process.env.CRON === '1';
+
 // Poll immediately
-poll();
+poll().then(() => {
+  if (isNonInteractive) {
+    // Exit after one run when called from cron
+    console.log('Exiting (non-interactive mode)');
+    process.exit(0);
+  } else {
+    // Interactive mode: continue polling at intervals
+    const interval = setInterval(poll, POLL_INTERVAL_MINUTES * 60 * 1000);
+    console.log(`Polling started. Will check every ${POLL_INTERVAL_MINUTES} minutes.`);
+    console.log('Press Ctrl+C to stop.');
 
-// Then poll at intervals
-const interval = setInterval(poll, POLL_INTERVAL_MINUTES * 60 * 1000);
-
-console.log(`Polling started. Will check every ${POLL_INTERVAL_MINUTES} minutes.`);
-console.log('Press Ctrl+C to stop.');
-
-// Handle graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\nStopping polling...');
-  clearInterval(interval);
-  process.exit(0);
+    // Handle graceful shutdown
+    process.on('SIGINT', () => {
+      console.log('\nStopping polling...');
+      clearInterval(interval);
+      process.exit(0);
+    });
+  }
+}).catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
 });
 

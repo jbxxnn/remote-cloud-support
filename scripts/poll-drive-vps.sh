@@ -34,9 +34,9 @@ else
     exit 1
 fi
 
-# Run the polling script
+# Run the polling script (set CRON=1 to indicate non-interactive mode)
 echo "[$(date -Iseconds)] Starting Google Drive polling..."
-$TSX_CMD scripts/poll-google-drive.ts
+CRON=1 $TSX_CMD scripts/poll-google-drive.ts
 
 EXIT_CODE=$?
 
