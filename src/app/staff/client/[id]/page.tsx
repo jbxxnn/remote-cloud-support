@@ -1346,7 +1346,7 @@ export default function ClientDashboardPage() {
 
               <div className="pt-2 border-t">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Tip:</strong> To allow popups automatically, check your browser's popup blocker settings 
+                  <strong>Tip:</strong> To allow popups automatically, check your browser&apos;s popup blocker settings 
                   and allow popups for this site.
                 </p>
               </div>
