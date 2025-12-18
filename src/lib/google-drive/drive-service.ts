@@ -101,9 +101,9 @@ export async function listMeetRecordings(
       mimeType: file.mimeType!,
       createdTime: file.createdTime || file.modifiedTime || '',
       modifiedTime: file.modifiedTime || '',
-      size: file.size,
-      webViewLink: file.webViewLink,
-      webContentLink: file.webContentLink,
+      size: file.size ?? undefined,
+      webViewLink: file.webViewLink ?? undefined,
+      webContentLink: file.webContentLink ?? undefined,
     }));
   } catch (error) {
     console.error('Error listing Meet recordings:', error);
@@ -677,9 +677,9 @@ export async function getFileMetadata(fileId: string): Promise<DriveFile> {
       mimeType: file.mimeType!,
       createdTime: file.createdTime || file.modifiedTime || '',
       modifiedTime: file.modifiedTime || '',
-      size: file.size,
-      webViewLink: file.webViewLink,
-      webContentLink: file.webContentLink,
+      size: file.size ?? undefined,
+      webViewLink: file.webViewLink ?? undefined,
+      webContentLink: file.webContentLink ?? undefined,
     };
   } catch (error) {
     console.error('Error getting file metadata:', error);
