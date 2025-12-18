@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play, X, Loader, PlayCircle, HelpCircle } from "lucide-react";
+import { AlertTriangle, FileText, Phone, CheckCircle, ArrowLeft, Play, X, Loader, PlayCircle, HelpCircle, Copy, ExternalLink } from "lucide-react";
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
 import { HeaderBar } from "@/components/layout/header-bar";
 import { AssistantIcon } from "@/components/assistant/assistant-icon";
@@ -330,6 +330,8 @@ export default function ClientDashboardPage() {
   const [allClientSOPs, setAllClientSOPs] = useState<SOP[]>([]); // All SOPs for this client (not filtered by detection type)
   const [pendingRecordings, setPendingRecordings] = useState<Map<string, any>>(new Map()); // Map of alertId -> recording
   const [startingCall, setStartingCall] = useState(false); // Loading state for start call button
+  const [popupBlockedDialogOpen, setPopupBlockedDialogOpen] = useState(false); // Dialog for popup blocker
+  const [blockedMeetingUrl, setBlockedMeetingUrl] = useState<string | null>(null); // URL to show when popup is blocked
 
   // Reset to first page when tab changes
   useEffect(() => {
@@ -638,14 +640,10 @@ export default function ClientDashboardPage() {
       
       // Check if popup was blocked or failed to open
       if (!meetWindow || meetWindow.closed || typeof meetWindow.closed === 'undefined') {
-        // Popup was blocked or failed
-        toast.error('Failed to open Google Meet. Please check your popup blocker settings.');
-        // Optionally cancel the recording if it failed to open
-        if (recording?.id) {
-          setTimeout(() => {
-            handleCancelRecording(recording.id, selectedAlert.id);
-          }, 2000); // Give user a chance to manually open the link
-        }
+        // Popup was blocked - show dialog with instructions
+        setBlockedMeetingUrl(meetUrl);
+        setPopupBlockedDialogOpen(true);
+        // Don't cancel recording - let user manually open the link
         return;
       }
 
@@ -1285,6 +1283,93 @@ export default function ClientDashboardPage() {
                 onComplete={handleSOPResponseComplete}
               />
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Popup Blocker Dialog */}
+        <Dialog open={popupBlockedDialogOpen} onOpenChange={setPopupBlockedDialogOpen}>
+          <DialogContent className="max-w-md" style={{borderRadius: '10px'}}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                Popup Blocked
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Your browser blocked the Google Meet window from opening. Please use one of the options below:
+              </p>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium mb-1">Option 1: Click the link below</p>
+                    <a 
+                      href={blockedMeetingUrl || '#'} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm break-all flex items-center gap-1"
+                    >
+                      {blockedMeetingUrl}
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium mb-1">Option 2: Copy and paste the link</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={blockedMeetingUrl || ''}
+                        className="flex-1 text-xs p-2 bg-background border rounded"
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          if (blockedMeetingUrl) {
+                            await navigator.clipboard.writeText(blockedMeetingUrl);
+                            toast.success('Link copied to clipboard!');
+                          }
+                        }}
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground">
+                  <strong>Tip:</strong> To allow popups automatically, check your browser's popup blocker settings 
+                  and allow popups for this site.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setPopupBlockedDialogOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (blockedMeetingUrl) {
+                      window.open(blockedMeetingUrl, '_blank', 'noopener,noreferrer');
+                      setPopupBlockedDialogOpen(false);
+                    }
+                  }}
+                >
+                  Open Meeting <ExternalLink className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
