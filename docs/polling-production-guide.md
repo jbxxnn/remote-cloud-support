@@ -56,9 +56,10 @@ This project supports **dual deployment** (Vercel + VPS). The distributed lockin
 
 ### Choosing Your Polling Platform
 
-**Recommendation**: Choose ONE platform as the primary polling source to avoid unnecessary API calls:
-- **Vercel**: Use if Vercel is your primary deployment
-- **VPS**: Use if VPS is your primary deployment or you need more control
+**Recommendation**: 
+- **VPS (Recommended)**: Use VPS for polling - no plan limitations, full control
+- **Vercel Pro/Enterprise**: Can use Vercel Cron if you're on Pro plan and want automated polling
+- **Vercel Hobby**: **Must use VPS** - Hobby plan only allows 2 cron jobs total and once-per-day execution
 
 **Both can run simultaneously** - the locking mechanism prevents duplicate processing, but running both increases API usage unnecessarily.
 
@@ -75,12 +76,29 @@ If you want to disable polling on a specific platform:
 - Stop the systemd timer: `sudo systemctl stop poll-drive.timer`
 - Stop PM2 cron: `pm2 delete poll-drive`
 
-### Option 1: Vercel Cron (Vercel Deployment)
+### Option 1: Vercel Cron (Vercel Pro/Enterprise Only)
 
-The service includes a Vercel Cron endpoint that runs automatically:
+⚠️ **Important**: Vercel Cron Jobs have plan limitations:
+
+- **Hobby Plan**: 
+  - Only 2 cron jobs **total** (across all projects)
+  - Cron jobs can only trigger **once per day** (not every 5 minutes)
+  - **Not suitable for frequent polling**
+- **Pro Plan**: 
+  - 40 cron jobs per account
+  - Unlimited invocations
+  - Can run every 5 minutes ✅
+- **Enterprise Plan**: 
+  - 100 cron jobs per account
+  - Unlimited invocations
+
+**Recommendation**: If you're on Hobby plan, use **VPS for polling** instead (see Option 2).
+
+#### Enabling Vercel Cron (Pro/Enterprise Only)
+
+1. Uncomment the cron configuration in `vercel.json`:
 
 ```json
-// vercel.json
 {
   "crons": [
     {
@@ -91,16 +109,16 @@ The service includes a Vercel Cron endpoint that runs automatically:
 }
 ```
 
-**Security**: Protect the cron endpoint with a secret:
+2. Set `CRON_SECRET` in Vercel environment variables:
 
 ```bash
-# .env.local (Vercel Environment Variables)
+# Vercel Dashboard > Settings > Environment Variables
 CRON_SECRET=your-secret-key-here
 ```
 
 The endpoint will verify the `Authorization: Bearer <CRON_SECRET>` header.
 
-**To disable on Vercel**: Remove the cron entry from `vercel.json` or set `CRON_SECRET` to an invalid value.
+**To disable**: Comment out the cron entry in `vercel.json` or remove it.
 
 ### Option 2: VPS Cron Job (VPS Deployment)
 
@@ -333,8 +351,9 @@ Transient errors (429, 503, 500) are automatically retried:
 ## Production Checklist
 
 ### For Vercel Deployment
-- [ ] Set `CRON_SECRET` environment variable in Vercel dashboard
-- [ ] Configure Vercel Cron schedule in `vercel.json`
+- [ ] **Check your Vercel plan** - Cron jobs require Pro plan for frequent polling
+- [ ] If on Hobby plan: **Use VPS for polling instead** (recommended)
+- [ ] If on Pro/Enterprise: Uncomment cron in `vercel.json` and set `CRON_SECRET`
 - [ ] Verify cron job is running (check Vercel logs)
 
 ### For VPS Deployment
