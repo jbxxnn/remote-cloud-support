@@ -10,7 +10,7 @@ import { query } from "@/lib/database";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   
@@ -19,7 +19,7 @@ export async function POST(
   }
 
   try {
-    const recordingId = params.id;
+    const { id: recordingId } = await params;
 
     if (!recordingId) {
       return NextResponse.json({ error: "Recording ID is required" }, { status: 400 });
