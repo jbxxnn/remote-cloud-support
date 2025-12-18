@@ -13,13 +13,18 @@ ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "meetingUrl" TEXT;
 ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "processingStatus" TEXT DEFAULT 'pending';
 -- Values: 'pending', 'processing', 'completed', 'failed', 'cancelled'
 
+-- Add lastPolledAt for distributed locking in polling service
+ALTER TABLE "Recording" ADD COLUMN IF NOT EXISTS "lastPolledAt" TIMESTAMP;
+
 -- Add index for processing status
 CREATE INDEX IF NOT EXISTS idx_recording_processing_status ON "Recording"("processingStatus");
 CREATE INDEX IF NOT EXISTS idx_recording_source ON "Recording"("source");
+CREATE INDEX IF NOT EXISTS idx_recording_last_polled_at ON "Recording"("lastPolledAt");
 
 -- Add comments
 COMMENT ON COLUMN "Recording"."source" IS 'Source of recording: manual, google_meet, phone, screen';
 COMMENT ON COLUMN "Recording"."meetingId" IS 'Google Meet meeting ID (if source is google_meet)';
 COMMENT ON COLUMN "Recording"."meetingUrl" IS 'Google Meet meeting URL (if source is google_meet)';
 COMMENT ON COLUMN "Recording"."processingStatus" IS 'Status of Gemini processing: pending, processing, completed, failed, cancelled';
+COMMENT ON COLUMN "Recording"."lastPolledAt" IS 'Timestamp when this recording was last checked by the polling service (for distributed locking)';
 
