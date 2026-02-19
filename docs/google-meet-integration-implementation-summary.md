@@ -164,3 +164,4 @@ GOOGLE_CALENDAR_REFRESH_TOKEN=your-refresh-token
 - [ ] Transcripts are stored with correct source
 - [ ] Gemini tag extraction works with Google Meet transcripts
 
+

@@ -25,3 +25,4 @@ COMMENT ON COLUMN "Recording"."calendarEventId" IS 'Google Calendar event ID (if
 COMMENT ON COLUMN "Transcript"."transcriptSource" IS 'Source of transcript: google_meet, manual, speech_to_text';
 COMMENT ON COLUMN "Transcript"."driveFileId" IS 'Google Drive file ID if transcript came from Drive';
 
+

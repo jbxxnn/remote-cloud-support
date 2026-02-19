@@ -8,6 +8,13 @@ import { Separator } from "./separator"
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar"
 import { Badge } from "./badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./dialog"
 import { RCELogo } from "@/components/layout/rce-logo"
 import { 
   Users, 
@@ -31,7 +38,7 @@ import {
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { AlertCircleIcon, CallIcon, ChartRadarIcon, Doc01Icon, File01Icon, MessageMultiple01Icon, TransactionHistoryIcon, UserMultipleIcon, Video02Icon, HelpCircleIcon, Clock05Icon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, CallIcon, ChartRadarIcon, Doc01Icon, File01Icon, MessageMultiple01Icon, TransactionHistoryIcon, UserMultipleIcon, Video02Icon, HelpCircleIcon, Clock05Icon, User02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 interface StaffSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -55,6 +62,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
   ({ className, user, stats, ...props }, ref) => {
     const pathname = usePathname();
     const [currentHash, setCurrentHash] = useState<string>("");
+    const [aSuggestionModalOpen, setASuggestionModalOpen] = useState(false);
     const [liveStats, setLiveStats] = useState(stats || {
       activeAlerts: 0,
       scheduledAlerts: 0,
@@ -267,6 +275,41 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
               tooltip="Ask SupportSense: Show me all active clients"
             />
 
+<Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-start group relative transition-all duration-200",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    "rounded-lg"
+                  )}
+                  style={{ borderRadius: '10px' }}
+                  onClick={() => setASuggestionModalOpen(true)}
+                >
+                  <div className={cn(
+                    "absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full transition-all duration-200",
+                    "bg-transparent opacity-0 group-hover:opacity-30"
+                  )} />
+                  <HugeiconsIcon icon={UserMultipleIcon} className={cn(
+                    "w-4 h-4 transition-all duration-200 flex-shrink-0",
+                    "text-muted-foreground group-hover:text-foreground",
+                    "group-hover:scale-110"
+                  )} />
+                  <span className="flex-1 text-left text-sm font-medium">aSuggestion</span>
+                  <Badge
+                    variant="destructive"
+                    className="ml-auto text-xs w-2 h-auto flex items-center justify-center"
+                  >
+                    1
+                  </Badge>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                Ask SupportSense: Show me all alerts from aSuggestion
+              </TooltipContent>
+            </Tooltip>
+
             <div className="!my-3">
             <Separator className="opacity-50" />
             </div>
@@ -374,6 +417,54 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
           </div>
         </div>
       </div>
+
+        {/* aSuggestion Modal */}
+        <Dialog open={aSuggestionModalOpen} onOpenChange={setASuggestionModalOpen}>
+          <DialogContent className="max-w-md" style={{ borderRadius: '10px' }}>
+            <DialogHeader>
+              <DialogTitle>aSuggestion</DialogTitle>
+              <DialogDescription>
+                Alerts flagged from aSuggestion.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              {/* Mock alert: Bowa flagged */}
+              <a
+                href="https://next.asuggestion.com/admin/organizations/1/rooms/healthy-eating-living-1/posts/meditation?highlight_id=-4200687001303592873#comments-section"
+                rel="noopener noreferrer"
+                onClick={() => setASuggestionModalOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-lg border border-destructive/50",
+                  "bg-primary-foreground hover:bg-secondary transition-colors",
+                  "cursor-pointer text-left"
+                )}
+                style={{ borderRadius: '10px' }}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/20">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="flex items-center gap-2">
+                    <HugeiconsIcon icon={User02Icon} className="h-3 w-3 text-muted-foreground"/>
+                    <p className="text-sm font-semibold text-foreground">Bowa</p>
+                  </span>
+                  <span className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">Flagged</p>
+                  <p className="text-xs text-muted-foreground">25/09/2025</p>
+                  </span>
+                </div>
+              </a>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setASuggestionModalOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </TooltipProvider>
     )
   }
