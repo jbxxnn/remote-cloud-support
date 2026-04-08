@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pollForNewRecordings } from "@/lib/google-drive/polling-service";
+import { getCallProvider } from "@/lib/config/call-provider";
 
 /**
  * GET /api/cron/poll-drive - Vercel Cron endpoint for scheduled polling
@@ -18,6 +19,16 @@ import { pollForNewRecordings } from "@/lib/google-drive/polling-service";
  * See: https://vercel.com/docs/cron-jobs#securing-cron-jobs
  */
 export async function GET(request: NextRequest) {
+  const provider = getCallProvider();
+  
+  if (provider !== 'google_meet') {
+    return NextResponse.json({ 
+      success: true, 
+      message: "Google Drive polling skipped: Google Meet is not the active provider",
+      currentProvider: provider 
+    });
+  }
+
   // Verify this is a legitimate Vercel Cron request
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;

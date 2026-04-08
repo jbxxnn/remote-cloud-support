@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/database";
 import { generateGoogleMeetLink } from "@/lib/google-meet/meet-service";
+import { getCallProvider } from "@/lib/config/call-provider";
 
 /**
  * POST /api/google-meet/create-recording - Create a Google Meet recording record
@@ -10,6 +11,15 @@ import { generateGoogleMeetLink } from "@/lib/google-meet/meet-service";
  * Creates a pending recording record and generates a Google Meet link
  */
 export async function POST(request: NextRequest) {
+  const provider = getCallProvider();
+  
+  if (provider !== 'google_meet') {
+    return NextResponse.json({ 
+      error: "Google Meet is not the active call provider",
+      currentProvider: provider 
+    }, { status: 400 });
+  }
+
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user || (session.user as any).role !== "staff") {

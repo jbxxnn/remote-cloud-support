@@ -15,20 +15,28 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
+    const clientId = searchParams.get('clientId');
 
     let sql = `
       SELECT 
-        u.*,
+        u.id, u.name, u.email, u.phone, u.role, u."clientId", u."isActive", u."createdAt",
         c.name as "clientName"
       FROM "User" u
       LEFT JOIN "Client" c ON u."clientId" = c.id
+      WHERE 1=1
     `;
     
     const params: any[] = [];
+    let paramIndex = 1;
     
     if (role) {
-      sql += ` WHERE u.role = $1`;
+      sql += ` AND u.role = $${paramIndex++}`;
       params.push(role);
+    }
+
+    if (clientId) {
+      sql += ` AND u."clientId" = $${paramIndex++}`;
+      params.push(clientId);
     }
     
     sql += ` ORDER BY u."createdAt" DESC`;

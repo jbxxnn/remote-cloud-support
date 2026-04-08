@@ -19,6 +19,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { contextService } from "@/lib/assistant/context-service";
 import { useAssistant } from "@/hooks/use-assistant";
 import { toast } from "sonner";
+import { getCallProvider } from "@/lib/config/call-provider";
+import { CallOverlay } from "@/components/calls/call-overlay";
 
 
 interface Alert {
@@ -332,6 +334,16 @@ export default function ClientDashboardPage() {
   const [startingCall, setStartingCall] = useState(false); // Loading state for start call button
   const [popupBlockedDialogOpen, setPopupBlockedDialogOpen] = useState(false); // Dialog for popup blocker
   const [blockedMeetingUrl, setBlockedMeetingUrl] = useState<string | null>(null); // URL to show when popup is blocked
+  const [webrtcCallData, setWebrtcCallData] = useState<{
+    callSessionId: string;
+    token: string;
+    signalingUrl: string;
+    iceServers: any[];
+    inviteTarget?: {
+      clientId?: string;
+      userId?: string;
+    };
+  } | null>(null); // WebRTC call data
 
   // Reset to first page when tab changes
   useEffect(() => {
@@ -596,8 +608,49 @@ export default function ClientDashboardPage() {
       return;
     }
 
-    if (startingCall) {
-      return; // Prevent multiple clicks
+    const provider = getCallProvider();
+    
+    if (provider === 'custom_webrtc') {
+      setStartingCall(true);
+      try {
+        // Create WebRTC call session
+        const response = await fetch('/api/calls/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: clientId,
+            alertId: selectedAlert.id,
+            sopResponseId: selectedSOPForResponse?.sopResponseId,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to create call session');
+        const { callSessionId } = await response.json();
+
+        // Get signaling token
+        const tokenResponse = await fetch(`/api/calls/${callSessionId}/token`, {
+          method: 'POST',
+        });
+
+        if (!tokenResponse.ok) throw new Error('Failed to get signaling token');
+        const tokenData = await tokenResponse.json();
+
+        setWebrtcCallData({
+          callSessionId,
+          token: tokenData.token,
+          signalingUrl: tokenData.signalingUrl,
+          iceServers: tokenData.iceServers,
+          inviteTarget: { clientId },
+        });
+
+        toast.success('WebRTC call initialized');
+      } catch (err) {
+        console.error('Failed to start WebRTC call:', err);
+        toast.error('Failed to start WebRTC call');
+      } finally {
+        setStartingCall(false);
+      }
+      return;
     }
 
     setStartingCall(true);
@@ -1372,6 +1425,19 @@ export default function ClientDashboardPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* WebRTC Call Overlay */}
+        {webrtcCallData && (
+          <CallOverlay
+            callSessionId={webrtcCallData.callSessionId}
+            token={webrtcCallData.token}
+            signalingUrl={webrtcCallData.signalingUrl}
+            iceServers={webrtcCallData.iceServers}
+            clientName={client?.name || 'Client'}
+            inviteTarget={webrtcCallData.inviteTarget}
+            onClose={() => setWebrtcCallData(null)}
+          />
+        )}
       </div>
     </div>
   );

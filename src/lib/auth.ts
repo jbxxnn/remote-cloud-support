@@ -46,6 +46,7 @@ export const authOptions: AuthOptions = {
             email: user.email,
             name: user.name,
             role: user.role,
+            clientId: user.clientId,
           };
         } catch (error) {
           console.error('Authentication error:', error);
@@ -57,8 +58,8 @@ export const authOptions: AuthOptions = {
   callbacks: {
     async jwt({ token, user }: any) {
       if (user) {
-        // @ts-ignore
-        token.role = user.role;
+        token.role = (user as any).role;
+        token.clientId = (user as any).clientId;
       }
       return token;
     },
@@ -66,6 +67,7 @@ export const authOptions: AuthOptions = {
       if (session.user && token) {
         (session.user as any).role = token.role;
         (session.user as any).id = token.sub;
+        (session.user as any).clientId = token.clientId;
       }
       return session;
     },

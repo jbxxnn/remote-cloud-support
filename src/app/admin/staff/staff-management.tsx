@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,15 @@ interface StaffManagementProps {
 }
 
 export function StaffManagement({ user }: StaffManagementProps) {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader className="w-8 h-8 animate-spin" /></div>}>
+      <StaffManagementContent user={user} />
+    </Suspense>
+  );
+}
+
+export function StaffManagementContent({ user }: StaffManagementProps) {
+  const searchParams = useSearchParams();
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -82,6 +92,7 @@ export function StaffManagement({ user }: StaffManagementProps) {
     phone: "",
     password: "",
     confirmPassword: "",
+    role: "staff",
     clientId: "",
     isActive: true
   });
@@ -90,14 +101,30 @@ export function StaffManagement({ user }: StaffManagementProps) {
   useEffect(() => {
     fetchStaff();
     fetchClients();
-  }, []);
+    
+    // Handle external triggers (e.g. from Client Management)
+    const action = searchParams.get('action');
+    const clientId = searchParams.get('clientId');
+    
+    if (action === 'add') {
+      setShowAddDialog(true);
+      if (clientId) {
+        setFormData(prev => ({ 
+          ...prev, 
+          clientId,
+          role: 'user' // Default to Tablet for client-triggered adds
+        }));
+      }
+    }
+  }, [searchParams]);
 
   const fetchStaff = async () => {
     try {
-      const response = await fetch("/api/users?role=staff");
+      const response = await fetch("/api/users");
       if (response.ok) {
         const data = await response.json();
-        setStaff(data);
+        const nonAdmins = data.filter((u: any) => u.role !== "admin");
+        setStaff(nonAdmins);
       }
     } catch (error) {
       console.error("Failed to fetch staff:", error);
@@ -141,6 +168,7 @@ export function StaffManagement({ user }: StaffManagementProps) {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        role: formData.role,
         clientId: formData.clientId || null,
         isActive: formData.isActive
       } : {
@@ -148,7 +176,7 @@ export function StaffManagement({ user }: StaffManagementProps) {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        role: "staff",
+        role: formData.role,
         clientId: formData.clientId || null,
         isActive: formData.isActive
       };
@@ -207,6 +235,7 @@ export function StaffManagement({ user }: StaffManagementProps) {
       phone: staffMember.phone || "",
       password: "",
       confirmPassword: "",
+      role: staffMember.role,
       clientId: staffMember.clientId || "",
       isActive: staffMember.isActive
     });
@@ -244,6 +273,7 @@ export function StaffManagement({ user }: StaffManagementProps) {
       phone: "",
       password: "",
       confirmPassword: "",
+      role: "staff",
       clientId: "",
       isActive: true
     });
@@ -394,12 +424,16 @@ export function StaffManagement({ user }: StaffManagementProps) {
                           {staffMember.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
-                      {/* <TableCell>
-                        <Badge variant="outline" className="text-blue-600 border-blue-200">
-                          <Shield className="w-3 h-3 mr-1" />
-                          {staffMember.role}
+                      <TableCell>
+                        <Badge variant="outline" className={staffMember.role === "staff" ? "text-blue-600 border-blue-200" : "text-purple-600 border-purple-200"}>
+                          {staffMember.role === "staff" ? (
+                            <Shield className="w-3 h-3 mr-1" />
+                          ) : (
+                            <Key className="w-3 h-3 mr-1" />
+                          )}
+                          {staffMember.role === "staff" ? "Staff" : "Tablet"}
                         </Badge>
-                      </TableCell> */}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                           <span>{new Date(staffMember.createdAt).toLocaleDateString()}</span>
@@ -517,25 +551,42 @@ export function StaffManagement({ user }: StaffManagementProps) {
               </div>
             </div>
 
-            {/* Assignment */}
+            {/* Role and Assignment */}
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="clientId">Assign to Client (Optional)</Label>
-                <select
-                  id="clientId"
-                  name="clientId"
-                  title="Select a client"
-                  value={formData.clientId}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded-md"
-                >
-                  <option value="">No assignment (general staff)</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="role">User Role *</Label>
+                  <select
+                    id="role"
+                    name="role"
+                    title="Select a role"
+                    value={formData.role}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border rounded-md"
+                    required
+                  >
+                    <option value="staff">Support Staff</option>
+                    <option value="user">Tablet / Client User</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="clientId">Assign to Client (Optional)</Label>
+                  <select
+                    id="clientId"
+                    name="clientId"
+                    title="Select a client"
+                    value={formData.clientId}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="">No assignment</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <input
@@ -616,25 +667,42 @@ export function StaffManagement({ user }: StaffManagementProps) {
               </div>
             </div>
 
-            {/* Assignment */}
+            {/* Role and Assignment */}
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-clientId">Assign to Client (Optional)</Label>
-                <select
-                  id="edit-clientId"
-                  name="clientId"
-                  title="Select a client"
-                  value={formData.clientId}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded-md"
-                >
-                  <option value="">No assignment (general staff)</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-role">User Role *</Label>
+                  <select
+                    id="edit-role"
+                    name="role"
+                    title="Select a role"
+                    value={formData.role}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border rounded-md"
+                    required
+                  >
+                    <option value="staff">Support Staff</option>
+                    <option value="user">Tablet / Client User</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-clientId">Assign to Client (Optional)</Label>
+                  <select
+                    id="edit-clientId"
+                    name="clientId"
+                    title="Select a client"
+                    value={formData.clientId}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="">No assignment</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <input

@@ -41,9 +41,13 @@ import {
   AlertTriangle,
   Loader,
   X,
-  Tag
+  Tag,
+  Shield,
+  Key,
+  Video
 } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { CallOverlay } from "@/components/calls/call-overlay";
 
 interface ClientTag {
   id: string;
@@ -93,7 +97,18 @@ export function ClientManagement({ user }: ClientManagementProps) {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
+  const [clientUsers, setClientUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isInitiatingCall, setIsInitiatingCall] = useState<string | null>(null);
+  const [activeCall, setActiveCall] = useState<{
+    callSessionId: string;
+    token: string;
+    signalingUrl: string;
+    iceServers: any[];
+    targetName: string;
+    inviteTarget: { userId?: string; clientId?: string };
+  } | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -157,6 +172,21 @@ export function ClientManagement({ user }: ClientManagementProps) {
       console.error("Failed to fetch client tags:", error);
     }
     return [];
+  };
+ 
+  const fetchClientUsers = async (clientId: string) => {
+    setLoadingUsers(true);
+    try {
+      const response = await fetch(`/api/users?clientId=${clientId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setClientUsers(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch client users:", error);
+    } finally {
+      setLoadingUsers(false);
+    }
   };
 
   const handleAddTag = async (clientId: string) => {
@@ -305,6 +335,43 @@ export function ClientManagement({ user }: ClientManagementProps) {
       alert("Failed to delete client");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleStartCall = async (tabletUser: any) => {
+    if (!viewingClient) return;
+    setIsInitiatingCall(tabletUser.id);
+    
+    try {
+      const createResponse = await fetch('/api/calls/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: viewingClient.id })
+      });
+      
+      if (!createResponse.ok) throw new Error('Failed to create call session');
+      const { callSessionId } = await createResponse.json();
+
+      const tokenResponse = await fetch(`/api/calls/${callSessionId}/token`, {
+        method: 'POST'
+      });
+      
+      if (!tokenResponse.ok) throw new Error('Failed to get call token');
+      const tokenData = await tokenResponse.json();
+
+      setActiveCall({
+        callSessionId,
+        token: tokenData.token,
+        signalingUrl: tokenData.signalingUrl,
+        iceServers: tokenData.iceServers,
+        targetName: tabletUser.name,
+        inviteTarget: { userId: tabletUser.id }
+      });
+
+    } catch (err) {
+      console.error('Failed to start call:', err);
+    } finally {
+      setIsInitiatingCall(null);
     }
   };
 
@@ -494,6 +561,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
                             onClick={async () => {
                               setViewingClient(client);
                               setShowViewDialog(true);
+                              fetchClientUsers(client.id);
                               // Fetch tags if not already loaded
                               if (!clientTags[client.id] && !client.tags) {
                                 await fetchClientTags(client.id);
@@ -1208,6 +1276,70 @@ export function ClientManagement({ user }: ClientManagementProps) {
                 </div>
               </div>
 
+              {/* Associated Users / Tablets */}
+              <div className="space-y-3 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Associated Users & Tablets</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Redirect to staff management with pre-filled clientId
+                      window.location.href = `/admin/staff?action=add&clientId=${viewingClient.id}`;
+                    }}
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Connect Tablet
+                  </Button>
+                </div>
+
+                {loadingUsers ? (
+                  <div className="flex justify-center p-4">
+                    <Loader className="w-4 h-4 animate-spin" />
+                  </div>
+                ) : clientUsers.length === 0 ? (
+                  <div className="text-sm text-muted-foreground p-4 bg-muted/20 rounded text-center">
+                    No users or tablets assigned to this client.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {clientUsers.map((u) => (
+                      <div key={u.id} className="flex items-center justify-between p-2 bg-muted/40 rounded-md border text-sm">
+                        <div className="flex items-center space-x-3">
+                          <div className={u.role === 'staff' ? "p-1.5 bg-blue-100 rounded text-blue-600" : "p-1.5 bg-purple-100 rounded text-purple-600"}>
+                            {u.role === 'staff' ? <Shield className="w-3 h-3" /> : <Key className="w-3 h-3" />}
+                          </div>
+                          <div>
+                            <div className="font-medium">{u.name}</div>
+                            <div className="text-xs text-muted-foreground">{u.email}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] capitalize">
+                            {u.role === 'user' ? 'Tablet' : u.role}
+                          </Badge>
+                          {u.role === 'user' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                              onClick={() => handleStartCall(u)}
+                              disabled={isInitiatingCall === u.id}
+                            >
+                              {isInitiatingCall === u.id ? (
+                                <Loader className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Video className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Notes */}
               {viewingClient.notes && (
                 <div className="space-y-3">
@@ -1254,6 +1386,18 @@ export function ClientManagement({ user }: ClientManagementProps) {
         open={assistantOpen}
         onOpenChange={setAssistantOpen}
       />
+
+      {activeCall && (
+          <CallOverlay
+            callSessionId={activeCall.callSessionId}
+            token={activeCall.token}
+            signalingUrl={activeCall.signalingUrl}
+            iceServers={activeCall.iceServers}
+            clientName={activeCall.targetName}
+            inviteTarget={activeCall.inviteTarget}
+            onClose={() => setActiveCall(null)}
+          />
+      )}
         </div>
       </div>
     </div>
