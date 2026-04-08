@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useTabletSignaling } from "@/hooks/use-tablet-signaling";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { CallOverlay } from "@/components/calls/call-overlay";
@@ -11,6 +11,10 @@ import { cn } from "@/lib/utils";
 
 export default function TabletMonitorPage() {
   const [isStarted, setIsStarted] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [isActivating, setIsActivating] = useState(false);
+  const [prewarmedStream, setPrewarmedStream] = useState<MediaStream | null>(null);
+  const prewarmedStreamRef = useRef<MediaStream | null>(null);
   const [activeCall, setActiveCall] = useState<{
     callSessionId: string;
     token: string;
@@ -20,6 +24,34 @@ export default function TabletMonitorPage() {
 
   // 1. Enable Wake Lock when started to prevent tablet from sleeping
   useWakeLock(isStarted);
+
+  useEffect(() => {
+    prewarmedStreamRef.current = prewarmedStream;
+  }, [prewarmedStream]);
+
+  useEffect(() => {
+    return () => {
+      prewarmedStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  const handleActivateMonitor = useCallback(async () => {
+    setActivationError(null);
+    setIsActivating(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      prewarmedStreamRef.current?.getTracks().forEach((track) => track.stop());
+      prewarmedStreamRef.current = stream;
+      setPrewarmedStream(stream);
+      setIsStarted(true);
+    } catch (err) {
+      console.error("Failed to pre-authorize camera and microphone:", err);
+      setActivationError("Camera and microphone access is required before the tablet can auto-answer calls.");
+    } finally {
+      setIsActivating(false);
+    }
+  }, []);
 
   const handleInvite = useCallback(async (data: { callSessionId: string; from: string }) => {
     console.log("📟 Tablet: Received invite, preparing to auto-answer...");
@@ -63,15 +95,21 @@ export default function TabletMonitorPage() {
           <Button 
             size="lg" 
             className="w-full h-16 text-xl gap-3 rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-            onClick={() => setIsStarted(true)}
+            onClick={handleActivateMonitor}
+            disabled={isActivating}
           >
-            <Play className="fill-current" />
-            Activate Monitor
+            {isActivating ? <Loader2 className="animate-spin" /> : <Play className="fill-current" />}
+            {isActivating ? "Granting Permissions..." : "Activate Monitor"}
           </Button>
           <div className="mt-8 flex items-center justify-center gap-2 text-zinc-500 text-sm">
             <Lock size={14} />
             <span>Screen timeout will be disabled</span>
           </div>
+          {activationError && (
+            <Card className="mt-6 p-4 bg-rose-500/10 border-rose-500/20 text-rose-400 text-sm">
+              {activationError}
+            </Card>
+          )}
         </div>
       </div>
     );
@@ -138,6 +176,7 @@ export default function TabletMonitorPage() {
           token={activeCall.token}
           signalingUrl={activeCall.signalingUrl}
           iceServers={activeCall.iceServers}
+          initialLocalStream={prewarmedStream}
           clientName="Support Staff"
           autoAnswer={true}
           hideControls={true}

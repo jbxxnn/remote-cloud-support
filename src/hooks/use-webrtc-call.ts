@@ -9,6 +9,7 @@ export interface UseWebRTCCallOptions {
   token: string;
   signalingUrl: string;
   iceServers: RTCIceServer[];
+  initialLocalStream?: MediaStream | null;
   onCallEnded?: () => void;
   autoAnswer?: boolean;
   inviteTarget?: {
@@ -23,6 +24,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     token, 
     signalingUrl, 
     iceServers, 
+    initialLocalStream,
     onCallEnded, 
     autoAnswer,
     inviteTarget 
@@ -139,10 +141,13 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
 
     async function init() {
       try {
-        // 1. Get user media
-        localMediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // 1. Reuse a pre-authorized stream when available so the tablet does not
+        // prompt on every incoming call.
+        localMediaStream = initialLocalStream ?? await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!isMounted) {
-          localMediaStream.getTracks().forEach(t => t.stop());
+          if (!initialLocalStream) {
+            localMediaStream.getTracks().forEach(t => t.stop());
+          }
           return;
         }
         setLocalStream(localMediaStream);
@@ -247,11 +252,11 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     return () => {
       isMounted = false;
       cleanup();
-      if (localMediaStream) {
+      if (localMediaStream && !initialLocalStream) {
         localMediaStream.getTracks().forEach(t => t.stop());
       }
     };
-  }, [callSessionId, token, signalingUrl, iceServers, autoAnswer, inviteTarget, handleOffer, handleAnswer, handleIceCandidate, handleCallEnd, cleanup, startCall]);
+  }, [callSessionId, token, signalingUrl, iceServers, initialLocalStream, autoAnswer, inviteTarget, handleOffer, handleAnswer, handleIceCandidate, handleCallEnd, cleanup, startCall]);
 
   return {
     localStream,
