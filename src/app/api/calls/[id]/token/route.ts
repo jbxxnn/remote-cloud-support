@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/database";
+import { buildIceServers } from "@/lib/webrtc/ice-servers";
 import jwt from "jsonwebtoken";
 
 /**
@@ -58,10 +59,7 @@ export async function POST(
     return NextResponse.json({
       token,
       signalingUrl: process.env.NEXT_PUBLIC_SIGNALING_SERVER_URL,
-      iceServers: [
-        { urls: process.env.NEXT_PUBLIC_RTC_STUN_URL || "stun:stun.l.google.com:19302" }
-        // Future: Add TURN servers here
-      ]
+      iceServers: buildIceServers(userId)
     });
 
   } catch (error) {

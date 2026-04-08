@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { buildIceServers } from "@/lib/webrtc/ice-servers";
 import jwt from "jsonwebtoken";
 
 /**
@@ -38,9 +39,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       token,
       signalingUrl: process.env.NEXT_PUBLIC_SIGNALING_SERVER_URL,
-      iceServers: [
-        { urls: process.env.NEXT_PUBLIC_RTC_STUN_URL || "stun:stun.l.google.com:19302" }
-      ]
+      iceServers: buildIceServers(userId)
     });
 
   } catch (error) {
