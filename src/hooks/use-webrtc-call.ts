@@ -40,6 +40,13 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const hasStartedOfferRef = useRef(false);
+  const hasUploadedRecordingRef = useRef(false);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
 
   /**
    * Handle incoming call offer
@@ -88,9 +95,10 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
    */
   const handleCallEnd = useCallback(() => {
     console.log('Call ended by remote');
+    stopRecording();
     setCallState('ended');
     onCallEnded?.();
-  }, [onCallEnded]);
+  }, [onCallEnded, stopRecording]);
 
   /**
    * Cleanup resources
@@ -138,6 +146,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     let isMounted = true;
     let localMediaStream: MediaStream | null = null;
     hasStartedOfferRef.current = false;
+    hasUploadedRecordingRef.current = false;
 
     async function init() {
       try {
@@ -162,12 +171,15 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
           const recorder = new MediaRecorder(remote, { mimeType: 'video/webm;codecs=vp9,opus' });
           mediaRecorderRef.current = recorder;
           chunksRef.current = [];
+          hasUploadedRecordingRef.current = false;
 
           recorder.ondataavailable = (e) => {
             if (e.data.size > 0) chunksRef.current.push(e.data);
           };
 
           recorder.onstop = async () => {
+            if (hasUploadedRecordingRef.current) return;
+            hasUploadedRecordingRef.current = true;
             const blob = new Blob(chunksRef.current, { type: 'video/webm' });
             console.log('📼 Recording stopped, blob size:', blob.size);
             
@@ -251,12 +263,13 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
 
     return () => {
       isMounted = false;
+      stopRecording();
       cleanup();
       if (localMediaStream && !initialLocalStream) {
         localMediaStream.getTracks().forEach(t => t.stop());
       }
     };
-  }, [callSessionId, token, signalingUrl, iceServers, initialLocalStream, autoAnswer, inviteTarget, handleOffer, handleAnswer, handleIceCandidate, handleCallEnd, cleanup, startCall]);
+  }, [callSessionId, token, signalingUrl, iceServers, initialLocalStream, autoAnswer, inviteTarget, handleOffer, handleAnswer, handleIceCandidate, handleCallEnd, cleanup, startCall, stopRecording]);
 
   return {
     localStream,
@@ -265,6 +278,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     error,
     startCall,
     endCall: () => {
+      stopRecording();
       signalingRef.current?.sendEnd();
       cleanup();
     }
