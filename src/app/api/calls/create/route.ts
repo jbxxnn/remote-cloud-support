@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { query } from "@/lib/database";
+import { transaction } from "@/lib/database";
 
 /**
  * POST /api/calls/create - Initialize a new WebRTC call session
@@ -23,33 +23,40 @@ export async function POST(request: NextRequest) {
 
     const userId = (session.user as any).id;
 
-    // Create the CallSession record
-    const result = await query(`
-      INSERT INTO "CallSession" (
-        "clientId", "alertId", "sopResponseId", 
-        "initiatedBy", "status"
-      )
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id
-    `, [
-      clientId,
-      alertId || null,
-      sopResponseId || null,
-      userId,
-      'pending'
-    ]);
+    const callSessionId = await transaction(async (client) => {
+      const result = await client.query(`
+        INSERT INTO "CallSession" (
+          "clientId", "alertId", "sopResponseId", 
+          "initiatedBy", "status"
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+      `, [
+        clientId,
+        alertId || null,
+        sopResponseId || null,
+        userId,
+        'pending'
+      ]);
 
-    const callSessionId = result.rows[0].id;
+      const newCallSessionId = result.rows[0].id;
 
-    // Log the initial event
-    await query(`
-      INSERT INTO "CallEvent" ("callSessionId", "type", "payload")
-      VALUES ($1, $2, $3)
-    `, [
-      callSessionId,
-      'created',
-      JSON.stringify({ userId, clientId, alertId })
-    ]);
+      await client.query(`
+        INSERT INTO "CallRecording" ("callSessionId", "processingStatus")
+        VALUES ($1, $2)
+      `, [newCallSessionId, 'pending']);
+
+      await client.query(`
+        INSERT INTO "CallEvent" ("callSessionId", "type", "payload")
+        VALUES ($1, $2, $3)
+      `, [
+        newCallSessionId,
+        'created',
+        JSON.stringify({ userId, clientId, alertId })
+      ]);
+
+      return newCallSessionId;
+    });
 
     return NextResponse.json({
       callSessionId,

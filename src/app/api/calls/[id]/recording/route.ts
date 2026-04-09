@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+import { query, transaction } from "@/lib/database";
+import { readCallRecording, saveCallRecording } from "@/lib/webrtc/recording-storage";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id: callSessionId } = params;
+    const { id: callSessionId } = await params;
     const formData = await req.formData();
     const file = formData.get("file") as File;
 
@@ -27,42 +24,46 @@ export async function POST(
 
     console.log(`📥 Received recording for call ${callSessionId}, size: ${file.size} bytes`);
 
-    // In a real implementation, we would upload to Supabase Storage here.
-    // For now, we'll simulate the upload and update the database record.
-    // We'll use a placeholder URL.
-    const recordingUrl = `https://storage.supabase.co/recordings/${callSessionId}.webm`;
+    const { storagePath, mimeType } = await saveCallRecording(callSessionId, file);
+    const recordingUrlBase = process.env.NEXTAUTH_URL || "";
+    const recordingUrl = recordingUrlBase
+      ? `${recordingUrlBase}/api/calls/${callSessionId}/recording`
+      : `/api/calls/${callSessionId}/recording`;
 
-    // Update database
-    await pool.query(
-      `UPDATE "CallRecording" 
-       SET "recordingUrl" = $1, 
-           "processingStatus" = 'completed'
-       WHERE "callSessionId" = $2`,
-      [recordingUrl, callSessionId]
-    );
+    await transaction(async (client) => {
+      const existingRecording = await client.query(
+        `SELECT id FROM "CallRecording" WHERE "callSessionId" = $1 LIMIT 1`,
+        [callSessionId]
+      );
 
-    // Trigger AI analysis asynchronously
-    import("@/lib/ai/gemini").then(async ({ analyzeCallRecording }) => {
-      try {
-        const analysis = await analyzeCallRecording(recordingUrl, "Client");
-        await pool.query(
+      if (existingRecording.rows.length > 0) {
+        await client.query(
           `UPDATE "CallRecording"
-           SET "analysisResults" = $1,
-               "sentiment" = $2,
-               "sopFollowed" = $3,
-               "processingStatus" = 'analyzed'
-           WHERE "callSessionId" = $4`,
-          [
-            JSON.stringify(analysis), 
-            analysis.sentiment, 
-            analysis.sopCompliance.followed, 
-            callSessionId
-          ]
+           SET "recordingUrl" = $1,
+               "storagePath" = $2,
+               "processingStatus" = 'completed',
+               "updatedAt" = CURRENT_TIMESTAMP
+           WHERE "callSessionId" = $3`,
+          [recordingUrl, storagePath, callSessionId]
         );
-      } catch (err) {
-        console.error("AI Analysis failed:", err);
+      } else {
+        await client.query(
+          `INSERT INTO "CallRecording" ("callSessionId", "recordingUrl", "storagePath", "processingStatus")
+           VALUES ($1, $2, $3, 'completed')`,
+          [callSessionId, recordingUrl, storagePath]
+        );
       }
+
+      await client.query(
+        `INSERT INTO "CallEvent" ("callSessionId", "type", "payload")
+         VALUES ($1, $2, $3)`,
+        [callSessionId, "recording_uploaded", JSON.stringify({ recordingUrl, storagePath, mimeType, size: file.size })]
+      );
     });
+
+    if (process.env.ENABLE_CALL_RECORDING_ANALYSIS === "true") {
+      console.warn(`Call recording analysis is enabled, but the WebRTC upload flow does not yet provide a real analysis pipeline for ${callSessionId}.`);
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -71,6 +72,42 @@ export async function POST(
 
   } catch (error) {
     console.error("Error handling recording upload:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: callSessionId } = await params;
+    const result = await query(
+      `SELECT "storagePath" FROM "CallRecording" WHERE "callSessionId" = $1 LIMIT 1`,
+      [callSessionId]
+    );
+
+    const storagePath = result.rows[0]?.storagePath;
+    if (!storagePath) {
+      return NextResponse.json({ error: "Recording not found" }, { status: 404 });
+    }
+
+    const fileBuffer = await readCallRecording(storagePath);
+
+    return new NextResponse(fileBuffer, {
+      headers: {
+        "Content-Type": "video/webm",
+        "Content-Length": String(fileBuffer.byteLength),
+        "Cache-Control": "private, no-store",
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching recording file:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
