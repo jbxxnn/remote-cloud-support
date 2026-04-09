@@ -15,6 +15,8 @@ export async function GET() {
     const clients = await query(`
       SELECT 
         c.*,
+        (SELECT u.id FROM "User" u WHERE u."clientId" = c.id AND u.role = 'user' LIMIT 1) as "primaryTabletId",
+        (SELECT u.name FROM "User" u WHERE u."clientId" = c.id AND u.role = 'user' LIMIT 1) as "primaryTabletName",
         COUNT(DISTINCT d.id) as "detectionCount",
         COUNT(DISTINCT u.id) as "userCount"
       FROM "Client" c
@@ -119,7 +121,9 @@ export async function POST(request: NextRequest) {
     const counts = await query(`
       SELECT 
         COUNT(DISTINCT d.id) as "detectionCount",
-        COUNT(DISTINCT u.id) as "userCount"
+        COUNT(DISTINCT u.id) as "userCount",
+        (SELECT u.id FROM "User" u WHERE u."clientId" = $1 AND u.role = 'user' LIMIT 1) as "primaryTabletId",
+        (SELECT u.name FROM "User" u WHERE u."clientId" = $1 AND u.role = 'user' LIMIT 1) as "primaryTabletName"
       FROM "Client" c
       LEFT JOIN "Detection" d ON c.id = d."clientId"
       LEFT JOIN "User" u ON c.id = u."clientId"
@@ -133,6 +137,8 @@ export async function POST(request: NextRequest) {
 
     const clientWithCounts = {
       ...client,
+      primaryTabletId: counts.rows[0]?.primaryTabletId,
+      primaryTabletName: counts.rows[0]?.primaryTabletName,
       _count: counts.rows.length > 0 ? {
         detections: parseInt(counts.rows[0].detectionCount),
         devices: totalDevices, // Global device count

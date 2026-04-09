@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,8 @@ interface Client {
   status: string;
   notes?: string;
   createdAt: string;
+  primaryTabletId?: string;
+  primaryTabletName?: string;
   tags?: ClientTag[];
   _count?: {
     devices: number;
@@ -87,6 +90,7 @@ interface ClientManagementProps {
 }
 
 export function ClientManagement({ user }: ClientManagementProps) {
+  const router = useRouter();
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +131,14 @@ export function ClientManagement({ user }: ClientManagementProps) {
   const [clientTags, setClientTags] = useState<Record<string, ClientTag[]>>({});
   const [newTag, setNewTag] = useState<{ tag: string; tagType: 'risk' | 'goal' | 'custom'; color: string }>({ tag: '', tagType: 'custom', color: '' });
   const [addingTag, setAddingTag] = useState<string | null>(null);
+  const [addStep, setAddStep] = useState<'client' | 'tablet'>('client');
+  const [newClientId, setNewClientId] = useState<string | null>(null);
+  const [tabletFormData, setTabletFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   useEffect(() => {
     fetchClients();
@@ -281,10 +293,19 @@ export function ClientManagement({ user }: ClientManagementProps) {
           setEditingClient(null);
         } else {
           setClients([updatedClient, ...clients]);
-          setShowAddModal(false);
+          // Transition to tablet registration step
+          setNewClientId(updatedClient.id);
+          setAddStep('tablet');
+          setTabletFormData(prev => ({
+            ...prev,
+            name: `${updatedClient.name} Tablet`,
+            email: updatedClient.email,
+          }));
+          return; // Don't close modal or reset client form yet
         }
         
         resetForm();
+        setShowAddModal(false);
       } else {
         const error = await response.json();
         alert(error.error || `Failed to ${editingClient ? 'update' : 'create'} client`);
@@ -314,6 +335,66 @@ export function ClientManagement({ user }: ClientManagementProps) {
     setShowEditDialog(true);
   };
 
+  const handleAddTablet = (client: Client) => {
+    setNewClientId(client.id);
+    setAddStep('tablet');
+    setTabletFormData(prev => ({
+      ...prev,
+      name: `${client.name} Tablet`,
+      email: client.email,
+    }));
+    setShowAddModal(true);
+  };
+  
+  const handleTabletSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (tabletFormData.password !== tabletFormData.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    if (tabletFormData.password.length < 6) {
+      alert("Password must be at least 6 characters long");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const requestBody = {
+        name: tabletFormData.name,
+        email: tabletFormData.email,
+        password: tabletFormData.password,
+        role: "user", // Tablet role
+        clientId: newClientId,
+        isActive: true
+      };
+
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        setShowAddModal(false);
+        resetForm();
+        // If we're currently viewing a client, refresh their user list
+        if (viewingClient && viewingClient.id === newClientId) {
+          fetchClientUsers(viewingClient.id);
+        }
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to create tablet user");
+      }
+    } catch (error) {
+      alert("Failed to create tablet user");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deletingClient) return;
     
@@ -338,15 +419,16 @@ export function ClientManagement({ user }: ClientManagementProps) {
     }
   };
 
-  const handleStartCall = async (tabletUser: any) => {
-    if (!viewingClient) return;
+  const handleStartCall = async (clientId: string, tabletUser: { id: string, name: string }) => {
+    if (!tabletUser) return;
+    
     setIsInitiatingCall(tabletUser.id);
     
     try {
       const createResponse = await fetch('/api/calls/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId: viewingClient.id })
+        body: JSON.stringify({ clientId: clientId })
       });
       
       if (!createResponse.ok) throw new Error('Failed to create call session');
@@ -389,6 +471,14 @@ export function ClientManagement({ user }: ClientManagementProps) {
       webhookUrl: "",
       notes: "",
     });
+    setTabletFormData({
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    });
+    setAddStep('client');
+    setNewClientId(null);
   };
 
   const handleCancelEdit = () => {
@@ -405,6 +495,13 @@ export function ClientManagement({ user }: ClientManagementProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleTabletInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTabletFormData({
+      ...tabletFormData,
       [e.target.name]: e.target.value,
     });
   };
@@ -509,10 +606,6 @@ export function ClientManagement({ user }: ClientManagementProps) {
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <div className="flex items-center space-x-2 text-sm">
-                            <Mail className="w-3 h-3 text-muted-foreground" />
-                            <span>{client.email}</span>
-                          </div>
                           {client.phone && (
                             <div className="flex items-center space-x-2 text-sm">
                               <Phone className="w-3 h-3 text-muted-foreground" />
@@ -570,6 +663,28 @@ export function ClientManagement({ user }: ClientManagementProps) {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          {client.primaryTabletId && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-full"
+                              title={`Call ${client.primaryTabletName}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartCall(client.id, { 
+                                  id: client.primaryTabletId!, 
+                                  name: client.primaryTabletName! 
+                                });
+                              }}
+                              disabled={isInitiatingCall === client.primaryTabletId}
+                            >
+                              {isInitiatingCall === client.primaryTabletId ? (
+                                <Loader className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Video className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -600,177 +715,258 @@ export function ClientManagement({ user }: ClientManagementProps) {
         )}
 
       {/* Add Client Dialog */}
-      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+      <Dialog open={showAddModal} onOpenChange={(open) => {
+        if (!open) resetForm();
+        setShowAddModal(open);
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Client</DialogTitle>
+            <DialogTitle>{addStep === 'client' ? 'Add New Client' : 'Register Tablet'}</DialogTitle>
             <DialogDescription>
-              Create a new client profile with all required information
+              {addStep === 'client' 
+                ? 'Create a new client profile with all required information' 
+                : 'Register the first tablet device for this client to enable monitoring.'}
             </DialogDescription>
           </DialogHeader>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="Enter client's full name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="client@example.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="+1 (555) 123-4567"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company">Company/Organization</Label>
-                  <Input
-                    id="company"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleInputChange}
-                    placeholder="Company name"
-                  />
+          {addStep === 'client' ? (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Basic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Enter client's full name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="client@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="+1 (555) 123-4567"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company/Organization</Label>
+                    <Input
+                      id="company"
+                      name="company"
+                      value={formData.company}
+                      onChange={handleInputChange}
+                      placeholder="Company name"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Address and Location */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Address & Location</h3>
+              {/* Address and Location */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Address & Location</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      placeholder="Enter full address"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="timezone">Timezone</Label>
+                      <Input
+                        id="timezone"
+                        name="timezone"
+                        value={formData.timezone}
+                        onChange={handleInputChange}
+                        placeholder="e.g., America/New_York"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="serviceProviderId">Service Provider ID</Label>
+                      <Input
+                        id="serviceProviderId"
+                        name="serviceProviderId"
+                        value={formData.serviceProviderId}
+                        onChange={handleInputChange}
+                        placeholder="Provider ID (if applicable)"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Emergency Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Emergency Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                    <Input
+                      id="emergencyContact"
+                      name="emergencyContact"
+                      value={formData.emergencyContact}
+                      onChange={handleInputChange}
+                      placeholder="Emergency contact name and phone"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="emergencyServicesNumber">Local Emergency Services</Label>
+                    <Input
+                      id="emergencyServicesNumber"
+                      name="emergencyServicesNumber"
+                      value={formData.emergencyServicesNumber}
+                      onChange={handleInputChange}
+                      placeholder="Local emergency number"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Additional Information</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="webhookUrl">Webhook URL</Label>
+                    <Input
+                      id="webhookUrl"
+                      name="webhookUrl"
+                      type="url"
+                      value={formData.webhookUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://example.com/webhook"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleInputChange}
+                      placeholder="Additional notes about the client"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddModal(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Creating..." : "Create Client"}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <form onSubmit={handleTabletSubmit} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    placeholder="Enter full address"
-                    rows={3}
+                  <Label htmlFor="tablet-name">Tablet Display Name *</Label>
+                  <Input
+                    id="tablet-name"
+                    name="name"
+                    value={tabletFormData.name}
+                    onChange={handleTabletInputChange}
+                    required
+                    placeholder="e.g. Living Room Tablet"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tablet-email">Tablet Login Email *</Label>
+                  <Input
+                    id="tablet-email"
+                    name="email"
+                    type="email"
+                    value={tabletFormData.email}
+                    onChange={handleTabletInputChange}
+                    required
+                    placeholder="tablet@example.com"
+                  />
+                  <p className="text-[10px] text-muted-foreground">This email will be used to log in on the physical tablet device.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="timezone">Timezone</Label>
+                    <Label htmlFor="tablet-password">Login Password *</Label>
                     <Input
-                      id="timezone"
-                      name="timezone"
-                      value={formData.timezone}
-                      onChange={handleInputChange}
-                      placeholder="e.g., America/New_York"
+                      id="tablet-password"
+                      name="password"
+                      type="password"
+                      value={tabletFormData.password}
+                      onChange={handleTabletInputChange}
+                      required
+                      placeholder="Minimum 6 characters"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="serviceProviderId">Service Provider ID</Label>
+                    <Label htmlFor="tablet-confirm-password">Confirm Password *</Label>
                     <Input
-                      id="serviceProviderId"
-                      name="serviceProviderId"
-                      value={formData.serviceProviderId}
-                      onChange={handleInputChange}
-                      placeholder="Provider ID (if applicable)"
+                      id="tablet-confirm-password"
+                      name="confirmPassword"
+                      type="password"
+                      value={tabletFormData.confirmPassword}
+                      onChange={handleTabletInputChange}
+                      required
+                      placeholder="Confirm password"
                     />
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Emergency Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Emergency Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="emergencyContact">Emergency Contact</Label>
-                  <Input
-                    id="emergencyContact"
-                    name="emergencyContact"
-                    value={formData.emergencyContact}
-                    onChange={handleInputChange}
-                    placeholder="Emergency contact name and phone"
-                  />
+              <DialogFooter className="flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    resetForm();
+                  }}
+                  disabled={submitting}
+                >
+                  Skip for now
+                </Button>
+                <div className="space-x-2">
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Registering..." : "Register Tablet"}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emergencyServicesNumber">Local Emergency Services</Label>
-                  <Input
-                    id="emergencyServicesNumber"
-                    name="emergencyServicesNumber"
-                    value={formData.emergencyServicesNumber}
-                    onChange={handleInputChange}
-                    placeholder="Local emergency number"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Additional Information</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="webhookUrl">Webhook URL</Label>
-                  <Input
-                    id="webhookUrl"
-                    name="webhookUrl"
-                    type="url"
-                    value={formData.webhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                    placeholder="Additional notes about the client"
-                    rows={3}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAddModal(false)}
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Creating..." : "Create Client"}
-              </Button>
-            </DialogFooter>
-          </form>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -983,27 +1179,17 @@ export function ClientManagement({ user }: ClientManagementProps) {
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Client Details</DialogTitle>
+            <DialogTitle>{viewingClient?.name}</DialogTitle>
             <DialogDescription>
-              {viewingClient?.name}
+              {viewingClient?.email}
             </DialogDescription>
           </DialogHeader>
           
           {viewingClient && (
-            <div className="space-y-4">
-              {/* Header with Status */}
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div>
-                  <h3 className="font-semibold text-lg">{viewingClient.name}</h3>
-                  <p className="text-sm text-muted-foreground">{viewingClient.email}</p>
-                </div>
-                <Badge variant={viewingClient.isActive ? "default" : "secondary"}>
-                  {viewingClient.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </div>
+            <div className="space-y-8">
 
               {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">{viewingClient._count?.devices || 0}</div>
                   <div className="text-xs text-muted-foreground">Devices</div>
@@ -1012,16 +1198,12 @@ export function ClientManagement({ user }: ClientManagementProps) {
                   <div className="text-2xl font-bold text-primary">{viewingClient._count?.detections || 0}</div>
                   <div className="text-xs text-muted-foreground">Detections</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{viewingClient._count?.users || 0}</div>
-                  <div className="text-xs text-muted-foreground">Users</div>
-                </div>
               </div>
 
               {/* Contact Information */}
               <div className="space-y-3">
                 <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Contact</h4>
-                <div className="space-y-2">
+                <div className="space-y-2 grid grid-cols-3">
                   {viewingClient.phone && (
                     <div className="flex items-center space-x-2 text-sm">
                       <Phone className="w-4 h-4 text-muted-foreground" />
@@ -1047,7 +1229,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
               {(viewingClient.emergencyContact || viewingClient.emergencyServicesNumber) && (
                 <div className="space-y-3">
                   <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Emergency</h4>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-3 ">
                     {viewingClient.emergencyContact && (
                       <div className="text-sm">
                         <span className="text-muted-foreground">Contact:</span> {viewingClient.emergencyContact}
@@ -1064,7 +1246,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
 
               {/* Tags Management */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                {/* <div className="flex items-center justify-between">
                   <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Tags</h4>
                   <Button
                     variant="outline"
@@ -1078,10 +1260,10 @@ export function ClientManagement({ user }: ClientManagementProps) {
                     <Tag className="w-3 h-3 mr-1" />
                     Refresh
                   </Button>
-                </div>
+                </div> */}
                 
                 {/* Existing Tags */}
-                <div className="flex flex-wrap gap-2 mb-3">
+                {/* <div className="flex flex-wrap gap-2 mb-3">
                   {(clientTags[viewingClient.id] || viewingClient.tags || []).map((tag) => (
                     <Badge
                       key={tag.id}
@@ -1103,10 +1285,10 @@ export function ClientManagement({ user }: ClientManagementProps) {
                       </Button>
                     </Badge>
                   ))}
-                </div>
+                </div> */}
 
                 {/* Add New Tag */}
-                <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                {/* <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
                   <div className="flex gap-2">
                     <Input
                       placeholder="Tag name"
@@ -1146,7 +1328,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
                       )}
                     </Button>
                   </div>
-                </div>
+                </div> */}
               </div>
 
               {/* System Info */}
@@ -1178,6 +1360,9 @@ export function ClientManagement({ user }: ClientManagementProps) {
                       </Button>
                     </div>
                   </div>
+                  <div className="grid grid-cols-3 ">
+
+                  
                   <div className="text-sm">
                     <span className="text-muted-foreground">Created:</span> {new Date(viewingClient.createdAt).toLocaleDateString()}
                   </div>
@@ -1186,92 +1371,6 @@ export function ClientManagement({ user }: ClientManagementProps) {
                       <span className="text-muted-foreground">Timezone:</span> {viewingClient.timezone}
                     </div>
                   )}
-                </div>
-              </div>
-
-              {/* Tags Management */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Tags</h4>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (viewingClient && !clientTags[viewingClient.id]) {
-                        fetchClientTags(viewingClient.id);
-                      }
-                    }}
-                  >
-                    <Tag className="w-3 h-3 mr-1" />
-                    Refresh
-                  </Button>
-                </div>
-                
-                {/* Existing Tags */}
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {(clientTags[viewingClient.id] || viewingClient.tags || []).map((tag) => (
-                    <Badge
-                      key={tag.id}
-                      variant="outline"
-                      className="flex items-center gap-1"
-                      style={{ 
-                        borderColor: getTagColor(tag.tagType, tag.color),
-                        color: getTagColor(tag.tagType, tag.color)
-                      }}
-                    >
-                      {tag.tag}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-4 w-4 p-0 hover:bg-destructive/20"
-                        onClick={() => handleDeleteTag(viewingClient.id, tag.id)}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
-
-                {/* Add New Tag */}
-                <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Tag name"
-                      value={newTag.tag}
-                      onChange={(e) => setNewTag({ ...newTag, tag: e.target.value })}
-                      className="flex-1"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newTag.tag.trim()) {
-                          handleAddTag(viewingClient.id);
-                        }
-                      }}
-                    />
-                    <Select
-                      value={newTag.tagType}
-                      onValueChange={(value: 'risk' | 'goal' | 'custom') => 
-                        setNewTag({ ...newTag, tagType: value })
-                      }
-                    >
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="risk">Risk</SelectItem>
-                        <SelectItem value="goal">Goal</SelectItem>
-                        <SelectItem value="custom">Custom</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      onClick={() => handleAddTag(viewingClient.id)}
-                      disabled={!newTag.tag.trim() || addingTag === viewingClient.id}
-                    >
-                      {addingTag === viewingClient.id ? (
-                        <Loader className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Plus className="w-4 h-4" />
-                      )}
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -1279,14 +1378,11 @@ export function ClientManagement({ user }: ClientManagementProps) {
               {/* Associated Users / Tablets */}
               <div className="space-y-3 pt-4 border-t">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Associated Users & Tablets</h4>
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Associated Tablets</h4>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      // Redirect to staff management with pre-filled clientId
-                      window.location.href = `/admin/staff?action=add&clientId=${viewingClient.id}`;
-                    }}
+                    onClick={() => handleAddTablet(viewingClient)}
                   >
                     <Plus className="w-3 h-3 mr-1" />
                     Connect Tablet
@@ -1297,42 +1393,36 @@ export function ClientManagement({ user }: ClientManagementProps) {
                   <div className="flex justify-center p-4">
                     <Loader className="w-4 h-4 animate-spin" />
                   </div>
-                ) : clientUsers.length === 0 ? (
+                ) : clientUsers.filter(u => u.role === 'user').length === 0 ? (
                   <div className="text-sm text-muted-foreground p-4 bg-muted/20 rounded text-center">
-                    No users or tablets assigned to this client.
+                    No tablets assigned to this client.
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {clientUsers.map((u) => (
+                    {clientUsers.filter(u => u.role === 'user').map((u) => (
                       <div key={u.id} className="flex items-center justify-between p-2 bg-muted/40 rounded-md border text-sm">
                         <div className="flex items-center space-x-3">
-                          <div className={u.role === 'staff' ? "p-1.5 bg-blue-100 rounded text-blue-600" : "p-1.5 bg-purple-100 rounded text-purple-600"}>
-                            {u.role === 'staff' ? <Shield className="w-3 h-3" /> : <Key className="w-3 h-3" />}
+                          <div className="p-1.5 bg-purple-100 rounded text-purple-600">
+                            <Key className="w-3 h-3" />
                           </div>
                           <div>
                             <div className="font-medium">{u.name}</div>
-                            <div className="text-xs text-muted-foreground">{u.email}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[10px] capitalize">
-                            {u.role === 'user' ? 'Tablet' : u.role}
-                          </Badge>
-                          {u.role === 'user' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                              onClick={() => handleStartCall(u)}
-                              disabled={isInitiatingCall === u.id}
-                            >
-                              {isInitiatingCall === u.id ? (
-                                <Loader className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Video className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-full"
+                            onClick={() => handleStartCall(viewingClient.id, u)}
+                            disabled={isInitiatingCall === u.id}
+                          >
+                            {isInitiatingCall === u.id ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Video className="w-4 h-4" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     ))}

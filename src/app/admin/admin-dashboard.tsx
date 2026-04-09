@@ -26,6 +26,7 @@ import {
   Loader,
   LucideIcon
 } from "lucide-react";
+import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { SmartAcIcon, ComputerActivityIcon, UserMultipleIcon } from "@hugeicons/core-free-icons";
 
@@ -258,10 +259,10 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                 </p>
               </div>
               <Button asChild>
-                <a href="/admin/clients">
+                <Link href="/admin/clients">
                   <Plus className="w-4 h-4 mr-2" />
                   Manage Clients
-                </a>
+                </Link>
               </Button>
             </div>
 
@@ -278,10 +279,10 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                     <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No clients found. Add your first client in the client management page.</p>
                     <Button asChild className="mt-4">
-                      <a href="/admin/clients">
+                      <Link href="/admin/clients">
                         <Plus className="w-4 h-4 mr-2" />
                         Add First Client
-                      </a>
+                      </Link>
                     </Button>
                   </div>
                 ) : (
@@ -321,7 +322,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                           Showing 3 of {clients.length} clients
                         </p>
                         <Button asChild variant="outline" className="mt-2">
-                          <a href="/admin/clients">View All Clients</a>
+                          <Link href="/admin/clients">View All Clients</Link>
                         </Button>
                       </div>
                     )}
@@ -340,10 +341,10 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
               </p>
               </div>
               <Button asChild>
-                <a href="/admin/devices">
+                <Link href="/admin/devices">
                   <Plus className="w-4 h-4 mr-2" />
                   Manage Devices
-                </a>
+                </Link>
               </Button>
             </div>
 

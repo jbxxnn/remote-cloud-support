@@ -192,7 +192,7 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
           <Card
             key={client.id}
             className={cn(
-              "cursor-pointer",
+              "cursor-pointer flex flex-col h-full",
               componentAnimations.clientTile,
               isHovered && "shadow-lg border-primary/50 scale-[1]",
               !isHovered && "hover:shadow-md"
@@ -201,8 +201,9 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
             onMouseLeave={() => setHoveredClient(null)}
             onClick={() => onClientClick?.(client)}
           >
-            <CardContent className="p-0">
-              <div className="flex items-start justify-between mb-2 p-4">
+            <CardContent className="p-0 flex flex-col h-full">
+              <div className="flex-1">
+                <div className="flex items-start justify-between mb-2 p-4">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-md mb-1 truncate">{client.name}</h3>
                   {/* {client.company && (
@@ -417,6 +418,8 @@ export function ActiveClientsGrid({ clients, loading, onClientClick }: ActiveCli
                   </div>
                 </div>
               )}
+
+              </div>
 
               {!showExpanded && (
                 <div className="flex items-center justify-end bg-secondary" style={{borderBottomRightRadius: "10px", borderBottomLeftRadius: "10px"}}>

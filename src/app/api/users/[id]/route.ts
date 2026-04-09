@@ -20,9 +20,14 @@ export async function GET(
     const result = await query(`
       SELECT 
         u.*,
-        c.name as "clientName"
+        COALESCE(
+          (SELECT json_agg(json_build_object('id', c.id, 'name', c.name))
+           FROM "StaffAssignment" sa
+           JOIN "Client" c ON sa."clientId" = c.id
+           WHERE sa."userId" = u.id),
+          '[]'
+        ) as "assignedClients"
       FROM "User" u
-      LEFT JOIN "Client" c ON u."clientId" = c.id
       WHERE u.id = $1
     `, [id]);
     
@@ -60,6 +65,7 @@ export async function PUT(
       email, 
       phone, 
       clientId, 
+      clientIds = [],
       isActive 
     } = body;
 
@@ -93,7 +99,7 @@ export async function PUT(
       WHERE id = $7
       RETURNING *
     `, [
-      name, email, phone, clientId, isActive, now, id
+      name, email, phone, clientId || null, isActive, now, id
     ]);
 
     if (result.rows.length === 0) {
@@ -102,16 +108,34 @@ export async function PUT(
 
     const user = result.rows[0];
 
-    // Get client name if assigned
-    if (user.clientId) {
-      const clientResult = await query(
-        'SELECT name FROM "Client" WHERE id = $1',
-        [user.clientId]
-      );
-      if (clientResult.rows.length > 0) {
-        user.clientName = clientResult.rows[0].name;
+    // Sync client assignments if role is staff
+    if (user.role === 'staff') {
+      // Remove old assignments
+      await query('DELETE FROM "StaffAssignment" WHERE "userId" = $1', [id]);
+      
+      // Add new assignments
+      if (clientIds.length > 0) {
+        for (const cid of clientIds) {
+          await query(
+            'INSERT INTO "StaffAssignment" ("userId", "clientId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [id, cid]
+          );
+        }
+      } else if (clientId) {
+        // Fallback for legacy calls
+        await query(
+          'INSERT INTO "StaffAssignment" ("userId", "clientId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [id, clientId]
+        );
       }
     }
+
+    // Get current assignments
+    const assignmentsResult = await query(
+      `SELECT c.id, c.name FROM "StaffAssignment" sa JOIN "Client" c ON sa."clientId" = c.id WHERE sa."userId" = $1`,
+      [id]
+    );
+    user.assignedClients = assignmentsResult.rows;
 
     // Remove password from response
     delete user.password;

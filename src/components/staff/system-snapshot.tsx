@@ -57,11 +57,7 @@ export function SystemSnapshot({
     // Set up auto-refresh interval
     const refreshInterval = setInterval(() => {
       setLastRefresh(new Date());
-      
-      // Trigger parent refresh if callback provided
-      if (onRefresh) {
-        onRefresh();
-      }
+      // Parent handles global refresh via its own interval
     }, 30000); // 30 seconds
 
     return () => {

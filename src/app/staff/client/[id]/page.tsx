@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -310,6 +310,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
 
 export default function ClientDashboardPage() {
   const params = useParams();
+  const router = useRouter();
   const clientId = params.id as string;
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantInitialMessage, setAssistantInitialMessage] = useState<string | undefined>();
@@ -603,8 +604,9 @@ export default function ClientDashboardPage() {
   };
 
   const handleStartCall = async () => {
-    if (!selectedAlert || !clientId) {
-      console.error('Cannot start call: missing alert or client');
+    if (!clientId) {
+      console.error('Cannot start call: missing client ID');
+      toast.error("Cannot start call: missing client information");
       return;
     }
 
@@ -619,7 +621,7 @@ export default function ClientDashboardPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             clientId: clientId,
-            alertId: selectedAlert.id,
+            alertId: selectedAlert?.id,
             sopResponseId: selectedSOPForResponse?.sopResponseId,
           }),
         });
@@ -660,7 +662,7 @@ export default function ClientDashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          alertId: selectedAlert.id,
+          alertId: selectedAlert?.id,
           clientId: clientId,
           sopResponseId: selectedSOPForResponse?.sopResponseId,
         }),
@@ -679,8 +681,8 @@ export default function ClientDashboardPage() {
         throw new Error('No meeting URL received');
       }
 
-      // Store the recording for this alert
-      if (recording && selectedAlert.id) {
+      // Store the recording for this alert if one exists
+      if (recording && selectedAlert?.id) {
         setPendingRecordings(prev => {
           const newMap = new Map(prev);
           newMap.set(selectedAlert.id, recording);
@@ -703,10 +705,12 @@ export default function ClientDashboardPage() {
       // Show notification
       toast.success('Google Meet opened. Remember to start recording!');
       
-      // Refresh recordings after a delay
-      setTimeout(() => {
-        fetchRecordingsForAlert(selectedAlert.id);
-      }, 1000);
+      // Refresh recordings after a delay if alert exists
+      if (selectedAlert?.id) {
+        setTimeout(() => {
+          fetchRecordingsForAlert(selectedAlert.id!);
+        }, 1000);
+      }
     } catch (error) {
       console.error('Failed to start Google Meet:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to start Google Meet call';
@@ -1114,38 +1118,36 @@ export default function ClientDashboardPage() {
                   )}
 
                   {/* Quick Actions */}
-                  {/* <div className="pt-2 border-t border-gray-100">
-                    <span className="text-sm text-gray-600 block mb-2">Quick Actions</span>
-                    <div className="space-y-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full justify-start border-gray-300 text-gray-700 hover:bg-gray-50"
-                        onClick={handleStartCall}
-                        disabled={startingCall}
-                      >
-                        {startingCall ? (
-                          <>
-                            <Loader className="w-3 h-3 mr-2 animate-spin" />
-                            Starting...
-                          </>
-                        ) : (
-                          <>
-                            <Phone className="w-3 h-3 mr-2" />
-                            Call Client
-                          </>
-                        )}
-                      </Button>
-                      <Button 
+                  <div className="pt-2 border-t border-gray-100">
+                    {/* <span className="text-sm text-gray-600 block mb-2">Quick Actions</span> */}
+                    <div className="space-y-2 pt-4">
+                     <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex items-center gap-1 rounded-full" 
+                    onClick={handleStartCall}
+                    disabled={startingCall}
+                  >
+                    {startingCall ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" /> Starting...
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="w-4 h-4" /> Start Call
+                      </>
+                    )}
+                  </Button>
+                      {/* <Button 
                         variant="outline" 
                         size="sm" 
                         className="w-full justify-start border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         <FileText className="w-3 h-3 mr-2" />
                         View SOPs
-                      </Button>
+                      </Button> */}
                     </div>
-                  </div> */}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1286,7 +1288,7 @@ export default function ClientDashboardPage() {
                 <AlertTimeline
                   clientId={clientId}
                   onAlertClick={(alertId) => {
-                    window.location.href = `/staff/alerts/${alertId}`;
+                    router.push(`/staff/alerts/${alertId}`);
                   }}
                 />
               </CardContent>

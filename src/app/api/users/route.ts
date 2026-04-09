@@ -20,9 +20,14 @@ export async function GET(request: NextRequest) {
     let sql = `
       SELECT 
         u.id, u.name, u.email, u.phone, u.role, u."clientId", u."isActive", u."createdAt",
-        c.name as "clientName"
+        COALESCE(
+          (SELECT json_agg(json_build_object('id', c.id, 'name', c.name))
+           FROM "StaffAssignment" sa
+           JOIN "Client" c ON sa."clientId" = c.id
+           WHERE sa."userId" = u.id),
+          '[]'
+        ) as "assignedClients"
       FROM "User" u
-      LEFT JOIN "Client" c ON u."clientId" = c.id
       WHERE 1=1
     `;
     
@@ -35,8 +40,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (clientId) {
-      sql += ` AND u."clientId" = $${paramIndex++}`;
+      // For staff, check assignments table too
+      sql += ` AND (u."clientId" = $${paramIndex} OR EXISTS (SELECT 1 FROM "StaffAssignment" sa WHERE sa."userId" = u.id AND sa."clientId" = $${paramIndex}))`;
       params.push(clientId);
+      paramIndex++;
     }
     
     sql += ` ORDER BY u."createdAt" DESC`;
@@ -66,7 +73,8 @@ export async function POST(request: NextRequest) {
       phone, 
       password, 
       role = "staff", 
-      clientId, 
+      clientId, // Keep for tablet back-compat
+      clientIds = [], // Array for multiple assignments
       isActive = true 
     } = body;
 
@@ -107,21 +115,33 @@ export async function POST(request: NextRequest) {
       )
       RETURNING *
     `, [
-      name, email, phone, hashedPassword, role, clientId, isActive, now, now
+      name, email, phone, hashedPassword, role, clientId || null, isActive, now, now
     ]);
 
     const user = result.rows[0];
 
-    // Get client name if assigned
-    if (user.clientId) {
-      const clientResult = await query(
-        'SELECT name FROM "Client" WHERE id = $1',
-        [user.clientId]
-      );
-      if (clientResult.rows.length > 0) {
-        user.clientName = clientResult.rows[0].name;
+    // Handle multiple assignments for staff
+    if (role === 'staff' && clientIds.length > 0) {
+      for (const cid of clientIds) {
+        await query(
+          'INSERT INTO "StaffAssignment" ("userId", "clientId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [user.id, cid]
+        );
       }
+    } else if (clientId && role === 'staff') {
+      // Legacy single selection support
+      await query(
+        'INSERT INTO "StaffAssignment" ("userId", "clientId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [user.id, clientId]
+      );
     }
+
+    // Return the user with their assignments
+    const assignmentsResult = await query(
+      `SELECT c.id, c.name FROM "StaffAssignment" sa JOIN "Client" c ON sa."clientId" = c.id WHERE sa."userId" = $1`,
+      [user.id]
+    );
+    user.assignedClients = assignmentsResult.rows;
 
     // Remove password from response
     delete user.password;

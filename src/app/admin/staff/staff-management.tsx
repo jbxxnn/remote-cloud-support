@@ -41,7 +41,9 @@ import {
   Clock,
   Shield,
   Key,
-  Loader
+  Loader,
+  Check,
+  UserPlus
 } from "lucide-react";
 
 interface Staff {
@@ -53,6 +55,7 @@ interface Staff {
   isActive: boolean;
   clientId?: string;
   clientName?: string;
+  assignedClients?: { id: string, name: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -94,6 +97,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
     confirmPassword: "",
     role: "staff",
     clientId: "",
+    clientIds: [] as string[],
     isActive: true
   });
   const [submitting, setSubmitting] = useState(false);
@@ -112,6 +116,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
         setFormData(prev => ({ 
           ...prev, 
           clientId,
+          clientIds: [clientId],
           role: 'user' // Default to Tablet for client-triggered adds
         }));
       }
@@ -170,6 +175,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
         phone: formData.phone,
         role: formData.role,
         clientId: formData.clientId || null,
+        clientIds: formData.clientIds,
         isActive: formData.isActive
       } : {
         name: formData.name,
@@ -178,6 +184,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
         password: formData.password,
         role: formData.role,
         clientId: formData.clientId || null,
+        clientIds: formData.clientIds,
         isActive: formData.isActive
       };
 
@@ -227,6 +234,23 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
     });
   };
 
+  const toggleClientSelection = (clientId: string) => {
+    setFormData(prev => {
+      const clientIds = prev.clientIds.includes(clientId)
+        ? prev.clientIds.filter(id => id !== clientId)
+        : [...prev.clientIds, clientId];
+      return { ...prev, clientIds };
+    });
+  };
+
+  const handleSelectAllClients = () => {
+    if (formData.clientIds.length === clients.length) {
+      setFormData(prev => ({ ...prev, clientIds: [] }));
+    } else {
+      setFormData(prev => ({ ...prev, clientIds: clients.map(c => c.id) }));
+    }
+  };
+
   const handleEdit = (staffMember: Staff) => {
     setEditingStaff(staffMember);
     setFormData({
@@ -237,6 +261,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
       confirmPassword: "",
       role: staffMember.role,
       clientId: staffMember.clientId || "",
+      clientIds: staffMember.assignedClients?.map(c => c.id) || (staffMember.clientId ? [staffMember.clientId] : []),
       isActive: staffMember.isActive
     });
     setShowEditDialog(true);
@@ -275,6 +300,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
       confirmPassword: "",
       role: "staff",
       clientId: "",
+      clientIds: [],
       isActive: true
     });
   };
@@ -290,10 +316,13 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
     setDeletingStaff(null);
   };
 
-  const filteredStaff = staff.filter(staffMember =>
-    staffMember.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    staffMember.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    staffMember.clientName?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStaff = staff.filter(staffMember => 
+    staffMember.role !== 'user' && (
+      staffMember.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      staffMember.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      staffMember.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      staffMember.assignedClients?.some(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
   );
 
   if (loading) {
@@ -333,11 +362,11 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
           </div>
           <div className="flex items-center space-x-4">
             <Badge variant="secondary">
-              {filteredStaff.length} of {staff.length} staff members
+              {filteredStaff.length} of {staff.filter(s => s.role !== 'user').length} staff members
             </Badge>
             <Button onClick={() => setShowAddDialog(true)} className="rounded-full bg-[var(--rce-green)] text-primary-foreground hover:bg-primary">
               <Plus className="w-4 h-4 mr-2" />
-              Add New Staff
+              Add Staff Member
             </Button>
           </div>
         </div>
@@ -381,14 +410,14 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredStaff.map((staffMember) => (
-                    <TableRow key={staffMember.id}>
+                  {filteredStaff.map((member) => (
+                    <TableRow key={member.id}>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Users className="w-4 h-4 text-primary" />
                           <div>
-                            <div className="font-medium">{staffMember.name}</div>
-                            {/* <div className="text-sm text-muted-foreground">{staffMember.email}</div> */}
+                            <div className="font-medium">{member.name}</div>
+                            {/* <div className="text-sm text-muted-foreground">{member.email}</div> */}
                           </div>
                         </div>
                       </TableCell>
@@ -396,47 +425,59 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
                         <div className="space-y-1">
                           <div className="flex items-center space-x-2 text-sm">
                             <Mail className="w-3 h-3 text-muted-foreground" />
-                            <span>{staffMember.email}</span>
+                            <span>{member.email}</span>
                           </div>
-                          {staffMember.phone && (
+                          {member.phone && (
                             <div className="flex items-center space-x-2 text-sm">
                               <Phone className="w-3 h-3 text-muted-foreground" />
-                              <span>{staffMember.phone}</span>
+                              <span>{member.phone}</span>
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {staffMember.clientName ? (
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {member.assignedClients && member.assignedClients.length > 0 ? (
+                          member.assignedClients.length > 2 ? (
+                            <Badge variant="secondary" className="w-fit cursor-default" title={member.assignedClients.map(c => c.name).join(', ')}>
+                              {member.assignedClients.length} Clients Assigned
+                            </Badge>
+                          ) : (
+                            member.assignedClients.map(c => (
+                              <div key={c.id} className="flex items-center space-x-2">
+                                <Building className="w-3 h-3 text-muted-foreground" />
+                                <span className="text-sm">{c.name}</span>
+                              </div>
+                            ))
+                          )
+                        ) : member.clientName ? (
                           <div className="flex items-center space-x-2">
                             <Building className="w-3 h-3 text-muted-foreground" />
-                            <span className="text-sm">{staffMember.clientName}</span>
+                            <span className="text-sm">{member.clientName}</span>
                           </div>
                         ) : (
-                          <Badge variant="outline" className="text-orange-600 border-orange-200">
-                            <UserX className="w-3 h-3 mr-1" />
-                            Unassigned
-                          </Badge>
+                          <span className="text-xs text-muted-foreground italic">No assignment</span>
                         )}
-                      </TableCell>
+                      </div>
+                    </TableCell>
                       <TableCell>
-                        <Badge variant={staffMember.isActive ? "default" : "secondary"}>
-                          {staffMember.isActive ? "Active" : "Inactive"}
+                        <Badge variant={member.isActive ? "default" : "secondary"}>
+                          {member.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={staffMember.role === "staff" ? "text-blue-600 border-blue-200" : "text-purple-600 border-purple-200"}>
-                          {staffMember.role === "staff" ? (
+                        <Badge variant="outline" className={member.role === "staff" ? "text-blue-600 border-blue-200" : "text-purple-600 border-purple-200"}>
+                          {member.role === "staff" ? (
                             <Shield className="w-3 h-3 mr-1" />
                           ) : (
                             <Key className="w-3 h-3 mr-1" />
                           )}
-                          {staffMember.role === "staff" ? "Staff" : "Tablet"}
+                          {member.role === "staff" ? "Staff" : "Tablet"}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                          <span>{new Date(staffMember.createdAt).toLocaleDateString()}</span>
+                          <span>{new Date(member.createdAt).toLocaleDateString()}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -448,7 +489,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
                             variant="ghost" 
                             size="sm" 
                             title="Edit Staff"
-                            onClick={() => handleEdit(staffMember)}
+                            onClick={() => handleEdit(member)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -457,7 +498,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
                             size="sm" 
                             title="Delete Staff"
                             onClick={() => {
-                              setDeletingStaff(staffMember);
+                              setDeletingStaff(member);
                               setShowDeleteDialog(true);
                             }}
                           >
@@ -551,44 +592,40 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
               </div>
             </div>
 
-            {/* Role and Assignment */}
+            {/* Assignment */}
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="role">User Role *</Label>
-                  <select
-                    id="role"
-                    name="role"
-                    title="Select a role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded-md"
-                    required
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Assign Clients *</Label>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 text-xs"
+                    onClick={handleSelectAllClients}
                   >
-                    <option value="staff">Support Staff</option>
-                    <option value="user">Tablet / Client User</option>
-                  </select>
+                    {formData.clientIds.length === clients.length ? "Deselect All" : "Select All"}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="clientId">Assign to Client (Optional)</Label>
-                  <select
-                    id="clientId"
-                    name="clientId"
-                    title="Select a client"
-                    value={formData.clientId}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded-md"
-                  >
-                    <option value="">No assignment</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
+                  {clients.map(client => (
+                    <div 
+                      key={client.id} 
+                      className="flex items-center space-x-3 cursor-pointer hover:bg-muted/50 p-1.5 rounded transition-colors"
+                      onClick={() => toggleClientSelection(client.id)}
+                    >
+                      <div className={`w-4 h-4 border rounded flex items-center justify-center transition-colors ${formData.clientIds.includes(client.id) ? 'bg-primary border-primary' : 'border-input'}`}>
+                        {formData.clientIds.includes(client.id) && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </div>
+                      <span className="text-sm">{client.name}</span>
+                    </div>
+                  ))}
+                  {clients.length === 0 && (
+                    <span className="text-xs text-muted-foreground italic">No clients available</span>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 pt-2">
                 <input
                   type="checkbox"
                   id="isActive"
@@ -596,6 +633,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
                   title="Active account"
                   checked={formData.isActive}
                   onChange={handleCheckboxChange}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                 />
                 <Label htmlFor="isActive">Active account</Label>
               </div>
@@ -667,44 +705,37 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
               </div>
             </div>
 
-            {/* Role and Assignment */}
+            {/* Assignment */}
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-role">User Role *</Label>
-                  <select
-                    id="edit-role"
-                    name="role"
-                    title="Select a role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded-md"
-                    required
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Assign Clients *</Label>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 text-xs"
+                    onClick={handleSelectAllClients}
                   >
-                    <option value="staff">Support Staff</option>
-                    <option value="user">Tablet / Client User</option>
-                  </select>
+                    {formData.clientIds.length === clients.length ? "Deselect All" : "Select All"}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-clientId">Assign to Client (Optional)</Label>
-                  <select
-                    id="edit-clientId"
-                    name="clientId"
-                    title="Select a client"
-                    value={formData.clientId}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded-md"
-                  >
-                    <option value="">No assignment</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
+                  {clients.map(client => (
+                    <div 
+                      key={client.id} 
+                      className="flex items-center space-x-3 cursor-pointer hover:bg-muted/50 p-1.5 rounded transition-colors"
+                      onClick={() => toggleClientSelection(client.id)}
+                    >
+                      <div className={`w-4 h-4 border rounded flex items-center justify-center transition-colors ${formData.clientIds.includes(client.id) ? 'bg-primary border-primary' : 'border-input'}`}>
+                        {formData.clientIds.includes(client.id) && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </div>
+                      <span className="text-sm">{client.name}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 pt-2">
                 <input
                   type="checkbox"
                   id="edit-isActive"
@@ -712,6 +743,7 @@ export function StaffManagementContent({ user }: StaffManagementProps) {
                   title="Active account"
                   checked={formData.isActive}
                   onChange={handleCheckboxChange}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                 />
                 <Label htmlFor="edit-isActive">Active account</Label>
               </div>

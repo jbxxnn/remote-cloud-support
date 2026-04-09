@@ -49,9 +49,9 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const [currentSection, setCurrentSection] = useState<string>("dashboard");
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(true);
     // Set up real-time updates (polling for now, could be WebSocket later)
-    const interval = setInterval(fetchDashboardData, 30000); // 30 seconds
+    const interval = setInterval(() => fetchDashboardData(false), 30000); // 30 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -70,9 +70,11 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) {
+        setLoading(true);
+      }
       setError(null);
       
       // Fetch clients with their current status
@@ -99,7 +101,9 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
       console.error('Failed to fetch dashboard data:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch data');
     } finally {
-      setLoading(false);
+      if (isInitial) {
+        setLoading(false);
+      }
     }
   };
 
@@ -178,7 +182,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">Error Loading Dashboard</h3>
               <p className="text-muted-foreground mb-4">{error}</p>
-              <Button onClick={fetchDashboardData}>
+              <Button onClick={() => fetchDashboardData(true)}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Retry
               </Button>

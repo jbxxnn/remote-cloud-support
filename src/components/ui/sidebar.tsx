@@ -99,7 +99,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
           asChild
           {...props}
         >
-          <a href={href} className="flex items-center w-full">
+          <Link href={href} className="flex items-center w-full">
             <div className={cn(
               "absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full transition-all duration-200",
               active ? "bg-primary opacity-100" : "bg-transparent opacity-0 group-hover:opacity-30"
@@ -122,7 +122,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
                 {badge > 99 ? "99+" : badge}
               </Badge>
             )}
-          </a>
+          </Link>
         </Button>
       );
 
@@ -215,7 +215,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
               tooltip="Ask SupportSense: Show recent activity logs"
             />
 
-            {liveStats.pendingAlerts > 0 && (
+            {/* {liveStats.pendingAlerts > 0 && (
               <>
                 <Separator className="my-3 opacity-50" />
                 <NavButton
@@ -227,7 +227,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
                   tooltip="Ask SupportSense: Show pending alerts requiring attention"
                 />
               </>
-            )}
+            )} */}
           </nav>
         </div>
 

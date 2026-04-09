@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ interface LiveAlertsFeedProps {
 }
 
 export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewSOP }: LiveAlertsFeedProps) {
+  const router = useRouter();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [severityFilter, setSeverityFilter] = useState<string>("all");
@@ -160,7 +162,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
     e.stopPropagation();
     if (!onAcknowledge) {
       // Navigate to client page if handler not provided
-      window.location.href = `/staff/client/${alert.clientId}`;
+      router.push(`/staff/client/${alert.clientId}`);
       return;
     }
 
@@ -190,7 +192,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
 
     if (!onResolve) {
       // Navigate to client page if handler not provided
-      window.location.href = `/staff/client/${alert.clientId}`;
+      router.push(`/staff/client/${alert.clientId}`);
       return;
     }
 
@@ -218,7 +220,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
       onViewSOP(alert.id, alert.clientId);
     } else {
       // Navigate to client page
-      window.location.href = `/staff/client/${alert.clientId}`;
+      router.push(`/staff/client/${alert.clientId}`);
     }
   };
 
@@ -227,7 +229,7 @@ export function LiveAlertsFeed({ onAlertClick, onAcknowledge, onResolve, onViewS
     if (onAlertClick) {
       onAlertClick(alert);
     } else {
-      window.location.href = `/staff/client/${alert.clientId}`;
+      router.push(`/staff/client/${alert.clientId}`);
     }
   };
 
