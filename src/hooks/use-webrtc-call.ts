@@ -119,9 +119,10 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
   const handleCallEnd = useCallback(() => {
     console.log('Call ended by remote');
     stopRecording();
+    cleanup();
     setCallState('ended');
     onCallEnded?.();
-  }, [onCallEnded, stopRecording]);
+  }, [cleanup, onCallEnded, stopRecording]);
 
   /**
    * Cleanup resources
@@ -311,8 +312,12 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     startCall,
     endCall: () => {
       stopRecording();
-      signalingRef.current?.sendEnd();
-      cleanup();
+      setCallState('ended');
+      signalingRef.current?.sendEnd(callSessionId);
+      // Give Socket.IO a moment to flush the end event before disconnecting.
+      window.setTimeout(() => {
+        cleanup();
+      }, 150);
     }
   };
 }
