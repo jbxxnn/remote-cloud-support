@@ -18,6 +18,29 @@ export interface UseWebRTCCallOptions {
   };
 }
 
+function getSupportedRecordingMimeType() {
+  if (typeof MediaRecorder === 'undefined') {
+    return null;
+  }
+
+  const mimeTypes = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=h264,opus',
+    'video/webm',
+    'video/mp4',
+    '',
+  ];
+
+  for (const mimeType of mimeTypes) {
+    if (!mimeType || MediaRecorder.isTypeSupported(mimeType)) {
+      return mimeType;
+    }
+  }
+
+  return null;
+}
+
 export function useWebRTCCall(options: UseWebRTCCallOptions) {
   const { 
     callSessionId, 
@@ -168,10 +191,19 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
         // 3. Setup Recording for remote stream
         const setupRecording = (remote: MediaStream) => {
           console.log('🎥 Setting up recording for remote stream');
-          const recorder = new MediaRecorder(remote, { mimeType: 'video/webm;codecs=vp9,opus' });
+          const mimeType = getSupportedRecordingMimeType();
+          if (mimeType === null) {
+            console.warn('⚠️ MediaRecorder is not supported in this browser. Skipping call recording.');
+            return;
+          }
+
+          const recorder = mimeType
+            ? new MediaRecorder(remote, { mimeType })
+            : new MediaRecorder(remote);
           mediaRecorderRef.current = recorder;
           chunksRef.current = [];
           hasUploadedRecordingRef.current = false;
+          console.log('🎙️ Using recording mime type:', mimeType || 'browser-default');
 
           recorder.ondataavailable = (e) => {
             if (e.data.size > 0) chunksRef.current.push(e.data);
@@ -180,7 +212,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
           recorder.onstop = async () => {
             if (hasUploadedRecordingRef.current) return;
             hasUploadedRecordingRef.current = true;
-            const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+            const blob = new Blob(chunksRef.current, { type: mimeType || recorder.mimeType || 'video/webm' });
             console.log('📼 Recording stopped, blob size:', blob.size);
             
             if (blob.size > 0) {
