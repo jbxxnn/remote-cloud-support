@@ -7,6 +7,8 @@
  * NOTE: This service uses Node.js-only modules and should only be used in server-side code (API routes)
  */
 
+import { stat } from 'fs/promises';
+
 import { query } from '@/lib/database';
 
 export interface TranscriptionOptions {
@@ -34,9 +36,18 @@ async function getSpeechClient(): Promise<any> {
   // Dynamic import to avoid bundling in client-side code
   const { SpeechClient } = await import('@google-cloud/speech');
   
-  // Check if credentials are provided via environment variable
+  // Prefer an explicit credentials file only when it actually exists.
+  // On VPS deployments we may carry a stale GOOGLE_APPLICATION_CREDENTIALS
+  // value while providing the service account JSON directly via env.
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    return new SpeechClient();
+    try {
+      await stat(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+      return new SpeechClient();
+    } catch (error) {
+      console.warn(
+        `[Transcription] GOOGLE_APPLICATION_CREDENTIALS points to a missing file: ${process.env.GOOGLE_APPLICATION_CREDENTIALS}. Falling back to alternate credentials.`
+      );
+    }
   }
 
   // Check if service account key is provided as JSON string
@@ -267,4 +278,3 @@ export async function updateTranscript(
     throw error;
   }
 }
-
