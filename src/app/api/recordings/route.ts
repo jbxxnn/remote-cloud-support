@@ -22,19 +22,19 @@ export async function GET(request: NextRequest) {
     let paramIndex = 1;
 
     if (alertId) {
-      whereClause += ` AND "alertId" = $${paramIndex}`;
+      whereClause += ` AND r."alertId" = $${paramIndex}`;
       params.push(alertId);
       paramIndex++;
     }
 
     if (sopResponseId) {
-      whereClause += ` AND "sopResponseId" = $${paramIndex}`;
+      whereClause += ` AND r."sopResponseId" = $${paramIndex}`;
       params.push(sopResponseId);
       paramIndex++;
     }
 
     if (clientId) {
-      whereClause += ` AND "clientId" = $${paramIndex}`;
+      whereClause += ` AND r."clientId" = $${paramIndex}`;
       params.push(clientId);
       paramIndex++;
     }
@@ -136,4 +136,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create recording" }, { status: 500 });
   }
 }
-
