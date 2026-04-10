@@ -114,17 +114,6 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
   }, []);
 
   /**
-   * Handle call end
-   */
-  const handleCallEnd = useCallback(() => {
-    console.log('Call ended by remote');
-    stopRecording();
-    cleanup();
-    setCallState('ended');
-    onCallEnded?.();
-  }, [cleanup, onCallEnded, stopRecording]);
-
-  /**
    * Cleanup resources
    */
   const cleanup = useCallback(() => {
@@ -142,6 +131,17 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     // The safest way is to stop them only if the component is unmounting or session changes.
     setRemoteStream(null);
   }, []); // Remove localStream dependency to fix infinite loop
+
+  /**
+   * Handle call end
+   */
+  const handleCallEnd = useCallback(() => {
+    console.log('Call ended by remote');
+    stopRecording();
+    cleanup();
+    setCallState('ended');
+    onCallEnded?.();
+  }, [cleanup, onCallEnded, stopRecording]);
 
   /**
    * Start a call (as caller)
