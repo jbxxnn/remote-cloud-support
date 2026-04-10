@@ -10,6 +10,7 @@ export interface UseWebRTCCallOptions {
   signalingUrl: string;
   iceServers: RTCIceServer[];
   initialLocalStream?: MediaStream | null;
+  shouldRecord?: boolean;
   onCallEnded?: () => void;
   autoAnswer?: boolean;
   inviteTarget?: {
@@ -48,6 +49,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     signalingUrl, 
     iceServers, 
     initialLocalStream,
+    shouldRecord = true,
     onCallEnded, 
     autoAnswer,
     inviteTarget 
@@ -196,6 +198,9 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
 
         // 3. Setup Recording for remote stream
         const setupRecording = (remote: MediaStream) => {
+          if (!shouldRecord) {
+            return;
+          }
           if (hasInitializedRecordingRef.current) {
             return;
           }
@@ -316,7 +321,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
         localMediaStream.getTracks().forEach(t => t.stop());
       }
     };
-  }, [callSessionId, token, signalingUrl, iceServers, initialLocalStream, autoAnswer, inviteTarget, handleOffer, handleAnswer, handleIceCandidate, handleCallEnd, cleanup, startCall, stopRecording]);
+  }, [callSessionId, token, signalingUrl, iceServers, initialLocalStream, shouldRecord, autoAnswer, inviteTarget, handleOffer, handleAnswer, handleIceCandidate, handleCallEnd, cleanup, startCall, stopRecording]);
 
   return {
     localStream,

@@ -16,6 +16,7 @@ interface CallOverlayProps {
   signalingUrl: string;
   iceServers: RTCIceServer[];
   initialLocalStream?: MediaStream | null;
+  shouldRecord?: boolean;
   onClose: () => void;
   clientName?: string;
   isIncoming?: boolean;
@@ -33,6 +34,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   signalingUrl,
   iceServers,
   initialLocalStream,
+  shouldRecord,
   onClose,
   clientName = "Client",
   isIncoming = false,
@@ -61,6 +63,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
     signalingUrl,
     iceServers,
     initialLocalStream,
+    shouldRecord,
     onCallEnded: onClose,
     autoAnswer,
     inviteTarget,

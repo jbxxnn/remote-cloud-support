@@ -177,6 +177,7 @@ export default function TabletMonitorPage() {
           signalingUrl={activeCall.signalingUrl}
           iceServers={activeCall.iceServers}
           initialLocalStream={prewarmedStream}
+          shouldRecord={false}
           clientName="Support Staff"
           autoAnswer={true}
           hideControls={true}
