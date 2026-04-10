@@ -122,9 +122,10 @@ export async function transcribeRecording(
       );
     }
 
-    const language = options.language || 'en';
-    const encoding = options.encoding || getEncodingFromMimeType(mimeType);
-    const sampleRateHertz = options.sampleRateHertz || 16000;
+  const language = options.language || 'en';
+  const normalizedLanguage = language === 'en' ? 'en-US' : language;
+  const encoding = options.encoding || getEncodingFromMimeType(mimeType);
+  const sampleRateHertz = options.sampleRateHertz || 16000;
 
     // Initialize Speech-to-Text client (lazy-loaded)
     const client = await getSpeechClient();
@@ -133,11 +134,10 @@ export async function transcribeRecording(
     const config = {
       encoding: encoding as any,
       sampleRateHertz: sampleRateHertz,
-      languageCode: language,
+      languageCode: normalizedLanguage,
       enableAutomaticPunctuation: true,
       enableWordTimeOffsets: options.enableWordTimestamps || false,
       enableSpeakerDiarization: options.enableSpeakerDiarization || false,
-      model: 'latest_long', // Use latest long-form model for better accuracy
     };
 
     const request = {
@@ -215,7 +215,7 @@ export async function transcribeRecording(
     return {
       transcriptId: transcript.id,
       transcriptText,
-      language,
+      language: normalizedLanguage,
       confidence,
       processingTime: Math.floor((Date.now() - startTime) / 1000),
     };
