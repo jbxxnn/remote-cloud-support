@@ -225,7 +225,12 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
                   method: 'POST',
                   body: formData,
                 });
-                if (uploadRes.ok) console.log('✅ Recording uploaded successfully');
+                if (uploadRes.ok) {
+                  console.log('✅ Recording uploaded successfully');
+                } else {
+                  const errorText = await uploadRes.text();
+                  console.error('❌ Recording upload failed:', uploadRes.status, errorText);
+                }
               } catch (err) {
                 console.error('❌ Failed to upload recording:', err);
               }

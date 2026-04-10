@@ -96,7 +96,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
 
   const handleEndCall = () => {
     endCall();
-    onClose();
   };
 
   return (
