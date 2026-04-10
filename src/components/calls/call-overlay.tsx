@@ -46,6 +46,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const hasClosedRef = useRef(false);
 
   const {
     localStream,
@@ -78,6 +79,19 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
+
+  useEffect(() => {
+    if (callState === 'ended' && !hasClosedRef.current) {
+      hasClosedRef.current = true;
+      const timer = window.setTimeout(() => {
+        onClose();
+      }, 300);
+
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }
+  }, [callState, onClose]);
 
   // Handle Mute/Video Toggles
   const toggleMute = () => {
@@ -170,9 +184,13 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                 ) : (
                   <div className="text-center">
                     <p className="text-zinc-300 text-sm mb-1 uppercase tracking-widest opacity-50">
-                      {callState === 'active' ? 'Call Active' : 'Negotiating...'}
+                      {callState === 'active' ? 'Call Active' : callState === 'ended' ? 'Call Ended' : 'Negotiating...'}
                     </p>
-                    <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+                    {callState === 'ended' ? (
+                      <p className="text-xs text-zinc-500">Closing call window...</p>
+                    ) : (
+                      <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+                    )}
                   </div>
                 )}
               </div>

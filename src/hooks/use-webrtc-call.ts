@@ -64,6 +64,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
   const chunksRef = useRef<Blob[]>([]);
   const hasStartedOfferRef = useRef(false);
   const hasUploadedRecordingRef = useRef(false);
+  const hasInitializedRecordingRef = useRef(false);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -130,6 +131,9 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     // but we do want to stop them if explicitly ending.
     // The safest way is to stop them only if the component is unmounting or session changes.
     setRemoteStream(null);
+    mediaRecorderRef.current = null;
+    chunksRef.current = [];
+    hasInitializedRecordingRef.current = false;
   }, []); // Remove localStream dependency to fix infinite loop
 
   /**
@@ -171,6 +175,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
     let localMediaStream: MediaStream | null = null;
     hasStartedOfferRef.current = false;
     hasUploadedRecordingRef.current = false;
+    hasInitializedRecordingRef.current = false;
 
     async function init() {
       try {
@@ -191,6 +196,9 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
 
         // 3. Setup Recording for remote stream
         const setupRecording = (remote: MediaStream) => {
+          if (hasInitializedRecordingRef.current) {
+            return;
+          }
           console.log('🎥 Setting up recording for remote stream');
           const mimeType = getSupportedRecordingMimeType();
           if (mimeType === null) {
@@ -204,6 +212,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
           mediaRecorderRef.current = recorder;
           chunksRef.current = [];
           hasUploadedRecordingRef.current = false;
+          hasInitializedRecordingRef.current = true;
           console.log('🎙️ Using recording mime type:', mimeType || 'browser-default');
 
           recorder.ondataavailable = (e) => {
@@ -322,6 +331,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions) {
       // Give Socket.IO a moment to flush the end event before disconnecting.
       window.setTimeout(() => {
         cleanup();
+        onCallEnded?.();
       }, 150);
     }
   };
