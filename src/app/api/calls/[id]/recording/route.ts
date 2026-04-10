@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query, transaction } from "@/lib/database";
+import { processCallRecordingUpload } from "@/lib/webrtc/call-recording-processor";
 import { readCallRecording, saveCallRecording } from "@/lib/webrtc/recording-storage";
 
 export async function POST(
@@ -17,6 +18,7 @@ export async function POST(
     const { id: callSessionId } = await params;
     const formData = await req.formData();
     const file = formData.get("file") as File;
+    const userId = (session.user as any).id;
 
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
@@ -41,7 +43,7 @@ export async function POST(
           `UPDATE "CallRecording"
            SET "recordingUrl" = $1,
                "storagePath" = $2,
-               "processingStatus" = 'completed',
+               "processingStatus" = 'processing',
                "updatedAt" = CURRENT_TIMESTAMP
            WHERE "callSessionId" = $3`,
           [recordingUrl, storagePath, callSessionId]
@@ -49,7 +51,7 @@ export async function POST(
       } else {
         await client.query(
           `INSERT INTO "CallRecording" ("callSessionId", "recordingUrl", "storagePath", "processingStatus")
-           VALUES ($1, $2, $3, 'completed')`,
+           VALUES ($1, $2, $3, 'processing')`,
           [callSessionId, recordingUrl, storagePath]
         );
       }
@@ -61,9 +63,14 @@ export async function POST(
       );
     });
 
-    if (process.env.ENABLE_CALL_RECORDING_ANALYSIS === "true") {
-      console.warn(`Call recording analysis is enabled, but the WebRTC upload flow does not yet provide a real analysis pipeline for ${callSessionId}.`);
-    }
+    void processCallRecordingUpload({
+      callSessionId,
+      recordingUrl,
+      storagePath,
+      mimeType,
+      fileSize: file.size,
+      recordedBy: userId,
+    });
 
     return NextResponse.json({ 
       success: true, 
