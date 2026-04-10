@@ -61,6 +61,25 @@ interface SOP {
   steps: any[];
 }
 
+interface ClientRecording {
+  id: string;
+  alertId?: string | null;
+  recordingType: string;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  source?: string | null;
+  processingStatus: string;
+  createdAt: string;
+  transcript?: {
+    id: string;
+    text: string;
+    confidence?: number | null;
+    language?: string | null;
+  } | null;
+}
+
 function getStatusColor(status: string) {
   switch (status) {
     case "active": return "bg-green-500";
@@ -335,6 +354,8 @@ export default function ClientDashboardPage() {
   const [startingCall, setStartingCall] = useState(false); // Loading state for start call button
   const [popupBlockedDialogOpen, setPopupBlockedDialogOpen] = useState(false); // Dialog for popup blocker
   const [blockedMeetingUrl, setBlockedMeetingUrl] = useState<string | null>(null); // URL to show when popup is blocked
+  const [clientRecordings, setClientRecordings] = useState<ClientRecording[]>([]);
+  const [recordingsLoading, setRecordingsLoading] = useState(false);
   const [webrtcCallData, setWebrtcCallData] = useState<{
     callSessionId: string;
     token: string;
@@ -357,6 +378,12 @@ export default function ClientDashboardPage() {
       fetchRecordingsForAlert(selectedAlert.id);
     }
   }, [selectedAlert?.id]);
+
+  useEffect(() => {
+    if (clientId) {
+      fetchClientRecordings();
+    }
+  }, [clientId]);
 
   // Debug alerts
   useEffect(() => {
@@ -779,6 +806,75 @@ export default function ClientDashboardPage() {
     }
   };
 
+  const fetchClientRecordings = async () => {
+    try {
+      setRecordingsLoading(true);
+      const response = await fetch(`/api/recordings?clientId=${clientId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch client recordings");
+      }
+
+      const recordings = await response.json();
+      const normalizedRecordings = Array.isArray(recordings) ? recordings : [];
+
+      const recordingsWithTranscript = await Promise.all(
+        normalizedRecordings.slice(0, 6).map(async (recording: any) => {
+          try {
+            const transcriptResponse = await fetch(`/api/transcripts/${recording.id}`);
+            if (!transcriptResponse.ok) {
+              return { ...recording, transcript: null };
+            }
+
+            const transcript = await transcriptResponse.json();
+            return {
+              ...recording,
+              transcript: transcript ? {
+                id: transcript.id,
+                text: transcript.transcriptText,
+                confidence: transcript.confidence,
+                language: transcript.language,
+              } : null,
+            };
+          } catch (error) {
+            console.error("Failed to fetch transcript for recording:", recording.id, error);
+            return { ...recording, transcript: null };
+          }
+        })
+      );
+
+      setClientRecordings(recordingsWithTranscript);
+    } catch (error) {
+      console.error("Failed to fetch client recordings:", error);
+    } finally {
+      setRecordingsLoading(false);
+    }
+  };
+
+  const getRecordingStatusClasses = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-500/20 text-green-600";
+      case "processing":
+        return "bg-blue-500/20 text-blue-600";
+      case "failed":
+        return "bg-red-500/20 text-red-600";
+      default:
+        return "bg-yellow-500/20 text-yellow-600";
+    }
+  };
+
+  const getTranscriptExcerpt = (recording: ClientRecording) => {
+    if (!recording.transcript?.text) {
+      return recording.processingStatus === "failed"
+        ? "Transcript generation failed for this recording."
+        : "Transcript not available yet.";
+    }
+
+    return recording.transcript.text.length > 220
+      ? `${recording.transcript.text.substring(0, 220)}...`
+      : recording.transcript.text;
+  };
+
   if (loading) {
     return (
       <div className="h-screen bg-background flex overflow-hidden">
@@ -1152,8 +1248,89 @@ export default function ClientDashboardPage() {
               </CardContent>
             </Card>
 
-            
-            
+            <Card className="col-span-1 lg:col-span-1">
+              <CardHeader className="p-2 bg-secondary mb-4" style={{borderTopLeftRadius: '10px', borderTopRightRadius: '10px'}}>
+                <CardTitle className="text-base font-semibold">Recent Call Summaries</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Recent recordings and transcript excerpts for this client
+                </p>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {recordingsLoading ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm flex items-center justify-center gap-2">
+                    <Loader className="w-4 h-4 animate-spin" />
+                    <span>Loading recordings...</span>
+                  </div>
+                ) : clientRecordings.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No call recordings yet for this client.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {clientRecordings.map((recording) => (
+                      <div key={recording.id} className="p-3 border border-border rounded-sm space-y-2" style={{borderRadius: '10px'}}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm text-foreground">
+                              {recording.fileName || `${recording.recordingType} call`}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(recording.createdAt).toLocaleString()}
+                            </div>
+                            {recording.source && (
+                              <div className="text-xs text-muted-foreground capitalize">
+                                Source: {recording.source.replace(/_/g, " ")}
+                              </div>
+                            )}
+                          </div>
+                          <Badge variant="secondary" className={getRecordingStatusClasses(recording.processingStatus)}>
+                            {recording.processingStatus}
+                          </Badge>
+                        </div>
+
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">Transcript:</span>{" "}
+                          {getTranscriptExcerpt(recording)}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {recording.fileUrl && (
+                            <Button size="sm" variant="outline" asChild className="rounded-full">
+                              <a href={recording.fileUrl} target="_blank" rel="noopener noreferrer">
+                                <Play className="w-4 h-4 mr-1" />
+                                Play Recording
+                              </a>
+                            </Button>
+                          )}
+                          {recording.transcript?.text && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-full"
+                              onClick={() => {
+                                navigator.clipboard.writeText(recording.transcript?.text || "");
+                                toast.success("Transcript copied to clipboard");
+                              }}
+                            >
+                              <Copy className="w-4 h-4 mr-1" />
+                              Copy Transcript
+                            </Button>
+                          )}
+                          {recording.alertId && (
+                            <Button size="sm" variant="ghost" asChild className="rounded-full">
+                              <Link href={`/staff/alerts/${recording.alertId}`}>
+                                <ExternalLink className="w-4 h-4 mr-1" />
+                                Open Alert
+                              </Link>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* SOP Responses Card */}
             <Card className="col-span-1 lg:col-span-2">
