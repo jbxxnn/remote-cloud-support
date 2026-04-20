@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
     const transformedDetections = detections.rows.map((detection: any) => ({
       id: detection.id,
       detectionType: detection.detectionType,
+      sopId: detection.sopId,
       confidence: detection.confidence,
       severity: detection.severity,
       location: detection.location,

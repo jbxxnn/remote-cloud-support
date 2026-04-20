@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS "Detection" (
     "clientId" TEXT NOT NULL,
     "deviceId" TEXT NOT NULL,
     "detectionType" TEXT NOT NULL,
+    "sopId" TEXT,
     confidence FLOAT NOT NULL,
     "clipUrl" TEXT,
     location TEXT,
@@ -68,7 +69,8 @@ CREATE TABLE IF NOT EXISTS "Detection" (
     "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY ("clientId") REFERENCES "Client"(id) ON DELETE CASCADE,
-    FOREIGN KEY ("deviceId") REFERENCES "Device"(id) ON DELETE CASCADE
+    FOREIGN KEY ("deviceId") REFERENCES "Device"(id) ON DELETE CASCADE,
+    FOREIGN KEY ("sopId") REFERENCES "SOP"(id) ON DELETE SET NULL
 );
 
 -- SOPs (Standard Operating Procedures) table

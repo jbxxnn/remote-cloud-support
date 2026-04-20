@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
         d.location,
         d."clipUrl",
         d.severity,
-        d."detectionType"
+        d."detectionType",
+        d."sopId"
       FROM "Alert" a
       LEFT JOIN "Client" c ON a."clientId" = c.id
       LEFT JOIN "Detection" d ON a."detectionId" = d.id
@@ -67,7 +68,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch alerts" }, { status: 500 });
   }
 }
-
 
 
 

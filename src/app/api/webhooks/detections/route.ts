@@ -95,6 +95,29 @@ export async function POST(request: NextRequest) {
     
     const device = deviceResult.rows[0];
     console.log(`[${requestId}] Device found: ${device.id} (deviceId: ${device.deviceId})`);
+
+    const requestedSopId = body.sopId || body.sop_id || body.SOPID || null;
+    if (requestedSopId) {
+      console.log(`[${requestId}] Validating requested SOP: ${requestedSopId}`);
+      const sopResult = await query(
+        `
+        SELECT id
+        FROM "SOP"
+        WHERE id = $1
+          AND "isActive" = true
+          AND ("isGlobal" = true OR "clientId" = $2)
+        `,
+        [requestedSopId, client.id]
+      );
+
+      if (sopResult.rows.length === 0) {
+        console.error(`[${requestId}] Invalid SOP for client: ${requestedSopId}`);
+        return NextResponse.json({
+          error: `SOP not found or not available for this client: ${requestedSopId}`
+        }, { status: 400 });
+      }
+      console.log(`[${requestId}] Requested SOP validated: ${requestedSopId}`);
+    }
     
     // Store detection
     const now = new Date();
@@ -122,6 +145,7 @@ export async function POST(request: NextRequest) {
       clientId: client.id,
       deviceId: device.id,
       detectionType: body.reason || 'fall_detected',
+      sopId: requestedSopId,
       confidence: body.confidence,
       clipUrl: body.image_topic || null,
       location: body.camera || body.device_id,
@@ -135,13 +159,14 @@ export async function POST(request: NextRequest) {
     let detectionResult;
     try {
       detectionResult = await query(`
-        INSERT INTO "Detection" (id, "clientId", "deviceId", "detectionType", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
-        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+        INSERT INTO "Detection" (id, "clientId", "deviceId", "detectionType", "sopId", confidence, "clipUrl", location, severity, timestamp, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
         RETURNING *
       `, [
         detectionData.clientId,
         detectionData.deviceId,
         detectionData.detectionType,
+        detectionData.sopId,
         detectionData.confidence,
         detectionData.clipUrl,
         detectionData.location,
@@ -239,6 +264,7 @@ function generateAlertMessage(detection: any, alertType: string): string {
       return JSON.stringify({
         type: 'detection_alert',
         detection: detection,
+        sopId: detection.sopId || null,
         timestamp: new Date().toISOString()
       });
     default:

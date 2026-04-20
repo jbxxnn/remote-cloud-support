@@ -34,6 +34,7 @@ interface Alert {
   clipUrl: string | null;
   severity: string;
   detectionType: string;
+  sopId?: string | null;
 }
 
 interface Client {
@@ -490,10 +491,16 @@ export default function ClientDashboardPage() {
   }, [clientId]);
 
   // Fetch relevant SOPs when an alert is selected
-  const fetchRelevantSOPs = async (detectionType: string) => {
+  const fetchRelevantSOPs = async (detectionType?: string, sopId?: string | null) => {
     try {
-      console.log('[CLIENT PAGE] Fetching SOPs for detection type:', detectionType);
-      const response = await fetch(`/api/staff/clients/${clientId}/sops?detectionType=${detectionType}`);
+      console.log('[CLIENT PAGE] Fetching SOPs for detection type:', detectionType, 'sopId:', sopId);
+      const params = new URLSearchParams();
+      if (sopId) {
+        params.set('sopId', sopId);
+      } else if (detectionType) {
+        params.set('detectionType', detectionType);
+      }
+      const response = await fetch(`/api/staff/clients/${clientId}/sops?${params.toString()}`);
       if (response.ok) {
         const sopsData = await response.json();
         console.log('[CLIENT PAGE] SOPs received:', sopsData);
@@ -999,8 +1006,8 @@ export default function ClientDashboardPage() {
                           <div key={alert.id} className={`p-4 py-2 border rounded-sm flex items-center justify-between cursor-pointer hover:opacity-80 transition-all ${getAlertCardClasses(alert.status)}`} style={{borderRadius: '10px'}} onClick={() => {
                             setSelectedAlert(alert);
                             // Fetch relevant SOPs based on detection type
-                            if (alert.detectionType) {
-                              fetchRelevantSOPs(alert.detectionType);
+                            if (alert.sopId || alert.detectionType) {
+                              fetchRelevantSOPs(alert.detectionType, alert.sopId);
                             }
                           }}>
                             <div>

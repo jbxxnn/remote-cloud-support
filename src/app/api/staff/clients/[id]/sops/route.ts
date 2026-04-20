@@ -17,15 +17,20 @@ export async function GET(
   try {
     const { id: clientId } = await params;
     const { searchParams } = new URL(request.url);
+    const sopId = searchParams.get('sopId');
     const detectionType = searchParams.get('detectionType'); // Filter by detection type
 
     console.log('[SOPS API] Client ID:', clientId);
+    console.log('[SOPS API] SOP ID:', sopId);
     console.log('[SOPS API] Detection Type:', detectionType);
 
     let whereClause = 'WHERE ("clientId" = $1 OR "isGlobal" = true) AND "isActive" = true';
     let queryParams = [clientId];
 
-    if (detectionType) {
+    if (sopId) {
+      whereClause += ' AND id = $2';
+      queryParams.push(sopId);
+    } else if (detectionType) {
       whereClause += ' AND LOWER("eventType") = LOWER($2)';
       queryParams.push(detectionType);
     }

@@ -53,7 +53,8 @@ export async function GET(
         d.location,
         d."clipUrl",
         d.severity,
-        d."detectionType"
+        d."detectionType",
+        d."sopId"
       FROM "Alert" a
       LEFT JOIN "Detection" d ON a."detectionId" = d.id
       ${whereClause}

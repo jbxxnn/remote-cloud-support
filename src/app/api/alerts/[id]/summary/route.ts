@@ -34,6 +34,7 @@ export async function GET(
         a."updatedAt",
         a."assignedTo",
         d."detectionType",
+        d."sopId",
         d.severity,
         d.location,
         d."clipUrl",
@@ -274,4 +275,3 @@ export async function GET(
     return NextResponse.json({ error: "Failed to generate alert summary" }, { status: 500 });
   }
 }
-
