@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, Clock, HelpCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronUp,
+  CircleHelp,
+  ClipboardCheck,
+  ListChecks,
+  Table2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAssistant } from "@/hooks/use-assistant";
 import { contextService } from "@/lib/assistant/context-service";
@@ -20,66 +27,163 @@ interface CompletedStep {
 
 interface SOPStepItemProps {
   stepNumber: number;
-  stepData: any; // Can be string or object
+  stepData: any;
   isCompleted: boolean;
   completedStep?: CompletedStep;
   onComplete: (stepNumber: number, notes: string) => void;
   disabled?: boolean;
   sopId?: string;
   clientId?: string;
-  allSteps?: any[]; // All SOP steps for validation
-  allCompletedSteps?: CompletedStep[]; // All completed steps for validation
+  allSteps?: any[];
+  allCompletedSteps?: CompletedStep[];
 }
 
-function formatDetailLine(line: string) {
-  const trimmed = line.trim();
-  return trimmed.replace(/^[•*-]\s*/, "");
+function getStepTitle(stepData: any, stepNumber: number) {
+  if (typeof stepData === "string") return stepData;
+  if (stepData?.title) return stepData.title;
+  if (stepData?.action) return stepData.action;
+  if (stepData?.description) return stepData.description;
+  if (stepData?.text) return stepData.text;
+  if (stepData?.content) return stepData.content;
+  return `Step ${stepNumber}`;
 }
 
-function splitInlineDetails(details: string) {
-  return details
-    .replace(/\s+(Ask:)/g, "\n$1")
-    .replace(/\s+(Example:)/g, "\n$1")
-    .replace(/\s+(General Rule:)/g, "\n$1")
-    .replace(/\s+(Client responds[^A-Z]*)/g, "\n$1")
-    .replace(/\s+(Client confused[^A-Z]*)/g, "\n$1")
-    .replace(/\s+(No response[^A-Z]*)/g, "\n$1")
-    .replace(/\s+(Emergency reported[^A-Z]*)/g, "\n$1")
-    .replace(/\s+(If safe\s*[→-])/g, "\n$1")
-    .replace(/\s+(If risk\s*[→-])/g, "\n$1");
+function getStepInstructions(stepData: any) {
+  if (typeof stepData === "string") return "";
+  return stepData?.instructions || stepData?.details || stepData?.description || "";
 }
 
-function SOPStepDetails({ details }: { details: string }) {
-  const normalizedDetails = splitInlineDetails(details);
-  const lines = normalizedDetails
+function normalizeLines(value: string) {
+  return value
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .map((line) => line.trim().replace(/^[•*-]\s*/, ""))
     .filter(Boolean);
+}
+
+function getChecklistItems(stepData: any) {
+  if (Array.isArray(stepData?.checklistItems)) {
+    return stepData.checklistItems.filter(Boolean);
+  }
+
+  const instructions = getStepInstructions(stepData);
+  return instructions ? normalizeLines(instructions) : [];
+}
+
+function getTableData(stepData: any) {
+  const table = stepData?.table;
+  if (
+    table &&
+    Array.isArray(table.columns) &&
+    table.columns.length > 0 &&
+    Array.isArray(table.rows)
+  ) {
+    return {
+      columns: table.columns,
+      rows: table.rows,
+    };
+  }
+
+  return null;
+}
+
+function LegacyStepContent({ stepData }: { stepData: any }) {
+  const instructions = getStepInstructions(stepData);
+  const lines = normalizeLines(instructions);
 
   if (lines.length === 0) return null;
 
-  const isLikelyList = lines.length > 1;
-
-  if (isLikelyList) {
-    return (
-      <div className="mt-3 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-        <ul className="space-y-1.5">
+  return (
+    <div className="rounded-md border border-border/70 bg-background/40 p-4">
+      <div className="flex gap-4">
+        <div className="hidden min-h-12 w-16 shrink-0 items-center justify-center border-r border-border/70 text-[var(--rce-green)] sm:flex">
+          <ClipboardCheck className="h-8 w-8" />
+        </div>
+        <ul className="space-y-2 text-sm leading-6 text-muted-foreground">
           {lines.map((line, index) => (
-            <li key={`${line}-${index}`} className="flex gap-2 leading-relaxed">
-              <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary/70" />
-              <span className="whitespace-pre-wrap">{formatDetailLine(line)}</span>
+            <li key={`${line}-${index}`} className="flex gap-2">
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
+              <span>{line}</span>
             </li>
           ))}
         </ul>
       </div>
-    );
+    </div>
+  );
+}
+
+function ChecklistStepContent({ stepData }: { stepData: any }) {
+  const items = getChecklistItems(stepData);
+
+  if (items.length === 0) {
+    return <LegacyStepContent stepData={stepData} />;
   }
 
   return (
-    <div className="mt-3 rounded-md border bg-muted/30 p-3 text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-      {normalizedDetails}
+    <div className="rounded-md border border-border/70 bg-background/40 p-4">
+      <div className="flex gap-4">
+        <div className="hidden min-h-12 w-16 shrink-0 items-center justify-center border-r border-border/70 text-[var(--rce-green)] sm:flex">
+          <ListChecks className="h-8 w-8" />
+        </div>
+        <ul className="space-y-2 text-sm leading-6 text-muted-foreground">
+          {items.map((item, index) => (
+            <li key={`${item}-${index}`} className="flex gap-2">
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
+}
+
+function TableStepContent({ stepData }: { stepData: any }) {
+  const table = getTableData(stepData);
+
+  if (!table) {
+    return <LegacyStepContent stepData={stepData} />;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-md border border-border/70">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[620px] border-collapse text-sm">
+          <thead>
+            <tr className="bg-muted/60">
+              {table.columns.map((column: string, index: number) => (
+                <th key={`${column}-${index}`} className="border-r border-border/70 px-4 py-3 text-left font-semibold last:border-r-0">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row: string[], rowIndex: number) => (
+              <tr key={rowIndex} className="border-t border-border/70">
+                {table.columns.map((_: string, columnIndex: number) => (
+                  <td key={columnIndex} className="border-r border-border/70 px-4 py-3 text-muted-foreground last:border-r-0">
+                    {row?.[columnIndex] || ""}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function StepContent({ stepData }: { stepData: any }) {
+  if (stepData?.type === "table") {
+    return <TableStepContent stepData={stepData} />;
+  }
+
+  if (stepData?.type === "checklist") {
+    return <ChecklistStepContent stepData={stepData} />;
+  }
+
+  return <LegacyStepContent stepData={stepData} />;
 }
 
 export function SOPStepItem({
@@ -92,57 +196,15 @@ export function SOPStepItem({
   sopId,
   clientId,
   allSteps = [],
-  allCompletedSteps = []
+  allCompletedSteps = [],
 }: SOPStepItemProps) {
   const [notes, setNotes] = useState(completedStep?.notes || "");
-  const [isExpanded, setIsExpanded] = useState(!isCompleted);
   const { open: openAssistant, sendMessage } = useAssistant();
 
-  // Extract step text
-  let stepText = "";
-  if (typeof stepData === "string") {
-    stepText = stepData;
-  } else if (typeof stepData === "object" && stepData.action) {
-    stepText = stepData.action;
-  } else if (typeof stepData === "object") {
-    stepText = stepData.step || stepData.description || stepData.text || stepData.content || `Step ${stepNumber}`;
-  } else {
-    stepText = `Step ${stepNumber}`;
-  }
+  const stepTitle = useMemo(() => getStepTitle(stepData, stepNumber), [stepData, stepNumber]);
+  const stepType = stepData?.type === "table" ? "table" : stepData?.type === "checklist" ? "checklist" : "step";
+  const StepIcon = stepType === "table" ? Table2 : stepType === "checklist" ? ListChecks : ClipboardCheck;
 
-  const handleComplete = () => {
-    if (!isCompleted && !disabled) {
-      onComplete(stepNumber, notes);
-      setIsExpanded(false);
-    }
-  };
-
-  const handleGetNotesHelp = async () => {
-    // Set context for the assistant
-    if (sopId && clientId) {
-      await contextService.setContext({
-        role: 'staff',
-        module: 'SOP Response',
-        client_id: clientId,
-        sop_id: sopId,
-        userRole: 'staff',
-      });
-    }
-
-    // Open assistant and send notes help query
-    openAssistant();
-    setTimeout(() => {
-      const query = `What should I write in the notes for Step ${stepNumber}: ${stepText}?`;
-      sendMessage(query, stepNumber, stepText);
-    }, 100);
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
-
-  // Get validation message for this step
   const validationMessage = allSteps.length > 0 && allCompletedSteps.length > 0
     ? SOPValidator.getStepValidationMessage(
         stepNumber,
@@ -150,118 +212,114 @@ export function SOPStepItem({
       )
     : null;
 
+  const handleComplete = () => {
+    if (!isCompleted && !disabled) {
+      onComplete(stepNumber, notes);
+    }
+  };
+
+  const handleGetNotesHelp = async () => {
+    if (sopId && clientId) {
+      await contextService.setContext({
+        role: "staff",
+        module: "SOP Response",
+        client_id: clientId,
+        sop_id: sopId,
+        userRole: "staff",
+      });
+    }
+
+    openAssistant();
+    setTimeout(() => {
+      const query = `What should I write in the notes for Step ${stepNumber}: ${stepTitle}?`;
+      sendMessage(query, stepNumber, stepTitle);
+    }, 100);
+  };
+
   return (
-    <div className={cn(
-      "border rounded-lg p-4 transition-all",
-      isCompleted ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-800" : "bg-card border-border",
-      disabled && "opacity-50"
-    )}
-    style={{borderRadius: '10px'}}>
-      <div className="flex items-start gap-3">
-        {/* Step Number & Checkbox */}
-        <div className="flex-shrink-0 mt-1">
-          {isCompleted ? (
-            <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-          ) : (
-            <Circle className="w-5 h-5 text-muted-foreground" />
-          )}
+    <section
+      className={cn(
+        "rounded-md border border-border/70 bg-card p-5 transition-colors",
+        isCompleted && "border-[var(--rce-green)]/40 bg-[var(--rce-green)]/5",
+        disabled && "opacity-60"
+      )}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <div
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
+              isCompleted
+                ? "border-[var(--rce-green)] bg-[var(--rce-green)] text-white"
+                : "border-[var(--rce-green)] text-[var(--rce-green)]"
+            )}
+          >
+            {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : stepNumber}
+          </div>
+          <h3 className="truncate text-lg font-semibold">{stepTitle}</h3>
         </div>
 
-        {/* Step Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Step {stepNumber}
-                </span>
-                {isCompleted && (
-                  <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900">
-                    Completed
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm font-medium text-foreground">
-                {stepText}
-              </p>
-              {stepData?.details && <SOPStepDetails details={stepData.details} />}
-            </div>
-          </div>
-
-          {/* Completion Timestamp */}
-          {isCompleted && completedStep?.completedAt && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-              <Clock className="w-3 h-3" />
-              <span>Completed: {formatTimestamp(completedStep.completedAt)}</span>
-            </div>
-          )}
-
-          {/* Notes Section */}
-          {isExpanded && (
-            <div className="mt-3 space-y-2">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Notes {isCompleted && completedStep?.notes && "(Completed)"}
-                  </label>
-                  {!isCompleted && !disabled && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs rounded-full"
-                      onClick={handleGetNotesHelp}
-                    >
-                      <HelpCircle className="w-3 h-3 mr-1" />
-                      What should I write?
-                    </Button>
-                  )}
-                </div>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add notes for this step..."
-                  className="min-h-[80px] text-sm"
-                  disabled={isCompleted || disabled}
-                  style={{borderRadius: '5px'}}
-                />
-                {validationMessage && (
-                  <div className="flex items-start gap-1 text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                    <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                    <span>{validationMessage}</span>
-                  </div>
-                )}
-              </div>
-
-              {!isCompleted && !disabled && (
-                <button
-                  onClick={handleComplete}
-                  className="text-sm text-primary hover:underline font-medium"
-                >
-                  Mark as Complete
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Completed Notes Display */}
-          {isCompleted && completedStep?.notes && !isExpanded && (
-            <div className="mt-2 p-2 bg-muted rounded text-xs">
-              <p className="font-medium text-muted-foreground mb-1">Notes:</p>
-              <p className="text-foreground">{completedStep.notes}</p>
-            </div>
-          )}
-
-          {/* Expand/Collapse Button */}
-          {isCompleted && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-xs text-muted-foreground hover:text-foreground mt-2"
-            >
-              {isExpanded ? "Collapse" : "View Details"}
-            </button>
-          )}
+        <div className="flex shrink-0 items-center gap-3">
+          <Badge variant="outline" className="gap-1 border-[var(--rce-green)]/30 bg-[var(--rce-green)]/10 text-[var(--rce-green)] capitalize">
+            <StepIcon className="h-3.5 w-3.5" />
+            {stepType}
+          </Badge>
+          <ChevronUp className="h-5 w-5 text-muted-foreground" />
         </div>
       </div>
-    </div>
+
+      <div className="mt-5">
+        <StepContent stepData={stepData} />
+      </div>
+
+      <div className="mt-5 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <label className="text-sm font-medium text-muted-foreground">
+            Notes
+          </label>
+          {!isCompleted && !disabled && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-full px-2 text-xs text-[var(--rce-green)]"
+              onClick={handleGetNotesHelp}
+            >
+              <CircleHelp className="mr-1 h-3.5 w-3.5" />
+              What should I write?
+            </Button>
+          )}
+        </div>
+        <Textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Add notes for this step..."
+          className="min-h-[82px] resize-y text-sm"
+          disabled={isCompleted || disabled}
+        />
+        {validationMessage && (
+          <div className="flex items-start gap-1 text-xs text-yellow-600 dark:text-yellow-400">
+            <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>{validationMessage}</span>
+          </div>
+        )}
+      </div>
+
+      <label
+        className={cn(
+          "mt-4 flex w-fit items-center gap-3 text-sm text-muted-foreground",
+          !isCompleted && !disabled && "cursor-pointer hover:text-foreground"
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={isCompleted}
+          disabled={isCompleted || disabled}
+          onChange={handleComplete}
+          className="h-5 w-5 rounded border-border"
+        />
+        <span>{isCompleted ? "Completed" : "Mark as Complete"}</span>
+      </label>
+    </section>
   );
 }

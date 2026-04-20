@@ -18,6 +18,14 @@ interface SOPStep {
   description?: string;
   text?: string;
   content?: string;
+  title?: string;
+  type?: string;
+  instructions?: string;
+  checklistItems?: string[];
+  table?: {
+    columns: string[];
+    rows: string[][];
+  };
 }
 
 interface CompletedStep {
@@ -320,41 +328,54 @@ export function SOPResponseForm({
   const canComplete = allStepsCompleted && validationResult.isValid && !isCompleted;
 
   return (
-    <Card className="">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg">{sopResponse!.sopName || "SOP Response"}</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              {isCompleted ? "Completed" : "In Progress"}
-            </p>
-          </div>
+    <Card className="border-border/70 bg-background shadow-none">
+      <CardHeader className="border-b border-border/70 px-6 py-5">
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle className="text-2xl">SOP Response</CardTitle>
           {onClose && (
             <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </Button>
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Progress Indicator */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="font-medium">
-              {completedCount} of {totalSteps} steps completed
-            </span>
+      <CardContent className="space-y-5 p-6">
+        <div className="rounded-md border border-border/70 bg-card p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className={cn(
+                "h-8 w-8 rounded-full border-4",
+                isCompleted ? "border-[var(--rce-green)]" : "border-[var(--rce-green)] border-r-transparent"
+              )} />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="truncate text-lg font-semibold">{sopResponse!.sopName || "SOP Response"}</h2>
+                  <Badge variant="outline" className="border-[var(--rce-green)]/30 bg-[var(--rce-green)]/10 text-[var(--rce-green)]">
+                    {isCompleted ? "Completed" : "In Progress"}
+                  </Badge>
+                </div>
+              </div>
+            </div>
           </div>
-          <Progress value={progress} className="h-2" />
+
+          <div className="mt-5 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-muted-foreground">Progress</span>
+              <span className="font-medium">
+                {completedCount} of {totalSteps} steps completed
+              </span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
         </div>
 
-        {/* AI Recommendations */}
         {recommendations && recommendations.recommendations.length > 0 && (
-          <div className="border rounded-lg p-4 bg-primary/5 space-y-3">
-            <div className="flex items-center gap-2">
+          <details className="rounded-md border border-border/70 bg-card p-4">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
               <Lightbulb className="w-4 h-4 text-primary" />
-              <h3 className="font-medium text-sm">AI Recommendations</h3>
-            </div>
+              AI Recommendations
+            </summary>
+            <div className="mt-4 space-y-3">
             
             {recommendations.urgentActions.length > 0 && (
               <div className="space-y-2">
@@ -403,18 +424,19 @@ export function SOPResponseForm({
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          </details>
         )}
 
         {loadingRecommendations && (
-          <div className="border rounded-lg p-4 bg-primary/5 flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="rounded-md border border-border/70 bg-card p-4 flex items-center gap-2 text-sm text-muted-foreground">
             <Loader className="w-4 h-4 animate-spin" />
             <span>Loading recommendations...</span>
           </div>
         )}
 
         {/* Steps */}
-        <div className="space-y-3">
+        <div className="space-y-5">
           {sopSteps.map((step, index) => {
             const stepNumber = index + 1;
             const completedStep = sopResponse!.completedSteps.find(
@@ -442,19 +464,24 @@ export function SOPResponseForm({
 
         {/* Evidence Upload */}
         {sopResponse && (
-          <div className="pt-4 border-t">
-            <EvidenceUpload
-              sopResponseId={sopResponse.id}
-              alertId={alertId}
-              existingEvidence={evidence}
-              onEvidenceAdded={(newEvidence) => {
-                setEvidence([...evidence, newEvidence]);
-              }}
-              onEvidenceRemoved={(evidenceId) => {
-                setEvidence(evidence.filter(e => e.id !== evidenceId));
-              }}
-            />
-          </div>
+          <details className="rounded-md border border-border/70 bg-card p-4">
+            <summary className="cursor-pointer list-none text-sm font-medium">
+              Evidence
+            </summary>
+            <div className="mt-4">
+              <EvidenceUpload
+                sopResponseId={sopResponse.id}
+                alertId={alertId}
+                existingEvidence={evidence}
+                onEvidenceAdded={(newEvidence) => {
+                  setEvidence([...evidence, newEvidence]);
+                }}
+                onEvidenceRemoved={(evidenceId) => {
+                  setEvidence(evidence.filter(e => e.id !== evidenceId));
+                }}
+              />
+            </div>
+          </details>
         )}
 
         {/* Validation Errors (only after user has completed at least one step) */}
@@ -504,7 +531,7 @@ export function SOPResponseForm({
 
         {/* Actions */}
         {!isCompleted && (
-          <div className="flex items-center gap-2 pt-4 border-t">
+          <div className="sticky bottom-0 -mx-6 flex items-center gap-2 border-t border-border/70 bg-background/95 px-6 py-4 backdrop-blur">
             <Button
               variant="outline"
               onClick={handleSaveProgress}
@@ -571,4 +598,3 @@ export function SOPResponseForm({
     </Card>
   );
 }
-
