@@ -97,9 +97,12 @@ export async function POST(request: NextRequest) {
     console.log(`[${requestId}] Device found: ${device.id} (deviceId: ${device.deviceId})`);
 
     const requestedSopId = body.sopId || body.sop_id || body.SOPID || null;
+    const requestedSopEventType = body.sopEventType || body.sop_event_type || body.SOP_EVENT_TYPE || null;
+    let resolvedSopId = null;
+
     if (requestedSopId) {
-      console.log(`[${requestId}] Validating requested SOP: ${requestedSopId}`);
-      const sopResult = await query(
+      console.log(`[${requestId}] Validating requested SOP by id: ${requestedSopId}`);
+      let sopResult = await query(
         `
         SELECT id
         FROM "SOP"
@@ -111,12 +114,54 @@ export async function POST(request: NextRequest) {
       );
 
       if (sopResult.rows.length === 0) {
+        console.log(`[${requestId}] No SOP found by id. Trying value as eventType: ${requestedSopId}`);
+        sopResult = await query(
+          `
+          SELECT id
+          FROM "SOP"
+          WHERE LOWER("eventType") = LOWER($1)
+            AND "isActive" = true
+            AND ("isGlobal" = true OR "clientId" = $2)
+          ORDER BY "isGlobal" ASC, "createdAt" DESC
+          LIMIT 1
+          `,
+          [requestedSopId, client.id]
+        );
+      }
+
+      if (sopResult.rows.length === 0) {
         console.error(`[${requestId}] Invalid SOP for client: ${requestedSopId}`);
         return NextResponse.json({
-          error: `SOP not found or not available for this client: ${requestedSopId}`
+          error: `SOP not found by id or event type, or not available for this client: ${requestedSopId}`
         }, { status: 400 });
       }
-      console.log(`[${requestId}] Requested SOP validated: ${requestedSopId}`);
+
+      resolvedSopId = sopResult.rows[0].id;
+      console.log(`[${requestId}] Requested SOP resolved: ${resolvedSopId}`);
+    } else if (requestedSopEventType) {
+      console.log(`[${requestId}] Validating requested SOP by eventType: ${requestedSopEventType}`);
+      const sopResult = await query(
+        `
+        SELECT id
+        FROM "SOP"
+        WHERE LOWER("eventType") = LOWER($1)
+          AND "isActive" = true
+          AND ("isGlobal" = true OR "clientId" = $2)
+        ORDER BY "isGlobal" ASC, "createdAt" DESC
+        LIMIT 1
+        `,
+        [requestedSopEventType, client.id]
+      );
+
+      if (sopResult.rows.length === 0) {
+        console.error(`[${requestId}] Invalid SOP event type for client: ${requestedSopEventType}`);
+        return NextResponse.json({
+          error: `SOP not found or not available for this client event type: ${requestedSopEventType}`
+        }, { status: 400 });
+      }
+
+      resolvedSopId = sopResult.rows[0].id;
+      console.log(`[${requestId}] Requested SOP event type resolved: ${resolvedSopId}`);
     }
     
     // Store detection
@@ -145,7 +190,7 @@ export async function POST(request: NextRequest) {
       clientId: client.id,
       deviceId: device.id,
       detectionType: body.reason || 'fall_detected',
-      sopId: requestedSopId,
+      sopId: resolvedSopId,
       confidence: body.confidence,
       clipUrl: body.image_topic || null,
       location: body.camera || body.device_id,
