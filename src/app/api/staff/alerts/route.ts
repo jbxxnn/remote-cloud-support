@@ -3,6 +3,20 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/database";
 
+async function getDetectionSopSelect() {
+  const result = await query(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'Detection'
+        AND column_name = 'sopId'
+    ) as "hasSopId"
+  `);
+
+  return result.rows[0]?.hasSopId ? 'd."sopId"' : 'NULL::text as "sopId"';
+}
+
 // GET /api/staff/alerts - Get all pending alerts across all clients for staff dashboard
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -30,6 +44,8 @@ export async function GET(request: NextRequest) {
       paramIndex++;
     }
 
+    const sopIdSelect = await getDetectionSopSelect();
+
     // Sort by severity first (high > medium > low), then by createdAt
     const alerts = await query(`
       SELECT 
@@ -46,7 +62,7 @@ export async function GET(request: NextRequest) {
         d."clipUrl",
         d.severity,
         d."detectionType",
-        d."sopId"
+        ${sopIdSelect}
       FROM "Alert" a
       LEFT JOIN "Client" c ON a."clientId" = c.id
       LEFT JOIN "Detection" d ON a."detectionId" = d.id
@@ -68,7 +84,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch alerts" }, { status: 500 });
   }
 }
-
 
 
 
