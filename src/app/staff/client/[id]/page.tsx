@@ -149,11 +149,11 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
         </div>
         {/* Alert Info */}
         <div className="px-6 pt-2 pb-0">
-         <div className="text-sm text-foreground font-medium mb-1">{alert.message}</div>
-          <div className="text-xs text-muted-foreground mb-2">{new Date(alert.createdAt).toLocaleTimeString()}</div>
+         {/* <div className="text-sm text-foreground font-medium mb-1">{alert.message}</div> */}
           {alert.detectionType && (
-            <div className="text-xs text-muted-foreground mb-8">
-              Detection Type: <span className="font-medium capitalize">{alert.detectionType.replace(/_/g, ' ')}</span>
+            <div className="mb-8">
+              <span className="text-sm text-foreground font-medium mb-1">{alert.detectionType.replace(/_/g, ' ')}</span>
+              <div className="text-xs text-muted-foreground mb-2">{new Date(alert.createdAt).toLocaleTimeString()}</div>
             </div>
           )}
           <div className="flex gap-3 mb-2 flex-wrap">
@@ -270,12 +270,12 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
         <div className="px-6 pb-6">
           <div className="mt-4 bg-primary/10 border border-primary/20 rounded-lg p-4" style={{borderRadius: '10px'}}>
             <div className="font-semibold text-primary text-lg mb-2">
-              Standard Operating Procedures
-              {alert.detectionType && (
+              {/* Standard Operating Procedures */}
+              {/* {alert.detectionType && (
                 <span className="text-xs font-normal text-primary/80 ml-2">
                   (for {alert.detectionType.replace(/_/g, ' ')} detection)
                 </span>
-              )}
+              )} */}
             </div>
             {relevantSOPs.length === 0 ? (
               <div className="text-muted-foreground text-xs">No relevant SOPs found for this detection type.</div>
@@ -283,11 +283,11 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
               <div className="space-y-3">
                 {relevantSOPs.map((sop: any) => (
                   <div key={sop.id} className="border-l-2 border-primary/30 pl-3">
-                    <div className="font-medium text-primary text-sm mb-1">
+                    <div className="font-medium text-primary text-lg mb-1">
                       {sop.name}
-                      {sop.isGlobal && (
+                      {/* {sop.isGlobal && (
                         <span className="text-xs text-primary/70 ml-2">(Global)</span>
-                      )}
+                      )} */}
                     </div>
                     {sop.description && (
                       <div className="text-xs text-primary/80 mb-2">{sop.description}</div>
