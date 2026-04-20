@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { HeaderBar } from "@/components/layout/header-bar";
 import { AssistantIcon } from "@/components/assistant/assistant-icon";
 import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
+import { CreateSOPWizard, type CreateSOPWizardData } from "./create-sop-wizard";
 import { 
   Table,
   TableBody,
@@ -30,15 +31,12 @@ import {
   FileText, 
   Plus, 
   Search,
-  Eye,
   Edit,
   Trash2,
   Globe,
   User,
   AlertTriangle,
   CheckCircle,
-  Clock,
-  Settings,
   Loader
 } from "lucide-react";
 
@@ -75,162 +73,6 @@ type SOPStep = {
   details: string;
 };
 
-type SOPTemplate = {
-  label: string;
-  name: string;
-  eventType: string;
-  description: string;
-  steps: SOPStep[];
-};
-
-const sopTemplates: SOPTemplate[] = [
-  {
-    label: "Alert Response",
-    name: "Alert Response SOP",
-    eventType: "alert_response",
-    description: "Ensure all alerts are responded to consistently and safely. Trigger types include door opens, motion detected, emergency button pressed, smoke/device alerts, inactivity, and related safety alerts.",
-    steps: [
-      {
-        step: 1,
-        action: "Immediate contact",
-        details: "Call the client via tablet or wristband. Ask: \"Are you okay?\" and \"Do you need help?\"",
-      },
-      {
-        step: 2,
-        action: "Assess situation",
-        details: "If the client responds and is safe, document the outcome with no escalation. If confused or unsure, stay on the call and guide them. If there is no response, move to the escalation SOP. If an emergency is reported, call 911 immediately.",
-      },
-      {
-        step: 3,
-        action: "Monitor resolution",
-        details: "Stay engaged until the situation is confirmed safe. Document the final outcome.",
-      },
-    ],
-  },
-  {
-    label: "Device Trigger",
-    name: "Device Trigger SOP",
-    eventType: "device_trigger",
-    description: "Respond to environmental risks such as door alerts, motion alerts, sensors, falls, wandering, and unsafe areas. Example: basement door opens during remote hours.",
-    steps: [
-      {
-        step: 1,
-        action: "Immediate call",
-        details: "Contact the client via wristband or tablet.",
-      },
-      {
-        step: 2,
-        action: "Safety prompt",
-        details: "Prompt the client clearly, for example: \"Please return upstairs safely\" or \"Do you need assistance?\"",
-      },
-      {
-        step: 3,
-        action: "Assess and escalate if needed",
-        details: "If the client is safe, document the result. If there is risk such as a fall, confusion, or unsafe movement, escalate. General rule: any unusual or unsafe movement requires immediate intervention.",
-      },
-    ],
-  },
-  {
-    label: "Emergency Response",
-    name: "Emergency Response SOP",
-    eventType: "emergency_response",
-    description: "Ensure rapid response to medical or safety emergencies. Indicators include client distress, choking, no breathing, fall with injury, no response after alerts, confusion, weakness, or similar symptoms.",
-    steps: [
-      {
-        step: 1,
-        action: "Call 911 immediately",
-        details: "Never delay emergency services for internal steps.",
-      },
-      {
-        step: 2,
-        action: "Stay connected",
-        details: "Keep communication open with the client if possible.",
-      },
-      {
-        step: 3,
-        action: "Dispatch backup",
-        details: "Ensure someone is physically responding to the client.",
-      },
-      {
-        step: 4,
-        action: "Notify supervisor and team",
-        details: "Notify the supervisor and wider team as required.",
-      },
-    ],
-  },
-];
-
-function inferEventType(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/sop/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "general_alert";
-}
-
-function parseSOPDraft(draft: string): Partial<{
-  name: string;
-  eventType: string;
-  description: string;
-  steps: SOPStep[];
-}> {
-  const lines = draft
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) return {};
-
-  const name = lines[0].replace(/^\d+\.\s*/, "").replace(/^[^\w]+/, "").trim();
-  const purposeIndex = lines.findIndex((line) => /^purpose$/i.test(line));
-  const procedureIndex = lines.findIndex((line) => /^procedure$/i.test(line));
-  const triggerIndex = lines.findIndex((line) => /^trigger types?$|^emergency indicators?$|^trigger$/i.test(line));
-  const firstStepIndex = lines.findIndex((line) => /^step\s+\d+/i.test(line));
-
-  const descriptionParts: string[] = [];
-  if (purposeIndex !== -1) {
-    const purposeEnd = [triggerIndex, procedureIndex, firstStepIndex]
-      .filter((index) => index > purposeIndex)
-      .sort((a, b) => a - b)[0] ?? lines.length;
-    descriptionParts.push(lines.slice(purposeIndex + 1, purposeEnd).join(" "));
-  }
-
-  if (triggerIndex !== -1) {
-    const triggerEnd = [procedureIndex, firstStepIndex]
-      .filter((index) => index > triggerIndex)
-      .sort((a, b) => a - b)[0] ?? lines.length;
-    const triggers = lines.slice(triggerIndex + 1, triggerEnd).join("; ");
-    if (triggers) descriptionParts.push(`Triggers: ${triggers}`);
-  }
-
-  const steps: SOPStep[] = [];
-  lines.forEach((line, index) => {
-    const match = line.match(/^step\s+(\d+):?\s*(.*)$/i);
-    if (!match) return;
-
-    const nextStepIndex = lines.findIndex((nextLine, nextIndex) => nextIndex > index && /^step\s+\d+/i.test(nextLine));
-    const detailEnd = nextStepIndex === -1 ? lines.length : nextStepIndex;
-    const action = match[2]?.trim() || `Step ${steps.length + 1}`;
-    const details = lines
-      .slice(index + 1, detailEnd)
-      .filter((detailLine) => !/^procedure$/i.test(detailLine))
-      .join("\n");
-
-    steps.push({
-      step: steps.length + 1,
-      action,
-      details,
-    });
-  });
-
-  return {
-    name,
-    eventType: inferEventType(name),
-    description: descriptionParts.join("\n\n"),
-    steps: steps.length > 0 ? steps : undefined,
-  };
-}
-
 export function SOPManagement({ user }: SOPManagementProps) {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [sops, setSops] = useState<SOP[]>([]);
@@ -242,7 +84,6 @@ export function SOPManagement({ user }: SOPManagementProps) {
   const [editingSOP, setEditingSOP] = useState<SOP | null>(null);
   const [deletingSOP, setDeletingSOP] = useState<SOP | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sopDraft, setSopDraft] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     eventType: "",
@@ -286,14 +127,13 @@ export function SOPManagement({ user }: SOPManagementProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editingSOP) return;
+
     setSubmitting(true);
 
     try {
-      const url = editingSOP ? `/api/sops/${editingSOP.id}` : "/api/sops";
-      const method = editingSOP ? "PUT" : "POST";
-      
-      const response = await fetch(url, {
-        method,
+      const response = await fetch(`/api/sops/${editingSOP.id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -305,23 +145,52 @@ export function SOPManagement({ user }: SOPManagementProps) {
 
       if (response.ok) {
         const updatedSOP = await response.json();
-        
-        if (editingSOP) {
-          setSops(sops.map(sop => sop.id === editingSOP.id ? updatedSOP : sop));
-          setShowEditDialog(false);
-          setEditingSOP(null);
-        } else {
-          setSops([updatedSOP, ...sops]);
-          setShowAddDialog(false);
-        }
+        setSops(sops.map(sop => sop.id === editingSOP.id ? updatedSOP : sop));
+        setShowEditDialog(false);
+        setEditingSOP(null);
         
         resetForm();
       } else {
         const error = await response.json();
-        alert(error.error || `Failed to ${editingSOP ? 'update' : 'create'} SOP`);
+        alert(error.error || "Failed to update SOP");
       }
     } catch (error) {
-      alert(`Failed to ${editingSOP ? 'update' : 'create'} SOP`);
+      alert("Failed to update SOP");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateSOP = async (data: CreateSOPWizardData) => {
+    setSubmitting(true);
+
+    try {
+      const response = await fetch("/api/sops", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          clientId: data.isGlobal ? null : data.clientId,
+          metadata: {
+            tags: data.tags,
+            builderVersion: 2,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create SOP");
+      }
+
+      const newSOP = await response.json();
+      setSops([newSOP, ...sops]);
+      setShowAddDialog(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to create SOP");
+      throw error;
     } finally {
       setSubmitting(false);
     }
@@ -376,7 +245,6 @@ export function SOPManagement({ user }: SOPManagementProps) {
       clientId: "",
       steps: [{ step: 1, action: "", details: "" }] as SOPStep[]
     });
-    setSopDraft("");
   };
 
   const handleCancelEdit = () => {
@@ -429,33 +297,6 @@ export function SOPManagement({ user }: SOPManagementProps) {
     setFormData({
       ...formData,
       steps: newSteps
-    });
-  };
-
-  const applyTemplate = (template: SOPTemplate) => {
-    setFormData({
-      ...formData,
-      name: template.name,
-      eventType: template.eventType,
-      description: template.description,
-      steps: template.steps,
-    });
-    setSopDraft("");
-  };
-
-  const convertDraftToForm = () => {
-    const parsed = parseSOPDraft(sopDraft);
-    if (!parsed.name && !parsed.description && !parsed.steps) {
-      alert("Paste an SOP draft first.");
-      return;
-    }
-
-    setFormData({
-      ...formData,
-      name: parsed.name || formData.name,
-      eventType: parsed.eventType || formData.eventType,
-      description: parsed.description || formData.description,
-      steps: parsed.steps || formData.steps,
     });
   };
 
@@ -638,227 +479,13 @@ export function SOPManagement({ user }: SOPManagementProps) {
         )}
       </div>
 
-      {/* Add SOP Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New SOP</DialogTitle>
-            <DialogDescription>
-              Define a standard operating procedure for staff responses to events
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Quick Start */}
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-              <div>
-                <h3 className="text-lg font-medium">Quick Start</h3>
-                <p className="text-sm text-muted-foreground">
-                  Start from a common SOP template or paste a written SOP and convert it into steps.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {sopTemplates.map((template) => (
-                  <Button
-                    key={template.name}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => applyTemplate(template)}
-                  >
-                    Use {template.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sop-draft">Paste SOP Draft</Label>
-                <Textarea
-                  id="sop-draft"
-                  value={sopDraft}
-                  onChange={(e) => setSopDraft(e.target.value)}
-                  placeholder={`Example:\nAlert Response SOP\nPurpose\nEnsure all alerts are responded to consistently and safely.\nProcedure\nStep 1: Immediate Contact\nCall client via tablet or wristband.\nStep 2: Assess Situation\nIf no response, escalate.`}
-                  rows={6}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={convertDraftToForm}
-                >
-                  Convert Draft to Form
-                </Button>
-              </div>
-            </div>
-
-            {/* Basic Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">SOP Name *</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="e.g., Fall Detection Response"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="eventType">Event Type *</Label>
-                  <Input
-                    id="eventType"
-                    name="eventType"
-                    value={formData.eventType}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="e.g., fall, intrusion, medical"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Describe when and how to use this SOP"
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            {/* Scope */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Scope</h3>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="global"
-                    name="scope"
-                    title="Global (applies to all clients)"
-                    checked={formData.isGlobal}
-                    onChange={() => setFormData({ ...formData, isGlobal: true, clientId: "" })}
-                  />
-                  <Label htmlFor="global" className="flex items-center space-x-2">
-                    <Globe className="w-4 h-4" />
-                    <span>Global (applies to all clients)</span>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="client-specific"
-                    name="scope"
-                    title="Client-specific (applies to a specific client)"
-                    checked={!formData.isGlobal}
-                    onChange={() => setFormData({ ...formData, isGlobal: false })}
-                  />
-                  <Label htmlFor="client-specific" className="flex items-center space-x-2">
-                    <User className="w-4 h-4" />
-                    <span>Client-specific</span>
-                  </Label>
-                </div>
-                {!formData.isGlobal && (
-                  <div className="space-y-2">
-                    <Label htmlFor="clientId">Select Client</Label>
-                    <select
-                      id="clientId"
-                      name="clientId"
-                      title="Select a client"
-                      value={formData.clientId}
-                      onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
-                      required={!formData.isGlobal}
-                    >
-                      <option value="">Select a client...</option>
-                      {clients.map((client) => (
-                        <option key={client.id} value={client.id}>
-                          {client.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Steps */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Steps</h3>
-               
-              </div>
-              <div className="space-y-4">
-                {formData.steps.map((step, index) => (
-                  <div key={index} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline">Step {step.step}</Badge>
-                      {formData.steps.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeStep(index)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`action-${index}`}>Action *</Label>
-                      <Input
-                        id={`action-${index}`}
-                        value={step.action}
-                        onChange={(e) => updateStep(index, 'action', e.target.value)}
-                        placeholder="e.g., Attempt contact with client"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`details-${index}`}>Details</Label>
-                      <Textarea
-                        id={`details-${index}`}
-                        value={step.details}
-                        onChange={(e) => updateStep(index, 'details', e.target.value)}
-                        placeholder="Additional details or instructions for this step"
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                ))}
-
-               <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addStep}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Step
-                </Button>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAddDialog(false)}
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Creating..." : "Create SOP"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <CreateSOPWizard
+        open={showAddDialog}
+        clients={clients}
+        submitting={submitting}
+        onOpenChange={setShowAddDialog}
+        onCreate={handleCreateSOP}
+      />
 
       {/* Edit SOP Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
