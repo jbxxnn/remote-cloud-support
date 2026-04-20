@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { SOPStepItem } from "./sop-step-item";
 import { EvidenceUpload } from "./evidence-upload";
 import { SOPValidator } from "@/lib/validation/sop-validator";
-import { CheckCircle2, X, Loader, Save, AlertCircle, Download, Lightbulb, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Loader, Save, AlertCircle, Download, Lightbulb, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -66,7 +66,6 @@ export function SOPResponseForm({
   clientId,
   alertId,
   staffId,
-  onClose,
   onComplete
 }: SOPResponseFormProps) {
   const [loading, setLoading] = useState(true);
@@ -328,19 +327,8 @@ export function SOPResponseForm({
   const canComplete = allStepsCompleted && validationResult.isValid && !isCompleted;
 
   return (
-    <Card className="border-border/70 bg-background shadow-none">
-      <CardHeader className="border-b border-border/70 px-6 py-5">
-        <div className="flex items-center justify-between gap-4">
-          <CardTitle className="text-2xl">SOP Response</CardTitle>
-          {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5 p-6">
-        <div className="rounded-md border border-border/70 bg-card p-5">
+    <div className="space-y-5 p-6">
+        <div className="rounded-md border border-border/70 bg-card p-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-center gap-4">
               <div className={cn(
@@ -349,7 +337,7 @@ export function SOPResponseForm({
               )} />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="truncate text-lg font-semibold">{sopResponse!.sopName || "SOP Response"}</h2>
+                  <h2 className="truncate text-base font-semibold sm:text-lg">{sopResponse!.sopName || "SOP Response"}</h2>
                   <Badge variant="outline" className="border-[var(--rce-green)]/30 bg-[var(--rce-green)]/10 text-[var(--rce-green)]">
                     {isCompleted ? "Completed" : "In Progress"}
                   </Badge>
@@ -594,7 +582,6 @@ export function SOPResponseForm({
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }

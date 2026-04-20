@@ -204,6 +204,8 @@ export function SOPStepItem({
   const stepTitle = useMemo(() => getStepTitle(stepData, stepNumber), [stepData, stepNumber]);
   const stepType = stepData?.type === "table" ? "table" : stepData?.type === "checklist" ? "checklist" : "step";
   const StepIcon = stepType === "table" ? Table2 : stepType === "checklist" ? ListChecks : ClipboardCheck;
+  const hasNotes = notes.trim().length > 0;
+  const canMarkComplete = !isCompleted && !disabled && hasNotes;
 
   const validationMessage = allSteps.length > 0 && allCompletedSteps.length > 0
     ? SOPValidator.getStepValidationMessage(
@@ -213,7 +215,7 @@ export function SOPStepItem({
     : null;
 
   const handleComplete = () => {
-    if (!isCompleted && !disabled) {
+    if (canMarkComplete) {
       onComplete(stepNumber, notes);
     }
   };
@@ -239,7 +241,7 @@ export function SOPStepItem({
   return (
     <section
       className={cn(
-        "rounded-md border border-border/70 bg-card p-5 transition-colors",
+        "rounded-md border border-border/70 bg-card p-4 transition-colors sm:p-5",
         isCompleted && "border-[var(--rce-green)]/40 bg-[var(--rce-green)]/5",
         disabled && "opacity-60"
       )}
@@ -256,7 +258,7 @@ export function SOPStepItem({
           >
             {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : stepNumber}
           </div>
-          <h3 className="truncate text-lg font-semibold">{stepTitle}</h3>
+          <h3 className="truncate text-base font-semibold sm:text-lg">{stepTitle}</h3>
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
@@ -294,9 +296,14 @@ export function SOPStepItem({
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           placeholder="Add notes for this step..."
-          className="min-h-[82px] resize-y text-sm"
+          className="min-h-[74px] resize-y text-sm"
           disabled={isCompleted || disabled}
         />
+        {!isCompleted && !disabled && !hasNotes && (
+          <p className="text-xs text-muted-foreground">
+            Add a note before marking this step complete.
+          </p>
+        )}
         {validationMessage && (
           <div className="flex items-start gap-1 text-xs text-yellow-600 dark:text-yellow-400">
             <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
@@ -308,13 +315,14 @@ export function SOPStepItem({
       <label
         className={cn(
           "mt-4 flex w-fit items-center gap-3 text-sm text-muted-foreground",
-          !isCompleted && !disabled && "cursor-pointer hover:text-foreground"
+          canMarkComplete && "cursor-pointer hover:text-foreground",
+          !canMarkComplete && !isCompleted && "cursor-not-allowed opacity-60"
         )}
       >
         <input
           type="checkbox"
           checked={isCompleted}
-          disabled={isCompleted || disabled}
+          disabled={isCompleted || disabled || !hasNotes}
           onChange={handleComplete}
           className="h-5 w-5 rounded border-border"
         />

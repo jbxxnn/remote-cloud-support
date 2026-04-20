@@ -1505,23 +1505,21 @@ export default function ClientDashboardPage() {
 
         {/* SOP Response Dialog */}
         <Dialog open={sopResponseDialogOpen} onOpenChange={setSopResponseDialogOpen}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" style={{borderRadius: '10px'}}>
-            <DialogHeader>
+          <DialogContent className="max-w-4xl max-h-[92vh] overflow-hidden p-0" style={{borderRadius: '10px'}}>
+            <DialogHeader className="border-b border-border px-6 py-5">
               <DialogTitle>SOP Response</DialogTitle>
             </DialogHeader>
-            {selectedSOPForResponse && currentUser && (
-              <SOPResponseForm
-                sopId={selectedSOPForResponse.sopId}
-                clientId={clientId}
-                alertId={selectedSOPForResponse.alertId}
-                staffId={currentUser.id}
-                onClose={() => {
-                  setSopResponseDialogOpen(false);
-                  setSelectedSOPForResponse(null);
-                }}
-                onComplete={handleSOPResponseComplete}
-              />
-            )}
+            <div className="max-h-[calc(92vh-76px)] overflow-y-auto">
+              {selectedSOPForResponse && currentUser && (
+                <SOPResponseForm
+                  sopId={selectedSOPForResponse.sopId}
+                  clientId={clientId}
+                  alertId={selectedSOPForResponse.alertId}
+                  staffId={currentUser.id}
+                  onComplete={handleSOPResponseComplete}
+                />
+              )}
+            </div>
           </DialogContent>
         </Dialog>
 
