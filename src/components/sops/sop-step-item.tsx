@@ -31,6 +31,57 @@ interface SOPStepItemProps {
   allCompletedSteps?: CompletedStep[]; // All completed steps for validation
 }
 
+function formatDetailLine(line: string) {
+  const trimmed = line.trim();
+  return trimmed.replace(/^[•*-]\s*/, "");
+}
+
+function splitInlineDetails(details: string) {
+  return details
+    .replace(/\s+(Ask:)/g, "\n$1")
+    .replace(/\s+(Example:)/g, "\n$1")
+    .replace(/\s+(General Rule:)/g, "\n$1")
+    .replace(/\s+(Client responds[^A-Z]*)/g, "\n$1")
+    .replace(/\s+(Client confused[^A-Z]*)/g, "\n$1")
+    .replace(/\s+(No response[^A-Z]*)/g, "\n$1")
+    .replace(/\s+(Emergency reported[^A-Z]*)/g, "\n$1")
+    .replace(/\s+(If safe\s*[→-])/g, "\n$1")
+    .replace(/\s+(If risk\s*[→-])/g, "\n$1");
+}
+
+function SOPStepDetails({ details }: { details: string }) {
+  const normalizedDetails = splitInlineDetails(details);
+  const lines = normalizedDetails
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return null;
+
+  const isLikelyList = lines.length > 1;
+
+  if (isLikelyList) {
+    return (
+      <div className="mt-3 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+        <ul className="space-y-1.5">
+          {lines.map((line, index) => (
+            <li key={`${line}-${index}`} className="flex gap-2 leading-relaxed">
+              <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary/70" />
+              <span className="whitespace-pre-wrap">{formatDetailLine(line)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-md border bg-muted/30 p-3 text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+      {normalizedDetails}
+    </div>
+  );
+}
+
 export function SOPStepItem({
   stepNumber,
   stepData,
@@ -133,11 +184,7 @@ export function SOPStepItem({
               <p className="text-sm font-medium text-foreground">
                 {stepText}
               </p>
-              {stepData?.details && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stepData.details}
-                </p>
-              )}
+              {stepData?.details && <SOPStepDetails details={stepData.details} />}
             </div>
           </div>
 
@@ -218,4 +265,3 @@ export function SOPStepItem({
     </div>
   );
 }
-
