@@ -282,7 +282,7 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
             ) : (
               <div className="space-y-3">
                 {relevantSOPs.map((sop: any) => (
-                  <div key={sop.id} className="border-l-2 border-primary/30 pl-3">
+                  <div key={sop.id} className="">
                     <div className="font-medium text-primary text-lg mb-1">
                       {sop.name}
                       {/* {sop.isGlobal && (

@@ -299,7 +299,8 @@ async function triggerAlerts(detection: any, client: any, requestId?: string) {
 }
 
 function generateAlertMessage(detection: any, alertType: string): string {
-  const baseMessage = `Detection Alert: ${detection.detectionType} detected at ${detection.location} with ${Math.round(detection.confidence * 100)}% confidence.`;
+  const baseMessage = `${detection.detectionType}`;
+  // const baseMessage = `Detection Alert: ${detection.detectionType} detected at ${detection.location} with ${Math.round(detection.confidence * 100)}% confidence.`;
   
   switch (alertType) {
     case 'email':
