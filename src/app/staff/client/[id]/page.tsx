@@ -117,8 +117,10 @@ function getAlertCardClasses(status: string) {
 
 
 // Modal component for alert details
-function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, setActionNotes, outcome, setOutcome, handleStartCall, relevantSOPs, clientName, onStartSOP, staffId, onGetNotesHelp, getSOPButtonLabel, pendingRecording, onCancelRecording, startingCall }: any) {
+function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, setActionNotes, outcome, setOutcome, handleStartCall, relevantSOPs, clientName, onStartSOP, staffId, onGetNotesHelp, getSOPButtonLabel, pendingRecording, onCancelRecording, startingCall, canResolveAlert }: any) {
   if (!alert) return null;
+  const showResolutionControls = alert.status !== 'pending' && canResolveAlert;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-0 relative animate-fade-in border border-border max-h-[90vh] overflow-y-auto">
@@ -204,8 +206,8 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
             )}
           </div>
         </div>
-        {/* Event Notes - Only show if not pending */}
-        {alert.status !== 'pending' && (
+        {/* Resolution controls show only after an SOP response is completed */}
+        {showResolutionControls && (
           <>
             <div className="px-6 pt-2 mb-4">
               <div className="flex items-center justify-between mb-1">
@@ -249,6 +251,13 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
               <Button onClick={onResolve} className="rounded-full" disabled={!actionNotes.trim()}>Resolve</Button>
             </div>
           </>
+        )}
+        {alert.status !== 'pending' && !canResolveAlert && (
+          <div className="px-6 pt-2 pb-4">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+              Complete the SOP response before adding final event notes or resolving this alert.
+            </div>
+          </div>
         )}
         {/* Modal Actions for pending alerts - Only Cancel button */}
         {alert.status === 'pending' && (
@@ -578,6 +587,16 @@ export default function ClientDashboardPage() {
     if (latest.status === "completed") return "View Completed SOP";
     return "Continue SOP";
   };
+
+  const selectedAlertHasCompletedSOP = selectedAlert
+    ? selectedAlert.status === "resolved" ||
+      sopResponses.some(
+        (response) =>
+          response.alertId === selectedAlert.id &&
+          response.clientId === clientId &&
+          response.status === "completed"
+      )
+    : false;
 
   const handleSOPResponseComplete = () => {
     setSopResponseDialogOpen(false);
@@ -1135,6 +1154,7 @@ export default function ClientDashboardPage() {
                   pendingRecording={selectedAlert ? pendingRecordings.get(selectedAlert.id) : null}
                   onCancelRecording={handleCancelRecording}
                   startingCall={startingCall}
+                  canResolveAlert={selectedAlertHasCompletedSOP}
                 />
               </CardContent>
             </Card>
