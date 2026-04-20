@@ -69,6 +69,168 @@ interface SOPManagementProps {
   user: any;
 }
 
+type SOPStep = {
+  step: number;
+  action: string;
+  details: string;
+};
+
+type SOPTemplate = {
+  label: string;
+  name: string;
+  eventType: string;
+  description: string;
+  steps: SOPStep[];
+};
+
+const sopTemplates: SOPTemplate[] = [
+  {
+    label: "Alert Response",
+    name: "Alert Response SOP",
+    eventType: "alert_response",
+    description: "Ensure all alerts are responded to consistently and safely. Trigger types include door opens, motion detected, emergency button pressed, smoke/device alerts, inactivity, and related safety alerts.",
+    steps: [
+      {
+        step: 1,
+        action: "Immediate contact",
+        details: "Call the client via tablet or wristband. Ask: \"Are you okay?\" and \"Do you need help?\"",
+      },
+      {
+        step: 2,
+        action: "Assess situation",
+        details: "If the client responds and is safe, document the outcome with no escalation. If confused or unsure, stay on the call and guide them. If there is no response, move to the escalation SOP. If an emergency is reported, call 911 immediately.",
+      },
+      {
+        step: 3,
+        action: "Monitor resolution",
+        details: "Stay engaged until the situation is confirmed safe. Document the final outcome.",
+      },
+    ],
+  },
+  {
+    label: "Device Trigger",
+    name: "Device Trigger SOP",
+    eventType: "device_trigger",
+    description: "Respond to environmental risks such as door alerts, motion alerts, sensors, falls, wandering, and unsafe areas. Example: basement door opens during remote hours.",
+    steps: [
+      {
+        step: 1,
+        action: "Immediate call",
+        details: "Contact the client via wristband or tablet.",
+      },
+      {
+        step: 2,
+        action: "Safety prompt",
+        details: "Prompt the client clearly, for example: \"Please return upstairs safely\" or \"Do you need assistance?\"",
+      },
+      {
+        step: 3,
+        action: "Assess and escalate if needed",
+        details: "If the client is safe, document the result. If there is risk such as a fall, confusion, or unsafe movement, escalate. General rule: any unusual or unsafe movement requires immediate intervention.",
+      },
+    ],
+  },
+  {
+    label: "Emergency Response",
+    name: "Emergency Response SOP",
+    eventType: "emergency_response",
+    description: "Ensure rapid response to medical or safety emergencies. Indicators include client distress, choking, no breathing, fall with injury, no response after alerts, confusion, weakness, or similar symptoms.",
+    steps: [
+      {
+        step: 1,
+        action: "Call 911 immediately",
+        details: "Never delay emergency services for internal steps.",
+      },
+      {
+        step: 2,
+        action: "Stay connected",
+        details: "Keep communication open with the client if possible.",
+      },
+      {
+        step: 3,
+        action: "Dispatch backup",
+        details: "Ensure someone is physically responding to the client.",
+      },
+      {
+        step: 4,
+        action: "Notify supervisor and team",
+        details: "Notify the supervisor and wider team as required.",
+      },
+    ],
+  },
+];
+
+function inferEventType(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/sop/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "general_alert";
+}
+
+function parseSOPDraft(draft: string): Partial<{
+  name: string;
+  eventType: string;
+  description: string;
+  steps: SOPStep[];
+}> {
+  const lines = draft
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return {};
+
+  const name = lines[0].replace(/^\d+\.\s*/, "").replace(/^[^\w]+/, "").trim();
+  const purposeIndex = lines.findIndex((line) => /^purpose$/i.test(line));
+  const procedureIndex = lines.findIndex((line) => /^procedure$/i.test(line));
+  const triggerIndex = lines.findIndex((line) => /^trigger types?$|^emergency indicators?$|^trigger$/i.test(line));
+  const firstStepIndex = lines.findIndex((line) => /^step\s+\d+/i.test(line));
+
+  const descriptionParts: string[] = [];
+  if (purposeIndex !== -1) {
+    const purposeEnd = [triggerIndex, procedureIndex, firstStepIndex]
+      .filter((index) => index > purposeIndex)
+      .sort((a, b) => a - b)[0] ?? lines.length;
+    descriptionParts.push(lines.slice(purposeIndex + 1, purposeEnd).join(" "));
+  }
+
+  if (triggerIndex !== -1) {
+    const triggerEnd = [procedureIndex, firstStepIndex]
+      .filter((index) => index > triggerIndex)
+      .sort((a, b) => a - b)[0] ?? lines.length;
+    const triggers = lines.slice(triggerIndex + 1, triggerEnd).join("; ");
+    if (triggers) descriptionParts.push(`Triggers: ${triggers}`);
+  }
+
+  const steps: SOPStep[] = [];
+  lines.forEach((line, index) => {
+    const match = line.match(/^step\s+(\d+):?\s*(.*)$/i);
+    if (!match) return;
+
+    const nextStepIndex = lines.findIndex((nextLine, nextIndex) => nextIndex > index && /^step\s+\d+/i.test(nextLine));
+    const detailEnd = nextStepIndex === -1 ? lines.length : nextStepIndex;
+    const action = match[2]?.trim() || `Step ${steps.length + 1}`;
+    const details = lines
+      .slice(index + 1, detailEnd)
+      .filter((detailLine) => !/^procedure$/i.test(detailLine))
+      .join("\n");
+
+    steps.push({
+      step: steps.length + 1,
+      action,
+      details,
+    });
+  });
+
+  return {
+    name,
+    eventType: inferEventType(name),
+    description: descriptionParts.join("\n\n"),
+    steps: steps.length > 0 ? steps : undefined,
+  };
+}
+
 export function SOPManagement({ user }: SOPManagementProps) {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [sops, setSops] = useState<SOP[]>([]);
@@ -80,17 +242,14 @@ export function SOPManagement({ user }: SOPManagementProps) {
   const [editingSOP, setEditingSOP] = useState<SOP | null>(null);
   const [deletingSOP, setDeletingSOP] = useState<SOP | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sopDraft, setSopDraft] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     eventType: "",
     description: "",
     isGlobal: true,
     clientId: "",
-    steps: [{ step: 1, action: "", details: "" }] as Array<{
-      step: number;
-      action: string;
-      details: string;
-    }>
+    steps: [{ step: 1, action: "", details: "" }] as SOPStep[]
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -179,15 +338,7 @@ export function SOPManagement({ user }: SOPManagementProps) {
       steps: sop.steps.length > 0 ? sop.steps.map(step => ({
         ...step,
         details: step.details || ""
-      })) as Array<{
-        step: number;
-        action: string;
-        details: string;
-      }> : [{ step: 1, action: "", details: "" }] as Array<{
-        step: number;
-        action: string;
-        details: string;
-      }>
+      })) as SOPStep[] : [{ step: 1, action: "", details: "" }] as SOPStep[]
     });
     setShowEditDialog(true);
   };
@@ -223,12 +374,9 @@ export function SOPManagement({ user }: SOPManagementProps) {
       description: "",
       isGlobal: true,
       clientId: "",
-      steps: [{ step: 1, action: "", details: "" }] as Array<{
-        step: number;
-        action: string;
-        details: string;
-      }>
+      steps: [{ step: 1, action: "", details: "" }] as SOPStep[]
     });
+    setSopDraft("");
   };
 
   const handleCancelEdit = () => {
@@ -281,6 +429,33 @@ export function SOPManagement({ user }: SOPManagementProps) {
     setFormData({
       ...formData,
       steps: newSteps
+    });
+  };
+
+  const applyTemplate = (template: SOPTemplate) => {
+    setFormData({
+      ...formData,
+      name: template.name,
+      eventType: template.eventType,
+      description: template.description,
+      steps: template.steps,
+    });
+    setSopDraft("");
+  };
+
+  const convertDraftToForm = () => {
+    const parsed = parseSOPDraft(sopDraft);
+    if (!parsed.name && !parsed.description && !parsed.steps) {
+      alert("Paste an SOP draft first.");
+      return;
+    }
+
+    setFormData({
+      ...formData,
+      name: parsed.name || formData.name,
+      eventType: parsed.eventType || formData.eventType,
+      description: parsed.description || formData.description,
+      steps: parsed.steps || formData.steps,
     });
   };
 
@@ -472,8 +647,49 @@ export function SOPManagement({ user }: SOPManagementProps) {
               Define a standard operating procedure for staff responses to events
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Quick Start */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">Quick Start</h3>
+                <p className="text-sm text-muted-foreground">
+                  Start from a common SOP template or paste a written SOP and convert it into steps.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sopTemplates.map((template) => (
+                  <Button
+                    key={template.name}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyTemplate(template)}
+                  >
+                    Use {template.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sop-draft">Paste SOP Draft</Label>
+                <Textarea
+                  id="sop-draft"
+                  value={sopDraft}
+                  onChange={(e) => setSopDraft(e.target.value)}
+                  placeholder={`Example:\nAlert Response SOP\nPurpose\nEnsure all alerts are responded to consistently and safely.\nProcedure\nStep 1: Immediate Contact\nCall client via tablet or wristband.\nStep 2: Assess Situation\nIf no response, escalate.`}
+                  rows={6}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={convertDraftToForm}
+                >
+                  Convert Draft to Form
+                </Button>
+              </div>
+            </div>
+
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Basic Information</h3>
