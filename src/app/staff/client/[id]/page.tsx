@@ -1029,7 +1029,11 @@ export default function ClientDashboardPage() {
                       <div className="space-y-3">
                         {getCurrentAlerts().map((alert) => (
                           <div key={alert.id} className={`p-4 py-2 border rounded-sm flex items-center justify-between cursor-pointer hover:opacity-80 transition-all ${getAlertCardClasses(alert.status)}`} style={{borderRadius: '10px'}} onClick={() => {
-                            router.push(`/staff/alerts/${alert.id}`);
+                            setSelectedAlert(alert);
+                            // Fetch relevant SOPs based on detection type
+                            if (alert.sopId || alert.detectionType) {
+                              fetchRelevantSOPs(alert.detectionType, alert.sopId);
+                            }
                           }}>
                             <div>
                               <div className="font-medium text-foreground">{alert.message}</div>
@@ -1047,6 +1051,18 @@ export default function ClientDashboardPage() {
                               {alert.status !== 'scheduled' && alert.status !== 'resolved' && (
                                 <div className="bg-red-500 rounded-full w-3 h-3 animate-ping"></div>
                               )}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  router.push(`/staff/alerts/${alert.id}`);
+                                }}
+                              >
+                                Open Page
+                              </Button>
                             </div>
                           </div>
                         ))}
