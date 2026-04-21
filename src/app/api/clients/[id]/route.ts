@@ -3,6 +3,42 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query, transaction } from "@/lib/database";
 
+async function tableExists(client: any, tableName: string) {
+  const result = await client.query('SELECT to_regclass($1) as table_name', [`"${tableName}"`]);
+  return Boolean(result.rows[0]?.table_name);
+}
+
+async function columnExists(client: any, tableName: string, columnName: string) {
+  const result = await client.query(`
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = $1
+      AND column_name = $2
+    LIMIT 1
+  `, [tableName, columnName]);
+
+  return result.rows.length > 0;
+}
+
+async function runIfTableExists(client: any, tableName: string, sql: string, params: any[]) {
+  if (await tableExists(client, tableName)) {
+    await client.query(sql, params);
+  }
+}
+
+async function runIfColumnExists(
+  client: any,
+  tableName: string,
+  columnName: string,
+  sql: string,
+  params: any[]
+) {
+  if (await tableExists(client, tableName) && await columnExists(client, tableName, columnName)) {
+    await client.query(sql, params);
+  }
+}
+
 // GET /api/clients/[id] - Get a specific client
 export async function GET(
   request: NextRequest,
@@ -196,17 +232,88 @@ export async function DELETE(
     }
 
     await transaction(async (client) => {
-      // Client-owned tables with FK cascade are deleted by the Client delete.
-      // User.clientId does not have a FK in older schemas, so remove direct
-      // client users after alerts and related rows are gone.
-      await client.query('DELETE FROM "StaffAssignment" WHERE "clientId" = $1', [id]);
+      // Production databases may be on different migration states, so clean up
+      // known child rows explicitly and only touch optional tables when present.
+      await runIfTableExists(client, 'StaffAssignment', 'DELETE FROM "StaffAssignment" WHERE "clientId" = $1', [id]);
+
+      await runIfTableExists(client, 'CallEvent', `
+        DELETE FROM "CallEvent"
+        WHERE "callSessionId" IN (
+          SELECT id FROM "CallSession" WHERE "clientId" = $1
+        )
+      `, [id]);
+
+      await runIfTableExists(client, 'CallParticipant', `
+        DELETE FROM "CallParticipant"
+        WHERE "callSessionId" IN (
+          SELECT id FROM "CallSession" WHERE "clientId" = $1
+        )
+      `, [id]);
+
+      await runIfTableExists(client, 'CallRecording', `
+        DELETE FROM "CallRecording"
+        WHERE "callSessionId" IN (
+          SELECT id FROM "CallSession" WHERE "clientId" = $1
+        )
+      `, [id]);
+
+      await runIfTableExists(client, 'CallSession', 'DELETE FROM "CallSession" WHERE "clientId" = $1', [id]);
+
+      await runIfTableExists(client, 'NotationTag', `
+        DELETE FROM "NotationTag"
+        WHERE "recordingId" IN (
+          SELECT id FROM "Recording" WHERE "clientId" = $1
+        )
+      `, [id]);
+
+      await runIfTableExists(client, 'Transcript', `
+        DELETE FROM "Transcript"
+        WHERE "recordingId" IN (
+          SELECT id FROM "Recording" WHERE "clientId" = $1
+        )
+        OR "alertId" IN (
+          SELECT id FROM "Alert" WHERE "clientId" = $1
+        )
+        OR "sopResponseId" IN (
+          SELECT id FROM "SOPResponse" WHERE "clientId" = $1
+        )
+      `, [id]);
+
+      await runIfTableExists(client, 'Evidence', `
+        DELETE FROM "Evidence"
+        WHERE "alertId" IN (
+          SELECT id FROM "Alert" WHERE "clientId" = $1
+        )
+        OR "sopResponseId" IN (
+          SELECT id FROM "SOPResponse" WHERE "clientId" = $1
+        )
+      `, [id]);
+
+      await runIfTableExists(client, 'Recording', 'DELETE FROM "Recording" WHERE "clientId" = $1', [id]);
+      await runIfTableExists(client, 'Incident', 'DELETE FROM "Incident" WHERE "clientId" = $1', [id]);
+      await runIfTableExists(client, 'AlertEvent', 'DELETE FROM "AlertEvent" WHERE "clientId" = $1', [id]);
+      await runIfTableExists(client, 'SOPResponse', 'DELETE FROM "SOPResponse" WHERE "clientId" = $1', [id]);
+      await runIfTableExists(client, 'Alert', 'DELETE FROM "Alert" WHERE "clientId" = $1', [id]);
+      await runIfTableExists(client, 'Detection', 'DELETE FROM "Detection" WHERE "clientId" = $1', [id]);
+      await runIfColumnExists(client, 'Device', 'clientId', 'DELETE FROM "Device" WHERE "clientId" = $1', [id]);
+      await runIfTableExists(client, 'ClientTag', 'DELETE FROM "ClientTag" WHERE "clientId" = $1', [id]);
+      await runIfTableExists(client, 'SOP', 'DELETE FROM "SOP" WHERE "clientId" = $1', [id]);
+
       await client.query('DELETE FROM "Client" WHERE id = $1', [id]);
-      await client.query('DELETE FROM "User" WHERE "clientId" = $1', [id]);
+      await client.query('DELETE FROM "User" WHERE "clientId" = $1 AND role = $2', [id, 'user']);
+      await client.query('UPDATE "User" SET "clientId" = NULL WHERE "clientId" = $1', [id]);
     });
 
     return NextResponse.json({ message: "Client deleted successfully" });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to delete client:', error);
+    console.error('Client delete details:', {
+      code: error?.code,
+      detail: error?.detail,
+      constraint: error?.constraint,
+      table: error?.table,
+      message: error?.message,
+    });
     return NextResponse.json({ error: "Failed to delete client" }, { status: 500 });
   }
 } 
