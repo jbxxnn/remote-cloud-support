@@ -25,6 +25,7 @@ import { AssistantDrawer } from "@/components/assistant/assistant-drawer";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
+import { getClipHref } from "@/lib/clip-url";
 
 interface AlertDetail {
   id: string;
@@ -122,6 +123,7 @@ export default function AlertDetailPage() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  const clipHref = getClipHref(alert?.clipUrl);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -279,10 +281,10 @@ export default function AlertDetailPage() {
                         </div>
                       )}
                     </div>
-                    {alert.clipUrl && (
+                    {clipHref && (
                       <div>
                         <Button variant="default" size="sm" asChild className="rounded-full">
-                          <a href={alert.clipUrl} target="_blank" rel="noopener noreferrer">
+                          <a href={clipHref} target="_blank" rel="noopener noreferrer">
                             View Clip
                           </a>
                         </Button>
@@ -412,4 +414,3 @@ export default function AlertDetailPage() {
     </div>
   );
 }
-

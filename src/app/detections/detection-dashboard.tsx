@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { getClipHref } from "@/lib/clip-url";
 
 interface Detection {
   id: string;
@@ -299,10 +300,10 @@ export default function DetectionDashboard() {
                         </div>
                       </div>
                       
-                      {detection.clipUrl && (
+                      {getClipHref(detection.clipUrl) && (
                         <div className="mt-2">
                           <a
-                            href={detection.clipUrl}
+                            href={getClipHref(detection.clipUrl) || "#"}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 text-sm"

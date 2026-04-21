@@ -21,6 +21,7 @@ import { useAssistant } from "@/hooks/use-assistant";
 import { toast } from "sonner";
 import { getCallProvider } from "@/lib/config/call-provider";
 import { CallOverlay } from "@/components/calls/call-overlay";
+import { getClipHref } from "@/lib/clip-url";
 
 
 interface Alert {
@@ -120,6 +121,7 @@ function getAlertCardClasses(status: string) {
 function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, setActionNotes, outcome, setOutcome, handleStartCall, relevantSOPs, clientName, onStartSOP, staffId, onGetNotesHelp, getSOPButtonLabel, pendingRecording, onCancelRecording, startingCall, canResolveAlert }: any) {
   if (!alert) return null;
   const showResolutionControls = alert.status !== 'pending' && canResolveAlert;
+  const clipHref = getClipHref(alert.clipUrl);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -157,9 +159,9 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
             </div>
           )}
           <div className="flex gap-3 mb-2 flex-wrap">
-            {alert.clipUrl && (
+            {clipHref && (
               <Button asChild size="sm" variant="default" className="flex items-center gap-1 rounded-full">
-                <a href={alert.clipUrl} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
+                <a href={clipHref} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
                   <Play className="w-4 h-4" /> View Clip
                 </a>
               </Button>

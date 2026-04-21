@@ -10,6 +10,7 @@ import { SOPValidator } from "@/lib/validation/sop-validator";
 import { CheckCircle2, Loader, Save, AlertCircle, Download, Lightbulb, AlertTriangle, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { getClipHref } from "@/lib/clip-url";
 
 interface SOPStep {
   step?: number;
@@ -328,7 +329,7 @@ export function SOPResponseForm({
   );
   const allStepsCompleted = completedCount === totalSteps && totalSteps > 0;
   const canComplete = allStepsCompleted && validationResult.isValid && !isCompleted;
-  const responseClipUrl = alertClipUrl || sopResponse!.alertClipUrl || null;
+  const responseClipUrl = getClipHref(alertClipUrl || sopResponse!.alertClipUrl || null);
 
   return (
     <div className="space-y-5 p-6">
