@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { query } from "@/lib/database";
+import { query, transaction } from "@/lib/database";
 
 // GET /api/clients/[id] - Get a specific client
 export async function GET(
@@ -195,27 +195,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    // Check if client has associated data
-    const associatedData = await query(`
-      SELECT 
-        (SELECT COUNT(*) FROM "Detection" WHERE "clientId" = $1) as detections,
-        (SELECT COUNT(*) FROM "User" WHERE "clientId" = $1) as users
-    `, [id]);
-
-    const detectionCount = parseInt(associatedData.rows[0].detections);
-    const userCount = parseInt(associatedData.rows[0].users);
-
-    if (detectionCount > 0 || userCount > 0) {
-      return NextResponse.json({ 
-        error: `Cannot delete client. Client has ${detectionCount} detections and ${userCount} users associated.` 
-      }, { status: 400 });
-    }
-
-    // Delete the client
-    await query(
-      'DELETE FROM "Client" WHERE id = $1',
-      [id]
-    );
+    await transaction(async (client) => {
+      // Client-owned tables with FK cascade are deleted by the Client delete.
+      // User.clientId does not have a FK in older schemas, so remove direct
+      // client users after alerts and related rows are gone.
+      await client.query('DELETE FROM "StaffAssignment" WHERE "clientId" = $1', [id]);
+      await client.query('DELETE FROM "Client" WHERE id = $1', [id]);
+      await client.query('DELETE FROM "User" WHERE "clientId" = $1', [id]);
+    });
 
     return NextResponse.json({ message: "Client deleted successfully" });
   } catch (error) {
