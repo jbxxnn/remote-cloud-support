@@ -85,6 +85,30 @@ interface Client {
   };
 }
 
+interface ClientAlert {
+  id: string;
+  type: string;
+  status: string;
+  message: string;
+  severity?: string;
+  detectionType?: string;
+  location?: string;
+  createdAt: string;
+}
+
+interface ClientDetection {
+  id: string;
+  detectionType: string;
+  confidence: number;
+  severity: string;
+  location?: string;
+  timestamp: string;
+  device?: {
+    name?: string;
+    deviceId?: string;
+  };
+}
+
 interface ClientManagementProps {
   user: any;
 }
@@ -102,9 +126,13 @@ export function ClientManagement({ user }: ClientManagementProps) {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [clientUsers, setClientUsers] = useState<any[]>([]);
+  const [clientAlerts, setClientAlerts] = useState<ClientAlert[]>([]);
+  const [clientDetections, setClientDetections] = useState<ClientDetection[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingActivity, setLoadingActivity] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isInitiatingCall, setIsInitiatingCall] = useState<string | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<string | null>(null);
   const [activeCall, setActiveCall] = useState<{
     callSessionId: string;
     token: string;
@@ -199,6 +227,33 @@ export function ClientManagement({ user }: ClientManagementProps) {
     } finally {
       setLoadingUsers(false);
     }
+  };
+
+  const fetchClientActivity = async (clientId: string) => {
+    setLoadingActivity(true);
+    try {
+      const [alertsResponse, detectionsResponse] = await Promise.all([
+        fetch(`/api/alerts?clientId=${clientId}&status=all&limit=10`),
+        fetch(`/api/detections?clientId=${clientId}&timeRange=all`),
+      ]);
+
+      if (alertsResponse.ok) {
+        setClientAlerts(await alertsResponse.json());
+      }
+
+      if (detectionsResponse.ok) {
+        const detections = await detectionsResponse.json();
+        setClientDetections(detections.slice(0, 10));
+      }
+    } catch (error) {
+      console.error("Failed to fetch client activity:", error);
+    } finally {
+      setLoadingActivity(false);
+    }
+  };
+
+  const refreshViewedClient = async (clientId: string) => {
+    await Promise.all([fetchClients(), fetchClientActivity(clientId)]);
   };
 
   const handleAddTag = async (clientId: string) => {
@@ -416,6 +471,50 @@ export function ClientManagement({ user }: ClientManagementProps) {
       alert("Failed to delete client");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteAlert = async (alertId: string) => {
+    if (!viewingClient) return;
+    if (!confirm("Delete this alert and its linked SOP responses, recordings, evidence, and activity?")) return;
+
+    setDeletingRecord(`alert:${alertId}`);
+    try {
+      const response = await fetch(`/api/alerts/${alertId}`, { method: "DELETE" });
+
+      if (response.ok) {
+        setClientAlerts((alerts) => alerts.filter((alert) => alert.id !== alertId));
+        await refreshViewedClient(viewingClient.id);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete alert");
+      }
+    } catch (error) {
+      alert("Failed to delete alert");
+    } finally {
+      setDeletingRecord(null);
+    }
+  };
+
+  const handleDeleteDetection = async (detectionId: string) => {
+    if (!viewingClient) return;
+    if (!confirm("Delete this detection and all alerts linked to it?")) return;
+
+    setDeletingRecord(`detection:${detectionId}`);
+    try {
+      const response = await fetch(`/api/detections/${detectionId}`, { method: "DELETE" });
+
+      if (response.ok) {
+        setClientDetections((detections) => detections.filter((detection) => detection.id !== detectionId));
+        await refreshViewedClient(viewingClient.id);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete detection");
+      }
+    } catch (error) {
+      alert("Failed to delete detection");
+    } finally {
+      setDeletingRecord(null);
     }
   };
 
@@ -655,6 +754,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
                               setViewingClient(client);
                               setShowViewDialog(true);
                               fetchClientUsers(client.id);
+                              fetchClientActivity(client.id);
                               // Fetch tags if not already loaded
                               if (!clientTags[client.id] && !client.tags) {
                                 await fetchClientTags(client.id);
@@ -1177,7 +1277,7 @@ export function ClientManagement({ user }: ClientManagementProps) {
 
       {/* View Client Dialog */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{viewingClient?.name}</DialogTitle>
             <DialogDescription>
@@ -1197,6 +1297,162 @@ export function ClientManagement({ user }: ClientManagementProps) {
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">{viewingClient._count?.detections || 0}</div>
                   <div className="text-xs text-muted-foreground">Detections</div>
+                </div>
+              </div>
+
+              {/* Alerts and Detections */}
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Recent Alerts</h4>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fetchClientActivity(viewingClient.id)}
+                      disabled={loadingActivity}
+                    >
+                      {loadingActivity ? <Loader className="w-3 h-3 animate-spin" /> : "Refresh"}
+                    </Button>
+                  </div>
+
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Alert</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loadingActivity ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="h-20 text-center">
+                              <Loader className="w-4 h-4 animate-spin mx-auto" />
+                            </TableCell>
+                          </TableRow>
+                        ) : clientAlerts.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="h-20 text-center text-muted-foreground">
+                              No alerts found.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          clientAlerts.map((alertItem) => (
+                            <TableRow key={alertItem.id}>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <div className="font-medium text-sm line-clamp-1">{alertItem.message}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {alertItem.detectionType?.replace(/_/g, " ") || alertItem.type}
+                                    {alertItem.location ? ` - ${alertItem.location}` : ""}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col items-start gap-1">
+                                  <Badge variant="secondary" className="capitalize">{alertItem.status}</Badge>
+                                  {alertItem.severity && (
+                                    <span className="text-xs text-muted-foreground capitalize">{alertItem.severity}</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteAlert(alertItem.id)}
+                                  disabled={deletingRecord === `alert:${alertItem.id}`}
+                                >
+                                  {deletingRecord === `alert:${alertItem.id}` ? (
+                                    <Loader className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Recent Detections</h4>
+                  </div>
+
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Detection</TableHead>
+                          <TableHead>Severity</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loadingActivity ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="h-20 text-center">
+                              <Loader className="w-4 h-4 animate-spin mx-auto" />
+                            </TableCell>
+                          </TableRow>
+                        ) : clientDetections.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="h-20 text-center text-muted-foreground">
+                              No detections found.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          clientDetections.map((detection) => (
+                            <TableRow key={detection.id}>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <div className="font-medium text-sm capitalize">
+                                    {detection.detectionType.replace(/_/g, " ")}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {detection.device?.name || "Unknown device"}
+                                    {detection.location ? ` - ${detection.location}` : ""}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col items-start gap-1">
+                                  <Badge variant="secondary" className="capitalize">{detection.severity}</Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {Math.round((detection.confidence || 0) * 100)}%
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteDetection(detection.id)}
+                                  disabled={deletingRecord === `detection:${detection.id}`}
+                                >
+                                  {deletingRecord === `detection:${detection.id}` ? (
+                                    <Loader className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </div>
 
