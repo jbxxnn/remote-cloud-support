@@ -158,8 +158,10 @@ function AlertModal({ alert, onClose, onAcknowledge, onResolve, actionNotes, set
           )}
           <div className="flex gap-3 mb-2 flex-wrap">
             {alert.clipUrl && (
-              <Button size="sm" variant="default" className="flex items-center gap-1 rounded-full">
-                <Play className="w-4 h-4" /> View Clip
+              <Button asChild size="sm" variant="default" className="flex items-center gap-1 rounded-full">
+                <a href={alert.clipUrl} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
+                  <Play className="w-4 h-4" /> View Clip
+                </a>
               </Button>
             )}
             {alert.status !== 'pending' && (
@@ -356,7 +358,7 @@ export default function ClientDashboardPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [selectedSOPForResponse, setSelectedSOPForResponse] = useState<{ sopId: string; alertId?: string; sopResponseId?: string } | null>(null);
+  const [selectedSOPForResponse, setSelectedSOPForResponse] = useState<{ sopId: string; alertId?: string; sopResponseId?: string; alertClipUrl?: string | null } | null>(null);
   const [sopResponseDialogOpen, setSopResponseDialogOpen] = useState(false);
   const [sopResponses, setSopResponses] = useState<any[]>([]);
   const [allClientSOPs, setAllClientSOPs] = useState<SOP[]>([]); // All SOPs for this client (not filtered by detection type)
@@ -569,8 +571,12 @@ export default function ClientDashboardPage() {
   };
 
   const handleStartSOP = (sopId: string, alertId?: string) => {
+    const linkedAlert = alertId
+      ? alerts.find((alert) => alert.id === alertId) || selectedAlert
+      : null;
+
     // Link SOP response to the alert if provided
-    setSelectedSOPForResponse({ sopId, alertId });
+    setSelectedSOPForResponse({ sopId, alertId, alertClipUrl: linkedAlert?.clipUrl || null });
     setSopResponseDialogOpen(true);
   };
 
@@ -1379,7 +1385,15 @@ export default function ClientDashboardPage() {
                         key={response.id}
                         className="p-4 border border-border rounded-sm hover:bg-muted/50 transition-colors cursor-pointer"
                         onClick={() => {
-                          setSelectedSOPForResponse({ sopId: response.sopId, alertId: response.alertId });
+                          const linkedAlert = response.alertId
+                            ? alerts.find((alert) => alert.id === response.alertId)
+                            : null;
+                          setSelectedSOPForResponse({
+                            sopId: response.sopId,
+                            alertId: response.alertId,
+                            sopResponseId: response.id,
+                            alertClipUrl: response.alertClipUrl || linkedAlert?.clipUrl || null,
+                          });
                           setSopResponseDialogOpen(true);
                         }}
                         style={{borderRadius: '5px'}}
@@ -1535,6 +1549,7 @@ export default function ClientDashboardPage() {
                   sopId={selectedSOPForResponse.sopId}
                   clientId={clientId}
                   alertId={selectedSOPForResponse.alertId}
+                  alertClipUrl={selectedSOPForResponse.alertClipUrl}
                   staffId={currentUser.id}
                   onComplete={handleSOPResponseComplete}
                 />

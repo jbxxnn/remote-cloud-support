@@ -59,11 +59,14 @@ export async function GET(request: NextRequest) {
         s.name as "sopName",
         s."eventType" as "sopEventType",
         c.name as "clientName",
-        u.name as "staffName"
+        u.name as "staffName",
+        d."clipUrl" as "alertClipUrl"
       FROM "SOPResponse" sr
       LEFT JOIN "SOP" s ON sr."sopId" = s.id
       LEFT JOIN "Client" c ON sr."clientId" = c.id
       LEFT JOIN "User" u ON sr."staffId" = u.id
+      LEFT JOIN "Alert" a ON sr."alertId" = a.id
+      LEFT JOIN "Detection" d ON a."detectionId" = d.id
       ${whereClause}
       ORDER BY sr."startedAt" DESC
     `, queryParams);
@@ -139,11 +142,14 @@ export async function POST(request: NextRequest) {
             s."eventType" as "sopEventType",
             s.steps as "sopSteps",
             c.name as "clientName",
-            u.name as "staffName"
+            u.name as "staffName",
+            d."clipUrl" as "alertClipUrl"
           FROM "SOPResponse" sr
           LEFT JOIN "SOP" s ON sr."sopId" = s.id
           LEFT JOIN "Client" c ON sr."clientId" = c.id
           LEFT JOIN "User" u ON sr."staffId" = u.id
+          LEFT JOIN "Alert" a ON sr."alertId" = a.id
+          LEFT JOIN "Detection" d ON a."detectionId" = d.id
           WHERE sr.id = $1
         `, [existingId]);
 
@@ -170,11 +176,14 @@ export async function POST(request: NextRequest) {
             s."eventType" as "sopEventType",
             s.steps as "sopSteps",
             c.name as "clientName",
-            u.name as "staffName"
+            u.name as "staffName",
+            d."clipUrl" as "alertClipUrl"
           FROM "SOPResponse" sr
           LEFT JOIN "SOP" s ON sr."sopId" = s.id
           LEFT JOIN "Client" c ON sr."clientId" = c.id
           LEFT JOIN "User" u ON sr."staffId" = u.id
+          LEFT JOIN "Alert" a ON sr."alertId" = a.id
+          LEFT JOIN "Detection" d ON a."detectionId" = d.id
           WHERE sr.id = $1
         `, [existingId]);
 
@@ -209,11 +218,14 @@ export async function POST(request: NextRequest) {
         s."eventType" as "sopEventType",
         s.steps as "sopSteps",
         c.name as "clientName",
-        u.name as "staffName"
+        u.name as "staffName",
+        d."clipUrl" as "alertClipUrl"
       FROM "SOPResponse" sr
       LEFT JOIN "SOP" s ON sr."sopId" = s.id
       LEFT JOIN "Client" c ON sr."clientId" = c.id
       LEFT JOIN "User" u ON sr."staffId" = u.id
+      LEFT JOIN "Alert" a ON sr."alertId" = a.id
+      LEFT JOIN "Detection" d ON a."detectionId" = d.id
       WHERE sr.id = $1
     `, [sopResponse.id]);
 
@@ -223,4 +235,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create SOP response" }, { status: 500 });
   }
 }
-

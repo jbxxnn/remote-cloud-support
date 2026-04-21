@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { SOPStepItem } from "./sop-step-item";
 import { EvidenceUpload } from "./evidence-upload";
 import { SOPValidator } from "@/lib/validation/sop-validator";
-import { CheckCircle2, Loader, Save, AlertCircle, Download, Lightbulb, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Loader, Save, AlertCircle, Download, Lightbulb, AlertTriangle, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -48,6 +48,7 @@ interface SOPResponse {
   completedAt?: string;
   sopName?: string;
   sopSteps?: SOPStep[];
+  alertClipUrl?: string | null;
 }
 
 interface SOPResponseFormProps {
@@ -55,6 +56,7 @@ interface SOPResponseFormProps {
   sopId: string;
   clientId: string;
   alertId?: string;
+  alertClipUrl?: string | null;
   staffId: string; // Required - passed from parent
   onClose?: () => void;
   onComplete?: (response: SOPResponse) => void;
@@ -65,6 +67,7 @@ export function SOPResponseForm({
   sopId,
   clientId,
   alertId,
+  alertClipUrl,
   staffId,
   onComplete
 }: SOPResponseFormProps) {
@@ -325,6 +328,7 @@ export function SOPResponseForm({
   );
   const allStepsCompleted = completedCount === totalSteps && totalSteps > 0;
   const canComplete = allStepsCompleted && validationResult.isValid && !isCompleted;
+  const responseClipUrl = alertClipUrl || sopResponse!.alertClipUrl || null;
 
   return (
     <div className="space-y-5 p-6">
@@ -344,6 +348,14 @@ export function SOPResponseForm({
                 </div>
               </div>
             </div>
+            {responseClipUrl && (
+              <Button asChild variant="outline" size="sm" className="rounded-full">
+                <a href={responseClipUrl} target="_blank" rel="noopener noreferrer">
+                  <Play className="mr-2 h-4 w-4" />
+                  Play Clip
+                </a>
+              </Button>
+            )}
           </div>
 
           <div className="mt-5 space-y-2">
