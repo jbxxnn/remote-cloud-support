@@ -263,13 +263,14 @@ export function CreateSOPWizard({
   const [formData, setFormData] = useState<CreateSOPWizardData>(initialForm);
   const [draftStep, setDraftStep] = useState<SOPWizardStep>(initialStep(1));
   const [tagInput, setTagInput] = useState("");
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [checklistInput, setChecklistInput] = useState("");
 
-  const selectedCategoryValue = categories.some((category) => category.value === formData.eventType)
-    ? formData.eventType
-    : formData.eventType
+  const selectedCategoryValue = isCustomCategory
     ? customCategoryValue
+    : categories.some((category) => category.value === formData.eventType)
+    ? formData.eventType
     : undefined;
 
   const selectedCategoryLabel = useMemo(
@@ -290,6 +291,7 @@ export function CreateSOPWizard({
     setFormData(initialForm());
     setDraftStep(initialStep(1));
     setTagInput("");
+    setIsCustomCategory(false);
     setCustomCategoryInput("");
     setChecklistInput("");
   };
@@ -487,11 +489,13 @@ export function CreateSOPWizard({
                         value={selectedCategoryValue}
                         onValueChange={(value) => {
                           if (value === customCategoryValue) {
+                            setIsCustomCategory(true);
                             setCustomCategoryInput("");
                             setFormData({ ...formData, eventType: "" });
                             return;
                           }
 
+                          setIsCustomCategory(false);
                           setCustomCategoryInput("");
                           setFormData({ ...formData, eventType: value });
                         }}
@@ -510,7 +514,7 @@ export function CreateSOPWizard({
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      {selectedCategoryValue === customCategoryValue && (
+                      {isCustomCategory && (
                         <div className="pt-2">
                           <Input
                             value={customCategoryInput}
