@@ -86,6 +86,27 @@ const categories = [
   { value: "general_alert", label: "General Alert" },
 ];
 
+const customCategoryValue = "__custom_category__";
+
+function toCategoryValue(category: string) {
+  return category
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function formatCategoryLabel(value: string) {
+  const knownCategory = categories.find((category) => category.value === value);
+  if (knownCategory) return knownCategory.label;
+
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 const stepTypes: Array<{
   value: StepType;
   label: string;
@@ -242,10 +263,17 @@ export function CreateSOPWizard({
   const [formData, setFormData] = useState<CreateSOPWizardData>(initialForm);
   const [draftStep, setDraftStep] = useState<SOPWizardStep>(initialStep(1));
   const [tagInput, setTagInput] = useState("");
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [checklistInput, setChecklistInput] = useState("");
 
+  const selectedCategoryValue = categories.some((category) => category.value === formData.eventType)
+    ? formData.eventType
+    : formData.eventType
+    ? customCategoryValue
+    : undefined;
+
   const selectedCategoryLabel = useMemo(
-    () => categories.find((category) => category.value === formData.eventType)?.label || formData.eventType,
+    () => formatCategoryLabel(formData.eventType),
     [formData.eventType]
   );
 
@@ -262,6 +290,7 @@ export function CreateSOPWizard({
     setFormData(initialForm());
     setDraftStep(initialStep(1));
     setTagInput("");
+    setCustomCategoryInput("");
     setChecklistInput("");
   };
 
@@ -455,8 +484,17 @@ export function CreateSOPWizard({
                     <div className="space-y-2">
                       <Label htmlFor="wizard-category">Category *</Label>
                       <Select
-                        value={formData.eventType}
-                        onValueChange={(value) => setFormData({ ...formData, eventType: value })}
+                        value={selectedCategoryValue}
+                        onValueChange={(value) => {
+                          if (value === customCategoryValue) {
+                            setCustomCategoryInput("");
+                            setFormData({ ...formData, eventType: "" });
+                            return;
+                          }
+
+                          setCustomCategoryInput("");
+                          setFormData({ ...formData, eventType: value });
+                        }}
                       >
                         <SelectTrigger id="wizard-category">
                           <SelectValue placeholder="Select a category" />
@@ -467,9 +505,31 @@ export function CreateSOPWizard({
                               {category.label}
                             </SelectItem>
                           ))}
+                          <SelectItem value={customCategoryValue}>
+                            Add new category
+                          </SelectItem>
                         </SelectContent>
                       </Select>
-                      <HelperText>Choose the type of SOP.</HelperText>
+                      {selectedCategoryValue === customCategoryValue && (
+                        <div className="pt-2">
+                          <Input
+                            value={customCategoryInput}
+                            onChange={(event) => {
+                              const nextCategory = event.target.value;
+                              setCustomCategoryInput(nextCategory);
+                              setFormData({
+                                ...formData,
+                                eventType: toCategoryValue(nextCategory),
+                              });
+                            }}
+                            placeholder="e.g., Front Door Opened at Night"
+                          />
+                          <HelperText>
+                            This will be saved as: {formData.eventType || "new_category"}
+                          </HelperText>
+                        </div>
+                      )}
+                      <HelperText>Choose an existing category or add a new SOP category.</HelperText>
                     </div>
                   </div>
 
