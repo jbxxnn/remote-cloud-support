@@ -61,7 +61,6 @@ interface StaffSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
   ({ className, user, stats, ...props }, ref) => {
     const pathname = usePathname();
-    const [currentHash, setCurrentHash] = useState<string>("");
     const [aSuggestionModalOpen, setASuggestionModalOpen] = useState(false);
     const [liveStats, setLiveStats] = useState(stats || {
       activeAlerts: 0,
@@ -71,18 +70,6 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
       openSOPs: 0,
       resolvedToday: 0
     });
-
-
-    // Track hash changes
-    useEffect(() => {
-      const updateHash = () => {
-        setCurrentHash(window.location.hash.slice(1));
-      };
-      updateHash();
-      window.addEventListener('hashchange', updateHash);
-      return () => window.removeEventListener("hashchange", updateHash);
-    }, []);
-
 
     // Fetch live stats
     useEffect(() => {
@@ -104,24 +91,10 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
     }, []);
 
     const isActive = (href: string) => {
-      const hashMatch = href.match(/#(.+)$/);
-      const expectedHash = hashMatch ? hashMatch[1] : null;
-
-      if(expectedHash !== null) {
-        const pathWithoutHash = href.split('#') [0];
-        if (pathname === pathWithoutHash || pathname.startsWith(pathWithoutHash)) {
-          if (expectedHash === "" && currentHash === "") {
-            return pathname === "/staff"
-          }
-          return currentHash === expectedHash;
-        }
-        return false;
-      }
-
       if (href === "/staff") {
-        return pathname === "/staff" && currentHash === "";
+        return pathname === "/staff";
       }
-      return pathname.startsWith(href);
+      return pathname === href || pathname.startsWith(`${href}/`);
     };
 
     const NavButton = ({ 
@@ -259,7 +232,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
             />
 
             <NavButton
-              href="/staff#alerts"
+              href="/staff/alerts"
               icon={() => <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="Active Alerts"
               badge={liveStats.activeAlerts}
@@ -268,7 +241,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
             />
 
             <NavButton
-              href="/staff#clients"
+              href="/staff/clients"
               icon={() => <HugeiconsIcon icon={UserMultipleIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="Clients"
               badge={liveStats.activeClients}
@@ -316,7 +289,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
 
             {/* SOP & Documentation Section */}
             <NavButton
-              href="/staff#sops"
+              href="/staff/sops"
               icon={() => <HugeiconsIcon icon={File01Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="SOP Responses"
               badge={liveStats.openSOPs}
@@ -325,7 +298,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
             />
 
             <NavButton
-              href="/staff#documentation"
+              href="/staff/documentation"
               icon={() => <HugeiconsIcon icon={Doc01Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="Documentation"
               tooltip="Ask SupportSense: Help me with documentation"
@@ -337,21 +310,21 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
 
             {/* Communication Section */}
             <NavButton
-              href="/staff#communication"
+              href="/staff/communication"
               icon={() => <HugeiconsIcon icon={MessageMultiple01Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="Communication Center"
               tooltip="Ask SupportSense: Show communication history"
             />
 
             <NavButton
-              href="/staff#calls"
+              href="/staff/calls"
               icon={() => <HugeiconsIcon icon={CallIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="Call History"
               tooltip="Ask SupportSense: Show recent calls"
             />
 
             <NavButton
-              href="/staff#video"
+              href="/staff/video"
               icon={() => <HugeiconsIcon icon={Video02Icon} />}
               label="Video Sessions"
               tooltip="Ask SupportSense: Show video session history"
@@ -363,7 +336,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
 
             {/* History & Help Section */}
             <NavButton
-              href="/staff#history"
+              href="/staff/history"
               icon={() => <HugeiconsIcon icon={TransactionHistoryIcon} className="h-4 w-4 text-muted-foreground"/>}
               label="History"
               badge={liveStats.resolvedToday}
@@ -371,7 +344,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
             />
 
             <NavButton
-              href="/staff#help"
+              href="/staff/help"
               icon={() => <HugeiconsIcon icon={HelpCircleIcon} />}
               label="Help & Training"
               tooltip="Ask SupportSense: Help me with training materials"
@@ -383,7 +356,7 @@ const StaffSidebar = React.forwardRef<HTMLDivElement, StaffSidebarProps>(
 
             {/* My Queue - Highlighted */}
             <NavButton
-              href="/staff#my-queue"
+              href="/staff/my-queue"
               icon={() => <HugeiconsIcon icon={Clock05Icon} className="h-4 w-4 text-muted-foreground"/>}
               label="My Queue"
               badge={liveStats.myQueue}

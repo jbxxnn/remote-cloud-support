@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StaffSidebar } from "@/components/ui/staff-sidebar";
@@ -35,10 +35,12 @@ interface Client {
 
 interface StaffDashboardProps {
   user: any;
+  initialSection?: string;
 }
 
-export function StaffDashboard({ user }: StaffDashboardProps) {
+export function StaffDashboard({ user, initialSection = "dashboard" }: StaffDashboardProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [clients, setClients] = useState<Client[]>([]);
   const [activeAlertsCount, setActiveAlertsCount] = useState(0);
   const [openSOPsCount, setOpenSOPsCount] = useState(0);
@@ -46,7 +48,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const [currentSection, setCurrentSection] = useState<string>("dashboard");
+  const [currentSection, setCurrentSection] = useState<string>(initialSection);
 
   useEffect(() => {
     fetchDashboardData(true);
@@ -55,20 +57,10 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle hash-based navigation
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1); // Remove the #
-      setCurrentSection(hash || "dashboard");
-    };
-
-    // Check initial hash
-    handleHashChange();
-
-    // Listen for hash changes
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+    const section = pathname.split("/")[2] || "dashboard";
+    setCurrentSection(section);
+  }, [pathname]);
 
   const fetchDashboardData = async (isInitial = false) => {
     try {
