@@ -1,0 +1,18 @@
+# SupportSense Agent Rules
+
+Please refer to the following local documentation for rules and knowledge:
+
+- Behavior: agent/rules/behavior.md
+- Coding: agent/rules/coding-standards.md
+- Security: agent/rules/security.md
+- Tech Stack: agent/knowledge/tech-stack.md
+- Architecture: agent/knowledge/architecture.md
+- Feature Workflow: agent/workflows/feature-workflow.md
+- Session Education: agent/bootstrap.md
+
+Current Project Snapshot: agent/mcp.json
+
+## MANDATORY INSTRUCTIONS
+1. ALWAYS read `agent/bootstrap.md` at the start of a session.
+2. ALWAYS verify database changes by creating a migration in `database/`.
+3. ALWAYS prioritize visual excellence in UI development.
